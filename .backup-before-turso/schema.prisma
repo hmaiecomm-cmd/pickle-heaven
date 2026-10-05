@@ -1,0 +1,291 @@
+// 匹克天堂 Pickle Heaven — Pickleball Court Booking Platform (Taiwan / LINE MINI App)
+// Database: PostgreSQL (Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")        // Supabase: connection pooler (pgbouncer, port 6543)
+  directUrl = env("DIRECT_URL")          // Supabase: direct connection (port 5432) for migrations
+}
+
+enum Role {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum RateKind {
+  PEAK      // 尖峰
+  OFFPEAK   // 離峰
+}
+
+enum DayType {
+  ALL
+  WEEKDAY
+  WEEKEND
+}
+
+enum ReservationStatus {
+  HELD      // 購物車暫扣
+  BOOKED    // 已成立
+  BLOCKED   // 場館維護 / 課程鎖定
+}
+
+enum BookingStatus {
+  PENDING   // 待付款
+  PAID      // 已付款
+  CANCELLED // 已取消
+  EXPIRED   // 逾時未付款
+  COMPLETED // 已完成（打完球）
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  LINE_PAY
+}
+
+enum VoucherType {
+  AMOUNT    // 折抵固定金額
+  PERCENT   // 折扣百分比（90 = 9 折）
+}
+
+/// 會員（以 LINE userId 為主要識別）
+model User {
+  id          String   @id @default(cuid())
+  lineUserId  String?  @unique
+  displayName String
+  pictureUrl  String?
+  phone       String?
+  email       String?
+  role        Role     @default(USER)
+  /// 點數餘額（1 點 = NT$1，取消退款時回補）
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings Booking[]
+  vouchers Voucher[]
+
+  @@index([createdAt])
+}
+
+/// 場館
+model Venue {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  address     String
+  phone       String
+  description String?
+  coverUrl    String?
+  /// 營業起始（自午夜起算分鐘）600 = 10:00
+  openMinute  Int     @default(600)
+  /// 營業結束，可跨日。1440 = 隔日 00:00
+  closeMinute Int     @default(1440)
+  /// 每時段長度（分鐘）
+  slotMinutes Int     @default(60)
+  /// 開放預約未來天數
+  bookAheadDays Int   @default(14)
+  /// 購物車暫扣保留時間（分鐘）
+  holdMinutes Int     @default(10)
+  active      Boolean @default(true)
+  notice      String?
+  policy      String?
+
+  courts     Court[]
+  priceRules PriceRule[]
+  bookings   Booking[]
+}
+
+/// 場地（球場）
+model Court {
+  id        String  @id @default(cuid())
+  venueId   String
+  name      String
+  sortOrder Int     @default(0)
+  /// 室內球場
+  indoor    Boolean @default(true)
+  /// 室外球場是否有雨棚遮蔽
+  covered   Boolean @default(false)
+  surface   String?
+  active    Boolean @default(true)
+
+  venue        Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  bookingItems BookingItem[]
+
+  @@index([venueId, sortOrder])
+}
+
+/// 價格規則（尖峰 / 離峰）
+model PriceRule {
+  id          String   @id @default(cuid())
+  venueId     String
+  name        String
+  kind        RateKind @default(OFFPEAK)
+  dayType     DayType  @default(ALL)
+  startMinute Int
+  endMinute   Int
+  /// 每時段價格（新台幣整數元）
+  price       Int
+  priority    Int      @default(0)
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, dayType])
+}
+
+/// 佔用列 — 場地可用性的唯一真實來源。
+/// (courtId, startsAt) 唯一鍵即為防止超賣的併發鎖。
+/// 取消訂單時刪除本列以釋放時段，歷史快照保留於 BookingItem。
+model Reservation {
+  id            String            @id @default(cuid())
+  courtId       String
+  startsAt      DateTime          @db.Timestamptz(3)
+  endsAt        DateTime          @db.Timestamptz(3)
+  status        ReservationStatus
+  /// HELD 專用：暫扣到期時間
+  holdExpiresAt DateTime?         @db.Timestamptz(3)
+  /// HELD 專用：購物車識別碼（用以區分「已選取」與「他人暫扣」）
+  cartToken     String?
+  bookingId     String?
+  note          String?
+  createdAt     DateTime          @default(now())
+
+  court   Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([courtId, startsAt])
+  @@index([startsAt])
+  @@index([bookingId])
+  @@index([holdExpiresAt])
+  @@index([cartToken])
+}
+
+/// 訂單
+model Booking {
+  id       String        @id @default(cuid())
+  code     String        @unique
+  userId   String
+  venueId  String
+  /// 預約日期（Asia/Taipei 的 YYYY-MM-DD）
+  playDate String
+  status   BookingStatus @default(PENDING)
+
+  subtotal   Int
+  discount   Int @default(0)
+  pointsUsed Int @default(0)
+  total      Int
+
+  contactName  String
+  contactPhone String
+  note         String?
+  voucherCode  String?
+
+  /// 待付款訂單的付款期限
+  expiresAt   DateTime? @db.Timestamptz(3)
+  paidAt      DateTime? @db.Timestamptz(3)
+  cancelledAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  items        BookingItem[]
+  payments     Payment[]
+  reservations Reservation[]
+  voucher      Voucher?
+
+  @@index([userId, createdAt])
+  @@index([venueId, playDate])
+  @@index([status])
+}
+
+/// 訂單明細（下單當下的快照）
+model BookingItem {
+  id        String   @id @default(cuid())
+  bookingId String
+  courtId   String
+  courtName String
+  startsAt  DateTime @db.Timestamptz(3)
+  endsAt    DateTime @db.Timestamptz(3)
+  price     Int
+  rateName  String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id])
+
+  @@index([bookingId])
+  @@index([startsAt])
+}
+
+/// 金流交易紀錄。
+/// 僅保存金流商回傳的交易識別碼與遮罩後末四碼，
+/// 絕不儲存卡號、CVV 或任何持卡人敏感資料。
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String
+  /// mock | tappay | newebpay | linepay
+  provider    String
+  method      PaymentMethod @default(CREDIT_CARD)
+  amount      Int
+  status      PaymentStatus @default(PENDING)
+  /// 金流商交易序號（對帳用）
+  providerRef String?
+  /// 卡號末四碼（金流商回傳的遮罩資訊，非完整卡號）
+  cardLast4   String?
+  cardBrand   String?
+  /// 金流商回呼原始內容（已移除敏感欄位）
+  rawResponse Json?
+  failReason  String?
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?     @db.Timestamptz(3)
+  refundedAt  DateTime?     @db.Timestamptz(3)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([providerRef])
+}
+
+/// 折價券
+model Voucher {
+  id        String      @id @default(cuid())
+  code      String      @unique
+  title     String
+  type      VoucherType @default(AMOUNT)
+  value     Int
+  minSpend  Int         @default(0)
+  userId    String?
+  expiresAt DateTime?   @db.Timestamptz(3)
+  usedAt    DateTime?   @db.Timestamptz(3)
+  bookingId String?     @unique
+  createdAt DateTime    @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+/// 後台操作稽核
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

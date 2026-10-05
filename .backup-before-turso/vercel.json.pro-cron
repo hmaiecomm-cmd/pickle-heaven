@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "hnd1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/expire-bookings",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sessions",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

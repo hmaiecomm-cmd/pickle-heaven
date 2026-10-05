@@ -1,0 +1,28 @@
+# 這個專案沒有使用 git，Vercel CLI 會改讀這個檔案決定哪些不要上傳。
+# 少了它，node_modules（約 900 MB）會被整包送上去。
+
+node_modules
+.next
+
+# 本機才有的東西
+# 所有 .env* 一律不上傳。正式環境的變數改由 Vercel 專案設定提供
+# （npm run vercel:env 已推送）。.env.local 內含 Vercel OIDC token。
+.env*
+.backup-before-turso
+.claude
+tsconfig.tsbuildinfo
+desktop.ini
+
+# 只在本機用的開發／驗證腳本（正式環境不需要）
+scripts/verify-*.mts
+scripts/fill-session.mts
+scripts/snapshot.mjs
+scripts/sync-to-dropbox.mjs
+scripts/clean-next.mjs
+scripts/stub-server-only.cjs
+scripts/push-env-to-vercel.mjs
+prisma/turso-init.sql
+
+# 部署除錯用的暫存記錄
+vercel-*.txt
+.vercel

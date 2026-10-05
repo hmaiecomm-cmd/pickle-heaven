@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 字體：優先使用系統內建的繁體中文字型，不依賴外部字型檔 */
+    --font-app: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Segoe UI', system-ui, sans-serif;
+
+    --bg: 248 249 251;
+    --surface: 255 255 255;
+    --surface-2: 246 247 249;
+    --border: 226 230 237;
+    --fg: 14 23 38;
+    --fg-muted: 102 115 139;
+    --primary: 15 163 107;
+    --primary-fg: 255 255 255;
+    --danger: 220 38 38;
+    --warn: 217 119 6;
+  }
+
+  .dark {
+    --bg: 9 13 22;
+    --surface: 18 24 36;
+    --surface-2: 24 31 45;
+    --border: 40 50 68;
+    --fg: 233 238 245;
+    --fg-muted: 148 163 184;
+    --primary: 22 190 125;
+    --primary-fg: 6 24 18;
+    --danger: 248 113 113;
+    --warn: 251 191 36;
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--fg));
+    font-family: var(--font-app);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* LINE 內建瀏覽器：避免點擊出現灰色閃爍 */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  /* 數字採用等寬對齊，價格與時間排列整齊 */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--primary));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .surface {
+    background-color: rgb(var(--surface));
+  }
+  .surface-2 {
+    background-color: rgb(var(--surface-2));
+  }
+  .text-muted {
+    color: rgb(var(--fg-muted));
+  }
+
+  /* iOS 安全區域（LIFF 全螢幕模式底部固定列） */
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* 時段矩陣的橫向捲動容器 */
+  .matrix-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .matrix-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  .matrix-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--border));
+    border-radius: 999px;
+  }
+
+  /* 日期列：隱藏捲軸但保留捲動 */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
