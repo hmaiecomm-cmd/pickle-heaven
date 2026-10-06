@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
+import { parseWeekdays } from '@/lib/session-schedule'
 import { TemplatesClient, type TemplateRow } from './templates-client'
 
 export const metadata: Metadata = { title: '週期性範本' }
@@ -24,7 +25,7 @@ export default async function AdminTemplatesPage() {
     venueName: t.venue.name,
     sessionCount: t._count.sessions,
     title: t.title,
-    weekday: t.weekday,
+    weekdays: parseWeekdays(t.weekdays, t.weekday),
     startMinute: t.startMinute,
     endMinute: t.endMinute,
     capacity: t.capacity,

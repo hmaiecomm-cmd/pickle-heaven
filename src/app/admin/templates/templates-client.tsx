@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Field, Input } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
+import { describeWeekdays } from '@/lib/session-schedule'
 import {
   createTemplate,
   generateNow,
@@ -25,7 +26,7 @@ export type TemplateRow = TemplateInput & { id: string; venueName: string; sessi
 
 const EMPTY: TemplateInput = {
   title: '',
-  weekday: 2,
+  weekdays: [2],
   startMinute: 12 * 60,
   endMinute: 14 * 60,
   capacity: 8,
@@ -117,7 +118,7 @@ export function TemplatesClient({ templates }: { templates: TemplateRow[] }) {
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-semibold">{t.title}</h2>
                 <p className="mt-0.5 text-sm text-muted">
-                  每{WEEKDAYS[t.weekday]} {toTime(t.startMinute)}–{toTime(t.endMinute)}
+                  {describeWeekdays(t.weekdays)} {toTime(t.startMinute)}–{toTime(t.endMinute)}
                 </p>
                 <p className="mt-0.5 text-xs text-muted">
                   {t.venueName}　{t.capacity} 人
@@ -192,21 +193,35 @@ function TemplateForm({
         <Input id="t-title" value={form.title} onChange={(e) => set('title', e.target.value)} />
       </Field>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="星期" htmlFor="t-weekday">
-          <select
-            id="t-weekday"
-            value={form.weekday}
-            onChange={(e) => set('weekday', Number(e.target.value))}
-            className="h-11 w-full rounded-xl border border-[rgb(var(--border))] surface px-3 text-[15px]"
-          >
-            {WEEKDAYS.map((w, i) => (
-              <option key={w} value={i}>
+      <Field label="星期（可多選，七天全選即每天）" htmlFor="t-weekdays">
+        <div id="t-weekdays" className="flex flex-wrap gap-2">
+          {WEEKDAYS.map((w, i) => {
+            const on = form.weekdays.includes(i)
+            return (
+              <button
+                key={w}
+                type="button"
+                aria-pressed={on}
+                onClick={() =>
+                  set(
+                    'weekdays',
+                    on ? form.weekdays.filter((d) => d !== i) : [...form.weekdays, i].sort((a, b) => a - b),
+                  )
+                }
+                className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
+                  on
+                    ? 'border-brand-600 bg-brand-600 text-white'
+                    : 'border-[rgb(var(--border))] surface text-[rgb(var(--fg-muted))] hover:surface-2'
+                }`}
+              >
                 {w}
-              </option>
-            ))}
-          </select>
-        </Field>
+              </button>
+            )
+          })}
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
         <Field label="開始" htmlFor="t-start">
           <Input
             id="t-start"

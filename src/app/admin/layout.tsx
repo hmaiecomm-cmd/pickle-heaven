@@ -13,6 +13,7 @@ const NAV = [
   { href: '/admin/bookings', label: '訂單管理' },
   { href: '/admin/sessions', label: '球敘' },
   { href: '/admin/schedule', label: '場地時段' },
+  { href: '/admin/ai-courts', label: '🤖 AI智慧球場' },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
