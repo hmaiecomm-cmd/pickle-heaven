@@ -1,0 +1,48 @@
+import { Court } from '../models'
+
+export const mockCourts: Court[] = [
+  {
+    id: 'court-1',
+    name: 'Court 1 - 標準場',
+    venueId: 'venue-1',
+    capacity: 4,
+    pricePerHour: 500,
+    status: 'ACTIVE',
+    lights: 'ONLINE',
+    fans: 'ONLINE',
+    door: 'ONLINE',
+  },
+  {
+    id: 'court-2',
+    name: 'Court 2 - 標準場',
+    venueId: 'venue-1',
+    capacity: 4,
+    pricePerHour: 500,
+    status: 'ACTIVE',
+    lights: 'ONLINE',
+    fans: 'ONLINE',
+    door: 'ONLINE',
+  },
+  {
+    id: 'court-3',
+    name: 'Court 3 - VIP 場',
+    venueId: 'venue-1',
+    capacity: 6,
+    pricePerHour: 800,
+    status: 'ACTIVE',
+    lights: 'ONLINE',
+    fans: 'ONLINE',
+    door: 'ONLINE',
+  },
+  {
+    id: 'court-4',
+    name: 'Court 4 - 訓練場',
+    venueId: 'venue-1',
+    capacity: 8,
+    pricePerHour: 1000,
+    status: 'MAINTENANCE',
+    lights: 'OFFLINE',
+    fans: 'OFFLINE',
+    door: 'OFFLINE',
+  },
+]
