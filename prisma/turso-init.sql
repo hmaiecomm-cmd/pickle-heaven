@@ -49,7 +49,23 @@ CREATE TABLE "Court" (
     "covered" BOOLEAN NOT NULL DEFAULT false,
     "surface" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "capacity" INTEGER NOT NULL DEFAULT 4,
     CONSTRAINT "Court_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Device" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "courtId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'ONLINE',
+    "lastSeen" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastAction" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Device_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -303,6 +319,9 @@ CREATE UNIQUE INDEX "Venue_slug_key" ON "Venue"("slug");
 
 -- CreateIndex
 CREATE INDEX "Court_venueId_sortOrder_idx" ON "Court"("venueId", "sortOrder");
+
+-- CreateIndex
+CREATE INDEX "Device_courtId_idx" ON "Device"("courtId");
 
 -- CreateIndex
 CREATE INDEX "PriceRule_venueId_dayType_idx" ON "PriceRule"("venueId", "dayType");

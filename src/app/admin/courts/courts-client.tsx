@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { getCourts, getDevices } from '@/lib/api-service'
+import { getCourts, getDevices, updateCourtStatus } from '@/lib/api-service'
 import type { Court, Device, DeviceStatus } from '@/lib/models'
 
 /** 球場（Phase 1I）。資料來自 mock api-service；狀態切換僅更新本機狀態。 */
@@ -57,16 +57,28 @@ export function CourtsClient() {
       total: courts.length,
       active: courts.filter((c) => c.status === 'ACTIVE').length,
       capacity: courts.filter((c) => c.status === 'ACTIVE').reduce((s, c) => s + c.capacity, 0),
-      offline: courts.filter((c) => [c.lights, c.fans, c.door].some((s) => s !== 'ONLINE')).length,
+      offline: courts.filter((c) => [c.lights, c.fans, c.door].some((s) => s !== undefined && s !== 'ONLINE')).length,
     }),
     [courts],
   )
 
-  /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setStatus = (id: string, status: CourtStatus) => {
-    setCourts((list) => list.map((c) => (c.id === id ? { ...c, status } : c)))
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  /** 寫入資料庫並留下稽核紀錄；非營運中的球場前台會停止開放預約。 */
+  const setStatus = async (id: string, status: CourtStatus) => {
     const name = courts.find((c) => c.id === id)?.name ?? '球場'
-    toast(`${name} 已設為「${STATUS_META[status].label}」（mock，未寫入資料庫）`, 'success')
+    setBusyId(id)
+    try {
+      const res = await updateCourtStatus(id, status)
+      if (!res.success) {
+        toast(`${name} 狀態變更失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+        return
+      }
+      setCourts((list) => list.map((c) => (c.id === id ? { ...c, status: res.data.status } : c)))
+      toast(`${name} 已設為「${STATUS_META[status].label}」`, 'success')
+    } finally {
+      setBusyId(null)
+    }
   }
 
   const editing = courts.find((c) => c.id === editingId) ?? null
@@ -143,15 +155,15 @@ export function CourtsClient() {
 
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-3">
                   {c.status === 'ACTIVE' ? (
-                    <Button size="sm" variant="secondary" onClick={() => setStatus(c.id, 'MAINTENANCE')}>
+                    <Button size="sm" variant="secondary" loading={busyId === c.id} onClick={() => setStatus(c.id, 'MAINTENANCE')}>
                       <Wrench className="h-4 w-4" aria-hidden />
                       設為維護中
                     </Button>
                   ) : (
-                    <Button size="sm" onClick={() => setStatus(c.id, 'ACTIVE')}>恢復營運</Button>
+                    <Button size="sm" loading={busyId === c.id} onClick={() => setStatus(c.id, 'ACTIVE')}>恢復營運</Button>
                   )}
                   {c.status !== 'INACTIVE' ? (
-                    <Button size="sm" variant="ghost" onClick={() => setStatus(c.id, 'INACTIVE')}>停用</Button>
+                    <Button size="sm" variant="ghost" disabled={busyId === c.id} onClick={() => setStatus(c.id, 'INACTIVE')}>停用</Button>
                   ) : null}
                   <Button size="sm" variant="ghost" onClick={() => setEditingId(c.id)}>編輯</Button>
                 </div>
@@ -189,14 +201,14 @@ export function CourtsClient() {
   )
 }
 
-function DeviceCell({ icon: Icon, label, status }: { icon: React.ElementType; label: string; status: DeviceStatus }) {
+function DeviceCell({ icon: Icon, label, status }: { icon: React.ElementType; label: string; status?: DeviceStatus }) {
   return (
     <div className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border))] px-2.5 py-2">
       <Icon className="h-4 w-4 text-muted" aria-hidden />
       <span className="flex-1">{label}</span>
       <span className="flex items-center gap-1 text-muted">
-        <span className={`h-2 w-2 rounded-full ${DEVICE_DOT[status]}`} aria-hidden />
-        {DEVICE_LABEL[status]}
+        <span className={`h-2 w-2 rounded-full ${status ? DEVICE_DOT[status] : 'bg-gray-300 dark:bg-gray-600'}`} aria-hidden />
+        {status ? DEVICE_LABEL[status] : '未設定'}
       </span>
     </div>
   )

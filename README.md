@@ -408,6 +408,14 @@ Set-Content -Path "node_modules" -Stream com.dropbox.ignored -Value 1
 
 （OneDrive 則可對資料夾按右鍵選「一律保留在此裝置上」以外的設定，或將專案移出同步資料夾。）
 
+**不要刪除 `.next` 資料夾本身。** 資料夾一旦刪除重建，Dropbox 的雲端檔案引擎可能搶先接管它（變成 reparse point），dev server 會以 `EINVAL readlink` 起不來，忽略標記也會消失。要清快取請用 `npm run dev:clean`，它只清空內容、保留資料夾與標記。若已經發生，於 PowerShell 執行：
+
+```powershell
+cmd /c "rmdir /s /q .next"; New-Item -ItemType Directory .next | Out-Null; Set-Content -Path .next -Stream com.dropbox.ignored -Value 1
+```
+
+（把 `.next` 做成指向 Dropbox 外的 junction 行不通：編譯輸出會找不到 `node_modules`。）
+
 ### 種子資料連不上資料庫
 
 Prisma CLI 只會讀取 `.env`（不會讀 `.env.local`），請確認 `.env` 內的

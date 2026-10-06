@@ -35,6 +35,26 @@ enum ReservationStatus {
   BLOCKED // 場館維護 / 課程鎖定
 }
 
+enum CourtStatus {
+  ACTIVE // 營運中
+  MAINTENANCE // 維護中
+  INACTIVE // 停用
+}
+
+enum DeviceType {
+  DOOR
+  LIGHTS
+  FANS
+  CAMERA
+  SPEAKER
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  WARNING
+}
+
 enum BookingStatus {
   PENDING // 待付款
   PAID // 已付款
@@ -136,8 +156,13 @@ model Court {
   covered   Boolean @default(false)
   surface   String?
   active    Boolean @default(true)
+  /// 營運狀態；MAINTENANCE / INACTIVE 時 active 同步為 false
+  status    CourtStatus @default(ACTIVE)
+  /// 建議同時上場人數
+  capacity  Int         @default(4)
 
   venue            Venue             @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  devices          Device[]
   reservations     Reservation[]
   bookingItems     BookingItem[]
   sessionTemplates SessionTemplate[]
@@ -147,6 +172,24 @@ model Court {
 }
 
 /// 價格規則（尖峰 / 離峰）
+/// 球場設備（門禁、照明、風扇、攝影機、喇叭）
+model Device {
+  id         String       @id @default(cuid())
+  courtId    String
+  type       DeviceType
+  name       String
+  status     DeviceStatus @default(ONLINE)
+  lastSeen   DateTime     @default(now())
+  /// 最後一次動作，例如 ON / OFF / LOCKED / UNLOCKED
+  lastAction String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([courtId])
+}
+
 model PriceRule {
   id          String   @id @default(cuid())
   venueId     String

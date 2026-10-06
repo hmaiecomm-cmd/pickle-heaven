@@ -51,7 +51,8 @@ const API_STATUS: { name: string; mode: 'mock' | 'live' }[] = [
   { name: '發票、收據', mode: 'mock' },
   { name: 'OCR 辨識', mode: 'mock' },
   { name: 'AI 助理', mode: 'mock' },
-  { name: '智慧球場裝置', mode: 'mock' },
+  { name: '球場與裝置清單（Turso）', mode: 'live' },
+  { name: '智慧球場即時控制', mode: 'mock' },
   { name: '球敘與範本（Turso）', mode: 'live' },
   { name: '場地時段與訂單管理（Turso）', mode: 'live' },
 ]

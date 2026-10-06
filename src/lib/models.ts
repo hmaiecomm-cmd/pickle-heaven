@@ -28,9 +28,10 @@ export interface Court {
   capacity: number
   pricePerHour: number
   status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE'
-  lights: DeviceStatus
-  fans: DeviceStatus
-  door: DeviceStatus
+  /** 沒有對應裝置時為 undefined */
+  lights?: DeviceStatus
+  fans?: DeviceStatus
+  door?: DeviceStatus
 }
 
 export interface ReservationItem {

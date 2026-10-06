@@ -44,10 +44,33 @@ export interface ApiResponse<T> {
 }
 
 /**
- * 財務資料來源。預設走真實 API（Phase 2）；
- * 設 NEXT_PUBLIC_FINANCE_SOURCE=mock 可退回 mock 資料（展示或離線開發用）。
+ * 後台資料來源。已接資料庫的功能預設走真實 API（Phase 2）；
+ * 設 NEXT_PUBLIC_ADMIN_SOURCE=mock 可整體退回 mock 資料（展示或離線開發用）。
  */
-const FINANCE_LIVE = process.env.NEXT_PUBLIC_FINANCE_SOURCE !== 'mock'
+const ADMIN_LIVE = process.env.NEXT_PUBLIC_ADMIN_SOURCE !== 'mock'
+const FINANCE_LIVE = ADMIN_LIVE
+
+async function sendAdmin<T>(path: string, method: 'PATCH' | 'POST' | 'DELETE', payload?: unknown): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(path, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    })
+    const body = (await res.json().catch(() => null)) as ApiResponse<T> | null
+    if (!res.ok || !body?.success) {
+      return {
+        success: false,
+        data: undefined as unknown as T,
+        error: body?.error ?? { code: `HTTP_${res.status}`, message: res.status === 401 ? '請重新登入' : '伺服器錯誤' },
+      }
+    }
+    return body
+  } catch (error) {
+    return { success: false, data: undefined as unknown as T, error: { code: 'NETWORK_ERROR', message: String(error) } }
+  }
+}
 
 async function fetchAdmin<T>(path: string): Promise<ApiResponse<T>> {
   try {
@@ -196,6 +219,10 @@ export async function getMembers(): Promise<ApiResponse<Member[]>> {
 
 // ============ COURTS ============
 export async function getCourts(): Promise<ApiResponse<Court[]>> {
+  if (ADMIN_LIVE) {
+    const res = await fetchAdmin<Court[]>('/api/admin/courts')
+    return res.success ? res : { ...res, data: [] }
+  }
   try {
     return {
       success: true,
@@ -457,7 +484,18 @@ export async function getExpenses(
 }
 
 // ============ DEVICES ============
+/** 變更球場營運狀態（Phase 2，寫入資料庫與稽核紀錄）。 */
+export async function updateCourtStatus(id: string, status: Court['status']): Promise<ApiResponse<{ id: string; status: Court['status']; active: boolean }>> {
+  if (!ADMIN_LIVE) return { success: true, data: { id, status, active: status === 'ACTIVE' } }
+  return sendAdmin(`/api/admin/courts/${encodeURIComponent(id)}/status`, 'PATCH', { status })
+}
+
 export async function getDevices(): Promise<ApiResponse<Device[]>> {
+  if (ADMIN_LIVE) {
+    const res = await fetchAdmin<Array<Omit<Device, 'lastSeen'> & { lastSeen: string }>>('/api/admin/devices')
+    if (!res.success) return { ...res, data: [] }
+    return { ...res, data: res.data.map((d) => ({ ...d, lastSeen: toDate(d.lastSeen) ?? new Date() })) }
+  }
   try {
     return {
       success: true,
