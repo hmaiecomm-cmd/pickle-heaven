@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { getAdminUser } from '@/lib/admin-auth'
+import { AppShell } from '@/components/layout'
+import type { NavGroup } from '@/components/layout/Sidebar'
 import { AdminSignOut } from './sign-out'
 
 export const metadata: Metadata = {
@@ -8,47 +9,67 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-const NAV = [
-  { href: '/admin', label: '總覽' },
-  { href: '/admin/bookings', label: '訂單管理' },
-  { href: '/admin/sessions', label: '球敘' },
-  { href: '/admin/schedule', label: '場地時段' },
-  { href: '/admin/ai-courts', label: '🤖 AI智慧球場' },
+/**
+ * 後台導覽。標示 mock 的頁面資料來自 lib/mock-data，尚未接資料庫。
+ * 存取保護在 src/middleware.ts。
+ */
+const NAV: NavGroup[] = [
+  {
+    title: '總覽',
+    items: [
+      { label: '今日總覽', href: '/admin', exact: true },
+    ],
+  },
+  {
+    title: '營運',
+    items: [
+      { label: '訂單管理', href: '/admin/bookings' },
+      { label: '場地時段', href: '/admin/schedule' },
+      { label: '球敘', href: '/admin/sessions' },
+      { label: '球敘範本', href: '/admin/templates' },
+      { label: '活動與教練', href: '/admin/events', mock: true },
+      { label: '會員', href: '/admin/members', mock: true },
+      { label: '球場', href: '/admin/courts', mock: true },
+      { label: '定價', href: '/admin/pricing', mock: true },
+    ],
+  },
+  {
+    title: '財務',
+    items: [
+      { label: '營收與財務', href: '/admin/finance', exact: true, mock: true },
+      { label: '付款狀態', href: '/admin/finance/payments', mock: true },
+      { label: '發票', href: '/admin/invoices', mock: true },
+      { label: '收據', href: '/admin/receipts', mock: true },
+      { label: '費用', href: '/admin/expenses', mock: true },
+      { label: '報表與分析', href: '/admin/reports', mock: true },
+    ],
+  },
+  {
+    title: 'AI 與智慧場館',
+    items: [
+      { label: 'AI 智慧球場', href: '/admin/ai-courts' },
+      { label: 'AI 管理助理', href: '/admin/ai-assistant', mock: true },
+    ],
+  },
+  {
+    title: '管理',
+    items: [{ label: '設定', href: '/admin/settings', mock: true }],
+  },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await getAdminUser()
 
+  // 登入頁不套後台外框
+  if (!admin) return <div className="min-h-dvh bg-[rgb(var(--bg))]">{children}</div>
+
   return (
-    <div className="min-h-dvh bg-[rgb(var(--bg))]">
-      <header className="border-b border-[rgb(var(--border))] surface">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-          <Link href="/admin" className="flex items-center gap-2 text-sm font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-ink-900 text-xs font-bold text-white">
-              PH
-            </span>
-            匹克天堂後台
-          </Link>
-          <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:surface-2 hover:text-[rgb(var(--fg))]"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <Link href="/booking" className="text-xs text-muted hover:text-brand-600">
-              前台 →
-            </Link>
-            {admin ? <AdminSignOut username={admin} /> : null}
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
-    </div>
+    <AppShell
+      nav={NAV}
+      brand={{ href: '/admin', label: '匹克天堂後台', short: 'PH' }}
+      headerRight={<AdminSignOut username={admin} />}
+    >
+      {children}
+    </AppShell>
   )
 }

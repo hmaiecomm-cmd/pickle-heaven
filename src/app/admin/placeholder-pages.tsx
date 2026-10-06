@@ -14,15 +14,3 @@ export function PlaceholderPage({ title, subtitle }: { title: string; subtitle: 
 }
 
 // 快速生成這些頁面：
-// - /owner/members
-// - /owner/courts
-// - /owner/pricing
-// - /owner/finance
-// - /owner/finance/payments
-// - /owner/invoices
-// - /owner/receipts
-// - /owner/expenses
-// - /owner/reports
-// - /owner/ai-assistant
-// - /owner/smart-court
-// - /owner/settings
