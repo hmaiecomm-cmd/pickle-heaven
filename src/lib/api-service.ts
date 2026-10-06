@@ -19,6 +19,8 @@ import {
   SystemSettings,
   VenueSettingsPatch,
   AuditEntry,
+  AiChatResult,
+  AiActionPreview,
   Court,
   FinancialSummary,
   RevenueByCourtByType,
@@ -278,6 +280,19 @@ export async function getPricing(): Promise<ApiResponse<{ priceRules: PriceRuleR
 export async function updateMembershipTiers(tiers: { level: MembershipTierRow['level']; discountPct: number }[]): Promise<ApiResponse<MembershipTierRow[]>> {
   if (!ADMIN_LIVE) return { success: true, data: tiers.map((t) => ({ ...t, label: t.level })) }
   return sendAdmin('/api/admin/pricing/tiers', 'PUT', { tiers })
+}
+
+/** AI 管理助理對話（Phase 2，伺服器端呼叫 Claude）。history 只含文字。 */
+export async function postAdminChat(history: { role: 'user' | 'assistant'; text: string }[]): Promise<ApiResponse<AiChatResult>> {
+  const res = await sendAdmin<Omit<AiChatResult, 'period'> & { period?: { from: string; to: string } }>('/api/admin/ai/chat', 'POST', { messages: history })
+  if (!res.success) return { ...res, data: undefined as unknown as AiChatResult }
+  const p = res.data.period
+  return { ...res, data: { ...res.data, period: p ? { from: new Date(p.from), to: new Date(p.to) } : undefined } }
+}
+
+/** 記錄擁有者對 AI 操作預覽的決定（只寫稽核紀錄，不執行）。 */
+export async function recordAiDecision(decision: 'confirm' | 'decline', action: AiActionPreview): Promise<ApiResponse<{ recorded: boolean; executed: boolean }>> {
+  return sendAdmin('/api/admin/ai/actions', 'POST', { decision, action })
 }
 
 /** 系統設定：場館、金流與整合狀態、系統資訊、安全提醒（Phase 2）。 */

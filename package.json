@@ -30,6 +30,7 @@
     "dropbox:ignore": "node scripts/dropbox-ignore.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@libsql/client": "^0.18.0",
     "@line/liff": "^2.24.0",
     "@prisma/adapter-libsql": "^6.19.3",

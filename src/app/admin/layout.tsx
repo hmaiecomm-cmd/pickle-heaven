@@ -48,7 +48,7 @@ const NAV: NavGroup[] = [
     title: 'AI 與智慧場館',
     items: [
       { label: 'AI 智慧球場', href: '/admin/ai-courts' },
-      { label: 'AI 管理助理', href: '/admin/ai-assistant', mock: true },
+      { label: 'AI 管理助理', href: '/admin/ai-assistant' },
     ],
   },
   {

@@ -69,6 +69,7 @@ export async function GET() {
         { key: 'messaging', label: 'LINE 訊息推播', configured: has('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN') },
         { key: 'cron', label: '排程保護（CRON_SECRET）', configured: has('CRON_SECRET') && process.env.CRON_SECRET !== 'change-me' },
         { key: 'admin', label: '後台帳號', configured: has('ADMIN_USERNAME', 'ADMIN_PASSWORD_HASH') },
+        { key: 'anthropic', label: 'Claude API（AI 管理助理）', configured: has('ANTHROPIC_API_KEY') },
       ],
       system: {
         environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',

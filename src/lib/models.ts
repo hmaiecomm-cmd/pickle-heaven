@@ -69,6 +69,25 @@ export interface SystemSettings {
   warnings: { level: 'danger' | 'warning'; message: string }[]
 }
 
+export interface AiActionPreview {
+  actionType: string
+  title: string
+  items: string[]
+  impact: string
+}
+
+export interface AiChatResult {
+  reply: string
+  period?: { from: Date; to: Date }
+  sources: string[]
+  notes: string[]
+  actions: AiActionPreview[]
+  toolsUsed: string[]
+  model: string
+  usage: { inputTokens: number; outputTokens: number }
+  refused?: boolean
+}
+
 export interface AuditEntry {
   id: string
   actor: string
