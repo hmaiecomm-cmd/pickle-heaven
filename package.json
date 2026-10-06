@@ -26,7 +26,8 @@
     "sync": "node scripts/sync-to-dropbox.mjs",
     "dev:fill": "tsx -r ./scripts/stub-server-only.cjs scripts/fill-session.mts",
     "vercel:env": "node scripts/push-env-to-vercel.mjs",
-    "verify:db": "node scripts/verify-db-isolation.mjs"
+    "verify:db": "node scripts/verify-db-isolation.mjs",
+    "dropbox:ignore": "node scripts/dropbox-ignore.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
