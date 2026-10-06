@@ -1,17 +1,8 @@
-﻿'use client'
+import type { Metadata } from 'next'
+import { FinanceClient } from './finance-client'
 
-import { PageHeader } from '@/components/layout'
+export const metadata: Metadata = { title: '營收與財務' }
 
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="財務" 
-        subtitle="Phase 1 開發中..."
-      />
-      <div className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center">
-        <p className="text-muted">財務 頁面 - 佔位符</p>
-      </div>
-    </div>
-  )
+export default function FinancePage() {
+  return <FinanceClient />
 }
