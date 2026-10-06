@@ -300,11 +300,14 @@ npm run admin:password -- 新密碼
 1. 匯入 Git repository。
 2. 在 Vercel 設定所有環境變數（`.env.example` 清單），`NEXT_PUBLIC_APP_URL` 填正式網域。
 3. Build Command 使用預設 `npm run build`（已包含 `prisma generate`）。
-4. 首次部署後執行一次資料庫建表：
+4. 首次部署前，在本機對正式庫建表（暫時指定正式庫連線，`.env` 的開發庫設定不受影響）：
 
-```bash
-npx prisma migrate deploy     # 或 npx prisma db push
+```powershell
+$env:TURSO_DATABASE_URL='libsql://正式庫'; $env:TURSO_AUTH_TOKEN='正式庫token'; npm run db:turso:init
 ```
+
+   之後 schema 有變動時，不要重跑建表；把差異 SQL 放進 `prisma/migrations-manual/`，
+   再以 `node scripts/apply-sql.mjs <檔案>` 同樣指定正式庫連線套用。
 
 5. `vercel.json` 已設定 Cron，每 5 分鐘呼叫 `/api/cron/expire-bookings`
    （釋放逾時暫扣、標記逾時訂單、標記已完成訂單）。請一併設定 `CRON_SECRET`。
