@@ -45,7 +45,7 @@ const RULES = [
 ]
 const API_STATUS: { name: string; mode: 'mock' | 'live' }[] = [
   { name: '預約與訂單', mode: 'mock' },
-  { name: '會員', mode: 'mock' },
+  { name: '會員與定價（Turso）', mode: 'live' },
   { name: '營收與付款（Turso）', mode: 'live' },
   { name: '費用、收據、發票（Turso）', mode: 'live' },
   { name: 'OCR 辨識', mode: 'mock' },

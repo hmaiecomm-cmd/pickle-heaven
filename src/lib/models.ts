@@ -19,6 +19,30 @@ export interface Member {
   lastVisit: Date
   totalSpent: number
   avatar?: string
+  /** 真實 API 附帶 */
+  bookingCount?: number
+  points?: number
+  recentBookings?: { code: string; name: string; amount: number; status: string; date: Date }[]
+}
+
+/** 場地費率規則（對應資料庫 PriceRule，前台計價用） */
+export interface PriceRuleRow {
+  id: string
+  venueId: string
+  venueName: string
+  name: string
+  kind: 'PEAK' | 'OFFPEAK'
+  dayType: 'ALL' | 'WEEKDAY' | 'WEEKEND'
+  startMinute: number
+  endMinute: number
+  price: number
+  priority: number
+}
+
+export interface MembershipTierRow {
+  level: 'BASIC' | 'PREMIUM' | 'VIP'
+  label: string
+  discountPct: number
 }
 
 export interface Court {

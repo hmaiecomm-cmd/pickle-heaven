@@ -83,6 +83,12 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum MembershipLevel {
+  BASIC
+  PREMIUM
+  VIP
+}
+
 enum BookingStatus {
   PENDING // 待付款
   PAID // 已付款
@@ -119,6 +125,8 @@ model User {
   role        Role     @default(USER)
   /// 點數餘額（1 點 = NT$1，取消退款時回補）
   points      Int      @default(0)
+  /// 會員等級，影響折扣（見 MembershipTier）
+  membershipLevel MembershipLevel @default(BASIC)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -283,6 +291,16 @@ model Invoice {
 
   @@index([status, dueDate])
   @@index([userId])
+}
+
+/// 會員等級與折扣設定（三列固定：BASIC / PREMIUM / VIP）
+model MembershipTier {
+  level       MembershipLevel @id
+  label       String
+  /// 折扣百分比，10 = 九折
+  discountPct Int             @default(0)
+  sortOrder   Int             @default(0)
+  updatedAt   DateTime        @updatedAt
 }
 
 model PriceRule {

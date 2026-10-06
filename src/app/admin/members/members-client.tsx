@@ -6,7 +6,8 @@ import { PageHeader } from '@/components/layout'
 import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { getMembers, getReservations } from '@/lib/api-service'
+import { getMembers, getReservations, updateMemberLevel } from '@/lib/api-service'
+import { useToast } from '@/components/ui/toast'
 import { downloadCsv } from '@/lib/csv'
 import type { Member, Reservation } from '@/lib/models'
 
@@ -41,6 +42,8 @@ export function MembersClient() {
   const [sort, setSort] = useState<SortKey>('lastVisit')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [savingLevel, setSavingLevel] = useState(false)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -84,7 +87,28 @@ export function MembersClient() {
   }, [members])
 
   const selected = members.find((m) => m.id === selectedId) ?? null
-  const history = selected ? reservations.filter((r) => r.memberId === selected.id) : []
+  const history = selected
+    ? (selected.recentBookings ??
+      reservations
+        .filter((r) => r.memberId === selected.id)
+        .map((r) => ({ code: r.bookingCode, name: r.items[0]?.name ?? '', amount: r.totalAmount, status: r.status, date: r.items[0]?.startTime ?? r.createdAt })))
+    : []
+
+  const changeLevel = async (level: Level) => {
+    if (!selected || level === selected.membershipLevel) return
+    setSavingLevel(true)
+    try {
+      const res = await updateMemberLevel(selected.id, level)
+      if (!res.success) {
+        toast(`調整失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+        return
+      }
+      setMembers((list) => list.map((m) => (m.id === selected.id ? { ...m, membershipLevel: res.data.membershipLevel } : m)))
+      toast(`${selected.name} 已調整為${LEVEL_META[level].label}會員`, 'success')
+    } finally {
+      setSavingLevel(false)
+    }
+  }
 
   const exportCsv = () =>
     downloadCsv(
@@ -207,7 +231,8 @@ export function MembersClient() {
                 <Info label="電話" value={selected.phone} icon={<Phone className="h-3.5 w-3.5" aria-hidden />} />
                 <Info label="Email" value={selected.email} icon={<Mail className="h-3.5 w-3.5" aria-hidden />} />
                 <Info label="最近到訪" value={`${fmtDate(selected.lastVisit)}（${daysAgo(selected.lastVisit)} 天前）`} />
-                <Info label="累計消費" value={fmtMoney(selected.totalSpent)} />
+                <Info label="累計消費" value={`${fmtMoney(selected.totalSpent)}${selected.bookingCount !== undefined ? `　${selected.bookingCount} 筆` : ''}`} />
+                {selected.points !== undefined && <Info label="點數餘額" value={`${selected.points.toLocaleString()} 點`} />}
               </section>
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">預約紀錄</h3>
@@ -215,20 +240,33 @@ export function MembersClient() {
                   <p className="text-muted">尚無預約紀錄</p>
                 ) : (
                   <ul className="divide-y divide-[rgb(var(--border))] rounded-lg border border-[rgb(var(--border))]">
-                    {history.map((r) => (
-                      <li key={r.id} className="flex items-center justify-between px-3 py-2">
-                        <span>
-                          <span className="font-mono text-xs">{r.bookingCode}</span>　{r.items[0]?.name}
+                    {history.map((b) => (
+                      <li key={b.code} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <span className="min-w-0 truncate">
+                          <span className="font-mono text-xs">{b.code}</span>　{b.name}
+                          <span className="ml-1 text-xs text-muted">{fmtDate(b.date)}</span>
                         </span>
-                        <span className="font-mono text-xs">{fmtMoney(r.totalAmount)}</span>
+                        <span className="shrink-0 font-mono text-xs">{fmtMoney(b.amount)}</span>
                       </li>
                     ))}
                   </ul>
                 )}
               </section>
               <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
-                <Button size="sm" variant="secondary" disabled title="Phase 2 實作">編輯資料</Button>
-                <Button size="sm" variant="secondary" disabled title="Phase 2 實作">調整等級</Button>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-muted">等級</span>
+                  <select
+                    value={selected.membershipLevel}
+                    disabled={savingLevel}
+                    onChange={(e) => changeLevel(e.target.value as Level)}
+                    className="h-9 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 text-sm"
+                  >
+                    {(Object.keys(LEVEL_META) as Level[]).map((l) => (
+                      <option key={l} value={l}>{LEVEL_META[l].label}</option>
+                    ))}
+                  </select>
+                </label>
+                <Button size="sm" variant="secondary" disabled title="後續項目">編輯資料</Button>
                 <Button size="sm" variant="secondary" disabled title="Phase 2 實作">發送 LINE 訊息</Button>
               </div>
             </div>

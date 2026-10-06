@@ -8,6 +8,7 @@ CREATE TABLE "User" (
     "email" TEXT,
     "role" TEXT NOT NULL DEFAULT 'USER',
     "points" INTEGER NOT NULL DEFAULT 0,
+    "membershipLevel" TEXT NOT NULL DEFAULT 'BASIC',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "sessionsJoined" INTEGER NOT NULL DEFAULT 0,
@@ -117,6 +118,15 @@ CREATE TABLE "Invoice" (
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Invoice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "Invoice_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MembershipTier" (
+    "level" TEXT NOT NULL PRIMARY KEY,
+    "label" TEXT NOT NULL,
+    "discountPct" INTEGER NOT NULL DEFAULT 0,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable

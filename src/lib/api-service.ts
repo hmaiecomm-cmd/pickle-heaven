@@ -14,6 +14,8 @@ import {
   Device,
   AIEvent,
   Member,
+  MembershipTierRow,
+  PriceRuleRow,
   Court,
   FinancialSummary,
   RevenueByCourtByType,
@@ -50,7 +52,7 @@ export interface ApiResponse<T> {
 const ADMIN_LIVE = process.env.NEXT_PUBLIC_ADMIN_SOURCE !== 'mock'
 const FINANCE_LIVE = ADMIN_LIVE
 
-async function sendAdmin<T>(path: string, method: 'PATCH' | 'POST' | 'DELETE', payload?: unknown): Promise<ApiResponse<T>> {
+async function sendAdmin<T>(path: string, method: 'PATCH' | 'POST' | 'PUT' | 'DELETE', payload?: unknown): Promise<ApiResponse<T>> {
   try {
     const res = await fetch(path, {
       method,
@@ -210,6 +212,20 @@ export async function getCoaches(
 
 // ============ MEMBERS ============
 export async function getMembers(): Promise<ApiResponse<Member[]>> {
+  if (ADMIN_LIVE) {
+    type Raw = Omit<Member, 'joinDate' | 'lastVisit' | 'recentBookings'> & { joinDate: string; lastVisit: string; recentBookings?: { code: string; name: string; amount: number; status: string; date: string }[] }
+    const res = await fetchAdmin<Raw[]>('/api/admin/members')
+    if (!res.success) return { ...res, data: [] }
+    return {
+      ...res,
+      data: res.data.map((m) => ({
+        ...m,
+        joinDate: toDate(m.joinDate) ?? new Date(),
+        lastVisit: toDate(m.lastVisit) ?? new Date(),
+        recentBookings: m.recentBookings?.map((b) => ({ ...b, date: toDate(b.date) ?? new Date() })),
+      })),
+    }
+  }
   try {
     return {
       success: true,
@@ -231,6 +247,36 @@ export async function getMembers(): Promise<ApiResponse<Member[]>> {
 }
 
 // ============ COURTS ============
+/** 調整會員等級（Phase 2）。 */
+export async function updateMemberLevel(id: string, level: Member['membershipLevel']): Promise<ApiResponse<{ id: string; membershipLevel: Member['membershipLevel'] }>> {
+  if (!ADMIN_LIVE) return { success: true, data: { id, membershipLevel: level } }
+  return sendAdmin(`/api/admin/members/${encodeURIComponent(id)}/level`, 'PATCH', { level })
+}
+
+/** 定價資料：場地費率規則與會員折扣（Phase 2）。 */
+export async function getPricing(): Promise<ApiResponse<{ priceRules: PriceRuleRow[]; tiers: MembershipTierRow[] }>> {
+  if (!ADMIN_LIVE) {
+    return {
+      success: true,
+      data: {
+        priceRules: [],
+        tiers: [
+          { level: 'BASIC', label: '一般', discountPct: 0 },
+          { level: 'PREMIUM', label: '進階', discountPct: 10 },
+          { level: 'VIP', label: 'VIP', discountPct: 20 },
+        ],
+      },
+    }
+  }
+  return fetchAdmin('/api/admin/pricing')
+}
+
+/** 更新會員折扣（Phase 2）。 */
+export async function updateMembershipTiers(tiers: { level: MembershipTierRow['level']; discountPct: number }[]): Promise<ApiResponse<MembershipTierRow[]>> {
+  if (!ADMIN_LIVE) return { success: true, data: tiers.map((t) => ({ ...t, label: t.level })) }
+  return sendAdmin('/api/admin/pricing/tiers', 'PUT', { tiers })
+}
+
 export async function getCourts(): Promise<ApiResponse<Court[]>> {
   if (ADMIN_LIVE) {
     const res = await fetchAdmin<Court[]>('/api/admin/courts')
