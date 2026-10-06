@@ -269,11 +269,25 @@ User ──< Booking / Voucher
 
 路徑 `/admin`，以帳號／密碼登入。登入後會取得一組有效期 12 小時的 HttpOnly Cookie。
 
-| 頁面 | 功能 |
-| --- | --- |
-| `/admin` | 今日營收、訂單數、場地使用率、待付款、今日預約列表 |
-| `/admin/bookings` | 訂單搜尋／篩選、代客取消（全額回補點數）、標記完成 |
-| `/admin/schedule` | 場地時段矩陣，點擊即可鎖定／解除維護時段 |
+整個 `/admin` 由 `src/middleware.ts` 驗證 cookie 保護，未登入一律導向登入頁。
+側欄分為總覽、營運、財務、AI 與智慧場館、管理五組；標示 **mock** 的頁面資料來自 `src/lib/mock-data`，尚未接資料庫。
+
+| 頁面 | 資料 | 功能 |
+| --- | --- | --- |
+| `/admin` | 資料庫 | 今日營收、訂單數、場地使用率、待付款、今日預約列表 |
+| `/admin/bookings` | 資料庫 | 訂單搜尋／篩選、代客取消（全額回補點數）、標記完成 |
+| `/admin/schedule` | 資料庫 | 場地時段矩陣，點擊即可鎖定／解除維護時段 |
+| `/admin/sessions`、`/admin/templates` | 資料庫 | 球敘與週期性範本 |
+| `/admin/ai-courts` | mock | AI 智慧球場：球場狀態、裝置控制、QR 門禁 |
+| `/admin/events` | mock | 活動與教練 |
+| `/admin/members`、`/admin/courts`、`/admin/pricing` | mock | 會員、球場、定價 |
+| `/admin/finance`、`/admin/finance/payments` | mock | 營收與財務儀表板、付款狀態 |
+| `/admin/invoices`、`/admin/receipts`、`/admin/expenses` | mock | 發票、收據（含 OCR 模擬）、費用 |
+| `/admin/reports` | mock | 五種報表即時彙整與 CSV 匯出 |
+| `/admin/ai-assistant` | mock | AI 管理助理，高風險操作只做預覽 |
+| `/admin/settings` | mock | 場館、規則、金流、API 連線狀態、稽核紀錄 |
+
+舊的 `/owner/*` 網址會永久轉址到對應的 `/admin/*`。驗收與 Phase 2 規格見 `docs/PHASE_1_ACCEPTANCE.md`、`docs/PHASE_2_API_SPEC.md`。
 
 帳號設定於 `.env`：
 

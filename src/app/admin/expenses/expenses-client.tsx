@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/co
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getExpenses } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Expense, ExpenseStatus } from '@/lib/models'
@@ -57,6 +58,7 @@ export function ExpensesClient() {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -100,12 +102,17 @@ export function ExpensesClient() {
   const selected = expenses.find((e) => e.id === selectedId) ?? null
 
   /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setExpenseStatus = (id: string, next: ExpenseStatus) =>
+  const setExpenseStatus = (id: string, next: ExpenseStatus) => {
     setExpenses((list) =>
       list.map((e) => (e.id === id ? { ...e, status: next, approvedAt: next === 'APPROVED' ? new Date() : e.approvedAt } : e)),
     )
+    toast(`費用已改為「${STATUS_META[next].label}」（mock，未寫入資料庫）`, next === 'REJECTED' ? 'info' : 'success')
+  }
 
-  const addExpense = (e: Expense) => setExpenses((list) => [e, ...list])
+  const addExpense = (e: Expense) => {
+    setExpenses((list) => [e, ...list])
+    toast(`已登錄費用 ${e.expenseNumber}（${STATUS_META[e.status].label}）`, 'success')
+  }
 
   const exportCsv = () =>
     downloadCsv(
@@ -148,7 +155,7 @@ export function ExpensesClient() {
           {PERIODS.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => setPeriod(p.key)} aria-pressed={period === p.key}
               className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                 period === p.key ? 'bg-brand-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'
               }`}

@@ -123,7 +123,7 @@ export function ReportsClient() {
             {REPORTS.map((r) => (
               <li key={r.key}>
                 <button
-                  onClick={() => setType(r.key)}
+                  onClick={() => setType(r.key)} aria-pressed={type === r.key}
                   className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors ${type === r.key ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300' : 'hover:surface-2'}`}
                 >
                   <p className="text-sm font-medium">{r.label}</p>

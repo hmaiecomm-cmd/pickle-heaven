@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/co
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getCourts, getDevices } from '@/lib/api-service'
 import type { Court, Device, DeviceStatus } from '@/lib/models'
 
@@ -30,6 +31,7 @@ export function CourtsClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -61,7 +63,11 @@ export function CourtsClient() {
   )
 
   /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setStatus = (id: string, status: CourtStatus) => setCourts((list) => list.map((c) => (c.id === id ? { ...c, status } : c)))
+  const setStatus = (id: string, status: CourtStatus) => {
+    setCourts((list) => list.map((c) => (c.id === id ? { ...c, status } : c)))
+    const name = courts.find((c) => c.id === id)?.name ?? '球場'
+    toast(`${name} 已設為「${STATUS_META[status].label}」（mock，未寫入資料庫）`, 'success')
+  }
 
   const editing = courts.find((c) => c.id === editingId) ?? null
   const panelClass = 'rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))]'

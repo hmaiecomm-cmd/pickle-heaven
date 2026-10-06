@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/co
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getReceipts, postOCRScan } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Receipt } from '@/lib/models'
@@ -34,6 +35,7 @@ export function ReceiptsClient() {
   const [source, setSource] = useState<'ALL' | 'DRAFT' | 'CONFIRMED' | 'MANUAL'>('ALL')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -73,10 +75,15 @@ export function ReceiptsClient() {
 
   const selected = receipts.find((r) => r.id === selectedId) ?? null
 
-  const confirmReceipt = (id: string) =>
+  const confirmReceipt = (id: string) => {
     setReceipts((list) => list.map((r) => (r.id === id && r.ocrData ? { ...r, ocrData: { ...r.ocrData, status: 'CONFIRMED' } } : r)))
+    toast('已確認辨識結果；會計分錄仍需於費用頁另行建立', 'success')
+  }
 
-  const addDraft = (r: Receipt) => setReceipts((list) => [r, ...list])
+  const addDraft = (r: Receipt) => {
+    setReceipts((list) => [r, ...list])
+    toast(`已儲存草稿 ${r.receiptNumber}，待人工確認`, 'info')
+  }
 
   const exportCsv = () =>
     downloadCsv(

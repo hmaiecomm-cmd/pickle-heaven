@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout'
 import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getCoaches, getEvents } from '@/lib/api-service'
 import type { Coach, CoachStatus, Event, EventStatus } from '@/lib/models'
 
@@ -89,7 +90,7 @@ export function EventsClient() {
             ).map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
                 className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   tab === t.key ? 'bg-brand-600 text-white' : 'text-muted hover:surface-2'
                 }`}
@@ -118,6 +119,7 @@ export function EventsClient() {
 /* ───────────────────────────── 活動 ───────────────────────────── */
 
 function EventsTab({ events, setEvents }: { events: Event[]; setEvents: (f: (e: Event[]) => Event[]) => void }) {
+  const { toast } = useToast()
   const [type, setType] = useState<EventType | 'ALL'>('ALL')
   const [status, setStatus] = useState<EventStatus | 'ALL'>('ALL')
   const [query, setQuery] = useState('')
@@ -148,8 +150,10 @@ function EventsTab({ events, setEvents }: { events: Event[]; setEvents: (f: (e: 
   const selected = events.find((e) => e.id === selectedId) ?? null
 
   /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const updateStatus = (id: string, next: EventStatus) =>
+  const updateStatus = (id: string, next: EventStatus) => {
     setEvents((list) => list.map((e) => (e.id === id ? { ...e, status: next } : e)))
+    toast(`活動狀態已改為「${EVENT_STATUS_META[next].label}」（mock，未寫入資料庫）`, 'success')
+  }
 
   return (
     <>

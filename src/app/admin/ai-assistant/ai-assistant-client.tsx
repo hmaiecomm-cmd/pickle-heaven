@@ -5,6 +5,7 @@ import { AlertTriangle, Bot, Download, Loader2, Send, ShieldCheck, Sparkles, Tra
 import { PageHeader } from '@/components/layout'
 import { StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { postAIChat } from '@/lib/api-service'
 
 /**
@@ -103,6 +104,7 @@ export function AiAssistantClient() {
   const [busy, setBusy] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -140,7 +142,8 @@ export function AiAssistantClient() {
     }
   }
 
-  const confirmAction = (id: string, confirmed: boolean) =>
+  const confirmAction = (id: string, confirmed: boolean) => {
+    toast(confirmed ? '已記錄確認（mock，未執行任何操作）' : '已取消操作', confirmed ? 'success' : 'info')
     setMessages((m) => [
       ...m.map((msg) => (msg.id === id && msg.action ? { ...msg, action: { ...msg.action, confirmed } } : msg)),
       {
@@ -152,8 +155,12 @@ export function AiAssistantClient() {
         at: new Date(),
       },
     ])
+  }
 
-  const clear = () => setMessages([])
+  const clear = () => {
+    setMessages([])
+    toast('對話已清除', 'info')
+  }
 
   const exportChat = () => {
     const lines = messages.map((m) => {
@@ -168,6 +175,7 @@ export function AiAssistantClient() {
     a.download = `ai-chat-${fmtDate(new Date()).replace(/\//g, '')}.txt`
     a.click()
     URL.revokeObjectURL(url)
+    toast('對話已匯出', 'success')
   }
 
   const empty = messages.length === 0

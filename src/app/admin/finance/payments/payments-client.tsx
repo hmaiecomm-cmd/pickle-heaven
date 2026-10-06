@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout'
 import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getPayments, getReservations } from '@/lib/api-service'
 import type { Payment, PaymentStatus, Reservation } from '@/lib/models'
 
@@ -51,6 +52,7 @@ export function PaymentsClient() {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -103,7 +105,10 @@ export function PaymentsClient() {
   /** 佔位：Phase 2 接金流商重試 API。這裡只模擬送出與回應。 */
   const retry = (id: string) => {
     setRetrying(id)
-    setTimeout(() => setRetrying(null), 1200)
+    setTimeout(() => {
+      setRetrying(null)
+      toast('已送出重試請求（mock，未呼叫金流商）', 'info')
+    }, 1200)
   }
 
   const selectClass = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 text-sm'
@@ -125,7 +130,7 @@ export function PaymentsClient() {
           {PERIODS.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => setPeriod(p.key)} aria-pressed={period === p.key}
               className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                 period === p.key ? 'bg-brand-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'
               }`}

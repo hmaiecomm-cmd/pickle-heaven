@@ -151,7 +151,7 @@ export function FinanceClient() {
             {PERIODS.map((p) => (
               <button
                 key={p.key}
-                onClick={() => setPeriod(p.key)}
+                onClick={() => setPeriod(p.key)} aria-pressed={period === p.key}
                 className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                   period === p.key ? 'bg-brand-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'
                 }`}

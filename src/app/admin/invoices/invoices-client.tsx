@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout'
 import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useToast } from '@/components/ui/toast'
 import { getInvoices, getMembers, getReservations } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Invoice, Member, Reservation } from '@/lib/models'
@@ -56,6 +57,7 @@ export function InvoicesClient() {
   const [status, setStatus] = useState<Status | 'ALL'>('ALL')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -106,8 +108,10 @@ export function InvoicesClient() {
   const selected = invoices.find((i) => i.id === selectedId) ?? null
 
   /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setInvoiceStatus = (id: string, next: Status) =>
+  const setInvoiceStatus = (id: string, next: Status) => {
     setInvoices((list) => list.map((i) => (i.id === id ? { ...i, status: next } : i)))
+    toast(`發票已改為「${STATUS_META[next].label}」（mock，未寫入資料庫）`, next === 'CANCELLED' ? 'info' : 'success')
+  }
 
   const exportCsv = () =>
     downloadCsv(
@@ -144,7 +148,7 @@ export function InvoicesClient() {
           {PERIODS.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => setPeriod(p.key)} aria-pressed={period === p.key}
               className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                 period === p.key ? 'bg-brand-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'
               }`}
