@@ -46,8 +46,9 @@ const RULES = [
 const API_STATUS: { name: string; mode: 'mock' | 'live' }[] = [
   { name: '預約與訂單', mode: 'mock' },
   { name: '會員', mode: 'mock' },
-  { name: '財務與付款', mode: 'mock' },
-  { name: '發票、收據、費用', mode: 'mock' },
+  { name: '營收與付款（Turso）', mode: 'live' },
+  { name: '費用（財務頁費用數字仍為 mock）', mode: 'mock' },
+  { name: '發票、收據', mode: 'mock' },
   { name: 'OCR 辨識', mode: 'mock' },
   { name: 'AI 助理', mode: 'mock' },
   { name: '智慧球場裝置', mode: 'mock' },

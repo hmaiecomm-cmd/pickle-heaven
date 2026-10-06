@@ -84,7 +84,7 @@ export function PaymentsClient() {
       .filter((p) => {
         if (!q) return true
         const r = resOf(p.reservationId)
-        return `${p.transactionId ?? ''} ${p.reservationId} ${r?.bookingCode ?? ''} ${r?.member?.name ?? ''}`.toLowerCase().includes(q)
+        return `${p.transactionId ?? ''} ${p.reservationId} ${r?.bookingCode ?? p.bookingCode ?? ''} ${r?.member?.name ?? p.customerName ?? ''} ${p.customerPhone ?? ''}`.toLowerCase().includes(q)
       })
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,8 +186,8 @@ export function PaymentsClient() {
                   return (
                     <tr key={p.id} onClick={() => setSelectedId(p.id)} className="cursor-pointer border-b border-[rgb(var(--border))] last:border-0 hover:surface-2">
                       <td className="px-4 py-3 tabular-nums">{fmtDateTime(p.createdAt)}</td>
-                      <td className="px-4 py-3 font-mono">{r?.bookingCode ?? p.reservationId}</td>
-                      <td className="px-4 py-3">{r?.member?.name ?? '—'}</td>
+                      <td className="px-4 py-3 font-mono">{r?.bookingCode ?? p.bookingCode ?? p.reservationId}</td>
+                      <td className="px-4 py-3">{r?.member?.name ?? p.customerName ?? '—'}</td>
                       <td className="px-4 py-3">{METHOD_LABEL[p.method]}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted">{p.transactionId ?? '—'}</td>
                       <td className="px-4 py-3 text-right font-mono">{fmtMoney(p.amount)}</td>
@@ -206,8 +206,8 @@ export function PaymentsClient() {
                 <button key={p.id} onClick={() => setSelectedId(p.id)} className={`w-full p-3 text-left hover:surface-2 ${panelClass}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold">{r?.bookingCode ?? p.reservationId}</p>
-                      <p className="truncate text-sm">{r?.member?.name ?? '—'}　<span className="text-muted">{METHOD_LABEL[p.method]}</span></p>
+                      <p className="font-mono text-sm font-semibold">{r?.bookingCode ?? p.bookingCode ?? p.reservationId}</p>
+                      <p className="truncate text-sm">{r?.member?.name ?? p.customerName ?? '—'}　<span className="text-muted">{METHOD_LABEL[p.method]}</span></p>
                       <p className="mt-0.5 text-xs text-muted tabular-nums">{fmtDateTime(p.createdAt)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -238,9 +238,19 @@ export function PaymentsClient() {
                   <Info label="付款方式" value={METHOD_LABEL[selected.method]} />
                   <Info label="交易編號" value={selected.transactionId ?? '尚未產生'} mono />
                   <Info label="付款時間" value={selected.paidAt ? fmtDateTime(selected.paidAt) : '尚未付款'} />
-                  <Info label="訂單" value={r?.bookingCode ?? selected.reservationId} mono />
+                  <Info label="訂單" value={r?.bookingCode ?? selected.bookingCode ?? selected.reservationId} mono />
+                  {selected.provider && <Info label="金流商" value={selected.provider} />}
+                  {selected.failReason && <Info label="失敗原因" value={selected.failReason} />}
                 </section>
 
+                {!r && selected.customerName && (
+                  <section>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">聯絡人</h3>
+                    <div className="rounded-lg border border-[rgb(var(--border))] p-3">
+                      <p className="font-medium">{selected.customerName} <span className="ml-1 text-xs text-muted">{selected.customerPhone}</span></p>
+                    </div>
+                  </section>
+                )}
                 {r && (
                   <section>
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">訂單內容</h3>

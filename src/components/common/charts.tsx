@@ -77,10 +77,11 @@ export function BarChart({ data, series = 'series-1', unit = 'NT$', height = 160
   const W = 100
   const H = 100
   const padB = 14
-  const max = Math.max(...data.map((d) => d.value), 1)
+  const realMax = Math.max(...data.map((d) => d.value))
+  const max = Math.max(realMax, 1)
   const slot = W / data.length
   const barW = Math.min(slot * 0.6, 8)
-  const maxIdx = data.findIndex((d) => d.value === max)
+  const maxIdx = realMax > 0 ? data.findIndex((d) => d.value === realMax) : -1
   const labelEvery = Math.max(1, Math.ceil(data.length / 8))
 
   return (
@@ -118,12 +119,12 @@ export function BarChart({ data, series = 'series-1', unit = 'NT$', height = 160
         ))}
       </div>
       {/* 最大值直接標示 */}
-      {hover === null && max > 0 && (
+      {hover === null && maxIdx >= 0 && (
         <span
           className="pointer-events-none absolute -translate-x-1/2 text-[10px] font-medium tabular-nums"
           style={{ left: `${(maxIdx + 0.5) * slot}%`, top: 0 }}
         >
-          {unit === 'NT$' ? `NT$${fmt(max)}` : `${fmt(max)}${unit}`}
+          {unit === 'NT$' ? `NT$${fmt(realMax)}` : `${fmt(realMax)}${unit}`}
         </span>
       )}
       {hover !== null && (

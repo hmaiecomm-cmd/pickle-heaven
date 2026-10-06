@@ -116,7 +116,7 @@ export function FinanceClient() {
   const byCourt = useMemo(() => {
     const sums = new Map<string, number>()
     for (const r of revenue) {
-      const k = r.courtId ? (courts.find((c) => c.id === r.courtId)?.name ?? r.courtId) : '非球場'
+      const k = r.courtName ?? (r.courtId ? (courts.find((c) => c.id === r.courtId)?.name ?? r.courtId) : '非球場')
       sums.set(k, (sums.get(k) ?? 0) + r.amount)
     }
     return [...sums].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value)
@@ -221,7 +221,7 @@ export function FinanceClient() {
           <RevenueTable rows={revenue} courts={courts} />
 
           <p className="text-xs text-muted">
-            計算說明：總營收為期間內所有已入帳收入；費用以提交日期歸屬期間；淨收入 = 總營收 − 費用；營業利潤目前等於淨收入（尚未扣除其他成本）；利潤率 = 營業利潤 ÷ 總營收。
+            計算說明：總營收為期間內已付款／已完成訂單的實收總額（依付款時間歸屬，來源 Turso）；費用尚無資料表，暫以 mock 費用依提交日期歸屬；淨收入 = 總營收 − 費用；營業利潤目前等於淨收入；利潤率 = 營業利潤 ÷ 總營收。
           </p>
         </>
       )}
@@ -252,7 +252,7 @@ function RevenueTable({ rows, courts }: { rows: Revenue[]; courts: Court[] }) {
     sort.key !== k ? <ArrowUpDown className="h-3 w-3 opacity-50" aria-hidden /> : sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" aria-hidden /> : <ArrowDown className="h-3 w-3" aria-hidden />
 
   const total = data.reduce((s, r) => s + r.amount, 0)
-  const courtName = (id?: string) => (id ? (courts.find((c) => c.id === id)?.name ?? id) : '—')
+  const courtName = (r: Revenue) => r.courtName ?? (r.courtId ? (courts.find((c) => c.id === r.courtId)?.name ?? r.courtId) : '—')
 
   return (
     <section className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))]">
@@ -292,7 +292,7 @@ function RevenueTable({ rows, courts }: { rows: Revenue[]; courts: Court[] }) {
                 <tr key={r.id} className="hover:surface-2">
                   <td className="px-4 py-2.5 tabular-nums">{fmtDate(r.date)}</td>
                   <td className="px-4 py-2.5">{TYPE_LABEL[r.type]}</td>
-                  <td className="px-4 py-2.5">{courtName(r.courtId)}</td>
+                  <td className="px-4 py-2.5">{courtName(r)}</td>
                   <td className="px-4 py-2.5 font-mono text-xs">{r.reservationId}</td>
                   <td className="px-4 py-2.5">{METHOD_LABEL[r.paymentMethod] ?? r.paymentMethod}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{fmtMoney(r.amount)}</td>

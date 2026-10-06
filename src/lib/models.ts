@@ -104,12 +104,20 @@ export interface Payment {
   transactionId?: string
   paidAt?: Date
   createdAt: Date
+  /** 以下由真實 API 附帶，mock 資料沒有 */
+  bookingCode?: string
+  customerName?: string
+  customerPhone?: string
+  provider?: string
+  failReason?: string
 }
 
 export interface Revenue {
   id: string
   date: Date
   courtId?: string
+  /** 真實 API 附帶，避免以 id 對照 mock 球場 */
+  courtName?: string
   type: ReservationType
   reservationId: string
   amount: number

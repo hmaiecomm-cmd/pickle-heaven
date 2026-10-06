@@ -39,9 +39,9 @@ async function build(type: ReportType, from: Date, to: Date): Promise<{ header: 
   switch (type) {
     case 'revenue': {
       const [r, c] = await Promise.all([getRevenue('year'), getCourts()])
-      const courtName = (id?: string) => (id ? (c.data.find((x) => x.id === id)?.name ?? id) : '—')
+      const courtName = (x: { courtId?: string; courtName?: string }) => x.courtName ?? (x.courtId ? (c.data.find((k) => k.id === x.courtId)?.name ?? x.courtId) : '—')
       const rows = r.data.filter((x) => inRange(x.date)).sort((a, b) => a.date.getTime() - b.date.getTime())
-      return { header: ['日期', '類型', '球場', '訂單', '付款方式', '金額'], rows: rows.map((x) => [fmtDate(x.date), x.type, courtName(x.courtId), x.reservationId, x.paymentMethod, x.amount]) }
+      return { header: ['日期', '類型', '球場', '訂單', '付款方式', '金額'], rows: rows.map((x) => [fmtDate(x.date), x.type, courtName(x), x.reservationId, x.paymentMethod, x.amount]) }
     }
     case 'reservations': {
       const r = await getReservations()

@@ -43,6 +43,32 @@ export interface ApiResponse<T> {
   }
 }
 
+/**
+ * 財務資料來源。預設走真實 API（Phase 2）；
+ * 設 NEXT_PUBLIC_FINANCE_SOURCE=mock 可退回 mock 資料（展示或離線開發用）。
+ */
+const FINANCE_LIVE = process.env.NEXT_PUBLIC_FINANCE_SOURCE !== 'mock'
+
+async function fetchAdmin<T>(path: string): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(path, { credentials: 'same-origin', cache: 'no-store' })
+    const body = (await res.json().catch(() => null)) as ApiResponse<T> | null
+    if (!res.ok || !body?.success) {
+      return {
+        success: false,
+        data: undefined as unknown as T,
+        error: body?.error ?? { code: `HTTP_${res.status}`, message: res.status === 401 ? '請重新登入' : '伺服器錯誤' },
+      }
+    }
+    return body
+  } catch (error) {
+    return { success: false, data: undefined as unknown as T, error: { code: 'NETWORK_ERROR', message: String(error) } }
+  }
+}
+
+/** JSON 的日期字串還原成 Date。 */
+const toDate = (v: unknown): Date | undefined => (typeof v === 'string' ? new Date(v) : undefined)
+
 // ============ RESERVATIONS ============
 export async function getReservations(
   filters?: {
@@ -196,6 +222,15 @@ export async function getPayments(
     status?: string
   },
 ): Promise<ApiResponse<Payment[]>> {
+  if (FINANCE_LIVE) {
+    const q = filters?.status ? `?status=${encodeURIComponent(filters.status)}` : ''
+    const res = await fetchAdmin<Array<Omit<Payment, 'paidAt' | 'createdAt'> & { paidAt?: string; createdAt: string }>>(`/api/admin/payments${q}`)
+    if (!res.success) return { ...res, data: [] }
+    return {
+      ...res,
+      data: res.data.map((p) => ({ ...p, paidAt: toDate(p.paidAt), createdAt: toDate(p.createdAt) ?? new Date() })),
+    }
+  }
   try {
     let payments = [...MOCK_DATA.payments]
 
@@ -226,6 +261,11 @@ export async function getPayments(
 export async function getRevenue(
   dateRange: 'today' | 'week' | 'month' | 'quarter' | 'year' = 'month',
 ): Promise<ApiResponse<Revenue[]>> {
+  if (FINANCE_LIVE) {
+    const res = await fetchAdmin<Array<Omit<Revenue, 'date'> & { date: string }>>(`/api/admin/finance/revenue?range=${dateRange}`)
+    if (!res.success) return { ...res, data: [] }
+    return { ...res, data: res.data.map((r) => ({ ...r, date: toDate(r.date) ?? new Date() })) }
+  }
   try {
     const range = getDateRange(dateRange)
     const revenues = filterByDateRange(MOCK_DATA.revenue, range.from, range.to)
@@ -257,6 +297,32 @@ export async function getRevenue(
 export async function getFinancialSummary(
   dateRange: 'today' | 'week' | 'month' | 'quarter' | 'year' = 'month',
 ): Promise<ApiResponse<FinancialSummary>> {
+  if (FINANCE_LIVE) {
+    const res = await fetchAdmin<Omit<FinancialSummary, 'period'> & { period: { from: string; to: string } }>(`/api/admin/finance/summary?range=${dateRange}`)
+    if (!res.success) {
+      return {
+        ...res,
+        data: { period: { from: new Date(), to: new Date() }, grossRevenue: 0, expenses: 0, netRevenue: 0, operatingProfit: 0, profitMargin: 0 },
+      }
+    }
+    // 費用尚無資料表：先以 mock 費用（依提交日期）補齊，讓淨收入與利潤率有意義
+    const from = new Date(res.data.period.from)
+    const to = new Date(res.data.period.to)
+    const expenses = filterByDateRange(MOCK_DATA.expenses, from, to).reduce((s, e) => s + e.amount, 0)
+    const { grossRevenue } = res.data
+    const netRevenue = grossRevenue - expenses
+    return {
+      ...res,
+      data: {
+        period: { from, to },
+        grossRevenue,
+        expenses,
+        netRevenue,
+        operatingProfit: netRevenue,
+        profitMargin: grossRevenue > 0 ? Math.round((netRevenue / grossRevenue) * 10000) / 100 : 0,
+      },
+    }
+  }
   try {
     const range = getDateRange(dateRange)
     const revenues = filterByDateRange(MOCK_DATA.revenue, range.from, range.to)

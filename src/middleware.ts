@@ -25,10 +25,13 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
+  }
   const login = req.nextUrl.clone()
   login.pathname = '/admin/login'
   login.search = ''
   return NextResponse.redirect(login)
 }
 
-export const config = { matcher: ['/admin/:path*'] }
+export const config = { matcher: ['/admin/:path*', '/api/admin/:path*'] }
