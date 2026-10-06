@@ -20,7 +20,7 @@ const NAV = [
 
 function Logo() {
   return (
-    <Link href="/booking" className="flex items-center gap-2" aria-label="匹克天堂首頁">
+    <Link href="/booking" className="flex items-center gap-2" aria-label="匹克精靈首頁">
       <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white shadow-sm">
         {/* 匹克球拍與球的簡化標記 */}
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
@@ -29,7 +29,7 @@ function Logo() {
           <circle cx="18" cy="16.5" r="3" fill="#d0e94a" />
         </svg>
       </span>
-      <span className="text-[15px] font-semibold tracking-tight">匹克天堂</span>
+      <span className="text-[15px] font-semibold tracking-tight">匹克精靈</span>
     </Link>
   )
 }

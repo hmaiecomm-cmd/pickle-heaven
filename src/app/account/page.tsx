@@ -16,7 +16,7 @@ export default async function AccountPage() {
   const user = await getSessionUser()
 
   if (!user) {
-    return <LoginPrompt title="登入匹克天堂" description="使用 LINE 登入即可預約場地、查看訂單與管理點數。" />
+    return <LoginPrompt title="登入匹克精靈" description="使用 LINE 登入即可預約場地、查看訂單與管理點數。" />
   }
 
   const [vouchers, bookingCount] = await Promise.all([
@@ -129,7 +129,7 @@ export default async function AccountPage() {
 
       <LogoutButton />
 
-      <p className="pb-4 text-center text-[11px] text-muted">匹克天堂 Pickle Heaven · 版本 1.0.0</p>
+      <p className="pb-4 text-center text-[11px] text-muted">匹克精靈 Pickle Heaven · 版本 1.0.0</p>
     </div>
   )
 }

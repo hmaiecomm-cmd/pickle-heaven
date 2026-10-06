@@ -13,7 +13,7 @@ export interface ChargeContext {
   bookingCode: string
   /** 新台幣整數元 */
   amount: number
-  /** 商品描述，例：匹克天堂 場地預約 2 時段 */
+  /** 商品描述，例：匹克精靈 場地預約 2 時段 */
   description: string
   itemNames: string[]
   customer: {

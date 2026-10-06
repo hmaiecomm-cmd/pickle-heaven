@@ -10,14 +10,14 @@ import { getCart } from '@/lib/availability'
 
 export const metadata: Metadata = {
   title: {
-    default: '匹克天堂 · 場地預約',
-    template: '%s｜匹克天堂',
+    default: '匹克精靈 · 場地預約',
+    template: '%s｜匹克精靈',
   },
   description: '台灣室內匹克球場線上預約系統。選日期、挑場地、加入購物車，於 LINE 內完成付款。',
-  applicationName: '匹克天堂',
+  applicationName: '匹克精靈',
   formatDetection: { telephone: false, address: false, email: false },
   openGraph: {
-    title: '匹克天堂 · 場地預約',
+    title: '匹克精靈 · 場地預約',
     description: '室內恆溫匹克球場，線上即時查詢空檔並完成預約。',
     locale: 'zh_TW',
     type: 'website',

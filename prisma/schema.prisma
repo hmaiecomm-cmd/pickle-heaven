@@ -1,4 +1,4 @@
-// 匹克天堂 Pickle Heaven — Pickleball Court Booking Platform (Taiwan / LINE MINI App)
+// 匹克精靈 Pickle Heaven — Pickleball Court Booking Platform (Taiwan / LINE MINI App)
 // Database: PostgreSQL (Supabase)
 
 generator client {

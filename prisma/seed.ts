@@ -55,7 +55,7 @@ async function main() {
 
   console.log('▸ 建立組織…')
   const org = await prisma.organization.create({
-    data: { slug: 'pickle-heaven', name: '匹克天堂' },
+    data: { slug: 'pickle-heaven', name: '匹克精靈' },
   })
 
   console.log('▸ 建立場館…')
@@ -64,7 +64,7 @@ async function main() {
       organizationId: org.id,
       timezone: 'Asia/Taipei',
       slug: 'taipei-dazhi',
-      name: '匹克天堂 · 台北大直館',
+      name: '匹克精靈 · 台北大直館',
       address: '台北市中山區敬業三路 128 號（頂樓雨棚球場）',
       phone: '02-2532-8888',
       description: '2 面標準匹克球場，室外雨棚全遮蔽、下雨照常開打，專業 PU 地墊與獨立更衣淋浴間，捷運劍南路站步行 5 分鐘。',

@@ -1,4 +1,4 @@
-# 匹克天堂 Pickle Heaven — 匹克球場地預約系統
+# 匹克精靈 Pickle Heaven — 匹克球場地預約系統
 
 台灣匹克球場館的線上預約平台，主要以 **LINE MINI App（LIFF）** 形式在 LINE 內使用，同時支援桌機瀏覽器。
 

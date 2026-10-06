@@ -5,7 +5,7 @@ import type { NavGroup } from '@/components/layout/Sidebar'
 import { AdminSignOut } from './sign-out'
 
 export const metadata: Metadata = {
-  title: { default: '後台管理', template: '%s｜匹克天堂後台' },
+  title: { default: '後台管理', template: '%s｜匹克精靈後台' },
   robots: { index: false, follow: false },
 }
 
@@ -66,7 +66,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AppShell
       nav={NAV}
-      brand={{ href: '/admin', label: '匹克天堂後台', short: 'PH' }}
+      brand={{ href: '/admin', label: '匹克精靈後台', short: 'PH' }}
       headerRight={<AdminSignOut username={admin} />}
     >
       {children}

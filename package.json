@@ -2,7 +2,7 @@
   "name": "pickle-heaven",
   "version": "1.0.0",
   "private": true,
-  "description": "匹克天堂 — Pickleball court booking platform for Taiwan (LINE MINI App / LIFF)",
+  "description": "匹克精靈 — Pickleball court booking platform for Taiwan (LINE MINI App / LIFF)",
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/generate-prisma.mjs && next build",
