@@ -12,3 +12,6 @@ tsconfig.tsbuildinfo
 
 .vercel
 .env*
+
+# Claude Code 本機權限設定（每台機器各自不同）
+.claude/settings.local.json

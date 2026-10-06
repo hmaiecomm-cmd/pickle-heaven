@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell($d = \"C:\\\\Users\\\\hmai.ecomm\\\\Dropbox\\\\匹克天堂平台系統2號\"; if \\(Test-Path \"$d\\\\.claude\\\\skills\"\\) { Get-ChildItem \"$d\\\\.claude\\\\skills\" -Directory | ForEach-Object { $skillPath = \"$\\($_.FullName\\)\\\\SKILL.md\"; if \\(Test-Path $skillPath\\) { Select-String -Path $skillPath -Pattern '^description:' -MaximumMatches 1 } } })",
-      "Bash(curl -s http://localhost:3000)"
-    ]
-  }
-}
