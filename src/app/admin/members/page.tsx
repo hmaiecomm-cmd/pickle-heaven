@@ -1,17 +1,8 @@
-﻿'use client'
+import type { Metadata } from 'next'
+import { MembersClient } from './members-client'
 
-import { PageHeader } from '@/components/layout'
+export const metadata: Metadata = { title: '會員' }
 
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="會員" 
-        subtitle="Phase 1 開發中..."
-      />
-      <div className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center">
-        <p className="text-muted">會員 頁面 - 佔位符</p>
-      </div>
-    </div>
-  )
+export default function MembersPage() {
+  return <MembersClient />
 }

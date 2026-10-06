@@ -1,17 +1,8 @@
-﻿'use client'
+import type { Metadata } from 'next'
+import { ReportsClient } from './reports-client'
 
-import { PageHeader } from '@/components/layout'
+export const metadata: Metadata = { title: '報表與分析' }
 
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="報表與分析" 
-        subtitle="Phase 1 開發中..."
-      />
-      <div className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-6 text-center">
-        <p className="text-muted">報表與分析 頁面 - 佔位符</p>
-      </div>
-    </div>
-  )
+export default function ReportsPage() {
+  return <ReportsClient />
 }
