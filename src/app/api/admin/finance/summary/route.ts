@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 /**
  * 財務摘要（Phase 2）。
  * 營收來自 Booking（已付款／已完成，以 paidAt 歸屬期間）。
- * 費用尚無資料表，回傳 0；前端在 Expense 表接上前仍以 mock 費用補齊。
+ * 費用來自 Expense（已核准，以 submittedAt 歸屬期間）。
  */
 export async function GET(req: NextRequest) {
   if (!(await getAdminUser())) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
@@ -24,17 +24,20 @@ export async function GET(req: NextRequest) {
     _count: { _all: true },
   })
   const grossRevenue = agg._sum.total ?? 0
+  const exp = await prisma.expense.aggregate({ where: { status: 'APPROVED', submittedAt: { gte: from, lt: to } }, _sum: { amount: true } })
+  const expenses = exp._sum.amount ?? 0
+  const netRevenue = grossRevenue - expenses
 
   return NextResponse.json({
     success: true,
     data: {
       period: { from: from.toISOString(), to: to.toISOString() },
       grossRevenue,
-      expenses: 0,
-      netRevenue: grossRevenue,
-      operatingProfit: grossRevenue,
-      profitMargin: grossRevenue > 0 ? 100 : 0,
+      expenses,
+      netRevenue,
+      operatingProfit: netRevenue,
+      profitMargin: grossRevenue > 0 ? Math.round((netRevenue / grossRevenue) * 10000) / 100 : 0,
     },
-    meta: { total: agg._count._all, dateRange: { from: from.toISOString(), to: to.toISOString() }, expensesSource: 'none' },
+    meta: { total: agg._count._all, dateRange: { from: from.toISOString(), to: to.toISOString() }, expensesSource: 'expense-approved' },
   })
 }

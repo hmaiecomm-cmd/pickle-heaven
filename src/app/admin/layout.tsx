@@ -38,9 +38,9 @@ const NAV: NavGroup[] = [
     items: [
       { label: '營收與財務', href: '/admin/finance', exact: true },
       { label: '付款狀態', href: '/admin/finance/payments' },
-      { label: '發票', href: '/admin/invoices', mock: true },
-      { label: '收據', href: '/admin/receipts', mock: true },
-      { label: '費用', href: '/admin/expenses', mock: true },
+      { label: '發票', href: '/admin/invoices' },
+      { label: '收據', href: '/admin/receipts' },
+      { label: '費用', href: '/admin/expenses' },
       { label: '報表與分析', href: '/admin/reports', mock: true },
     ],
   },

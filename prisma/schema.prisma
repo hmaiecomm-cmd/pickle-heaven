@@ -55,6 +55,34 @@ enum DeviceStatus {
   WARNING
 }
 
+enum ExpenseCategory {
+  MAINTENANCE
+  SUPPLIES
+  UTILITIES
+  LABOR
+  OTHER
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum OcrStatus {
+  DRAFT // 辨識結果尚未人工確認
+  CONFIRMED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
 enum BookingStatus {
   PENDING // 待付款
   PAID // 已付款
@@ -102,6 +130,7 @@ model User {
   noShowCount       Int @default(0)
 
   bookings      Booking[]
+  invoices      Invoice[]
   vouchers      Voucher[]
   registrations SessionRegistration[]
   notifications NotificationLog[]
@@ -190,6 +219,72 @@ model Device {
   @@index([courtId])
 }
 
+/// 場館支出
+model Expense {
+  id            String          @id @default(cuid())
+  expenseNumber String          @unique
+  category      ExpenseCategory @default(OTHER)
+  amount        Int
+  status        ExpenseStatus   @default(DRAFT)
+  description   String
+  submittedAt   DateTime        @default(now())
+  approvedAt    DateTime?
+  approvedBy    String?
+  /// 來源收據（選填）
+  receiptId     String?         @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  receipt Receipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt])
+  @@index([category])
+}
+
+/// 收據歸檔；OCR 辨識結果一律先為草稿，人工確認後才標示 CONFIRMED
+model Receipt {
+  id            String     @id @default(cuid())
+  receiptNumber String     @unique
+  /// 對應的付款（系統開立的收據才有）
+  paymentId     String?
+  amount        Int
+  issueDate     DateTime
+  paymentMethod String
+  vendorName    String
+  ocrStatus     OcrStatus?
+  ocrFields     Json?
+  ocrConfidence Float?
+  imageUrl      String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  expense Expense?
+
+  @@index([issueDate])
+}
+
+/// 開立給會員的發票
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  userId        String?
+  bookingId     String?
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  amount        Int
+  status        InvoiceStatus @default(DRAFT)
+  /// [{ description, quantity, unitPrice, amount }]
+  items         Json
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueDate])
+  @@index([userId])
+}
+
 model PriceRule {
   id          String   @id @default(cuid())
   venueId     String
@@ -267,6 +362,7 @@ model Booking {
   payments     Payment[]
   reservations Reservation[]
   voucher      Voucher?
+  invoices     Invoice[]
 
   @@index([userId, createdAt])
   @@index([venueId, playDate])

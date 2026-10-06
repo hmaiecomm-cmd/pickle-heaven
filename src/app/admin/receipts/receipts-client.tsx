@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { getReceipts, postOCRScan } from '@/lib/api-service'
+import { confirmReceiptOcr, createReceiptDraft, getReceipts, postOCRScan } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Receipt } from '@/lib/models'
 
@@ -75,14 +75,32 @@ export function ReceiptsClient() {
 
   const selected = receipts.find((r) => r.id === selectedId) ?? null
 
-  const confirmReceipt = (id: string) => {
-    setReceipts((list) => list.map((r) => (r.id === id && r.ocrData ? { ...r, ocrData: { ...r.ocrData, status: 'CONFIRMED' } } : r)))
-    toast('已確認辨識結果；會計分錄仍需於費用頁另行建立', 'success')
+  const [busy, setBusy] = useState(false)
+
+  const confirmReceipt = async (id: string) => {
+    setBusy(true)
+    try {
+      const res = await confirmReceiptOcr(id)
+      if (!res.success) {
+        toast(`確認失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+        return
+      }
+      setReceipts((list) => list.map((r) => (r.id === id ? res.data : r)))
+      toast('已確認辨識結果；會計分錄仍需於費用頁另行建立', 'success')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const addDraft = (r: Receipt) => {
-    setReceipts((list) => [r, ...list])
-    toast(`已儲存草稿 ${r.receiptNumber}，待人工確認`, 'info')
+  const addDraft = async (input: Parameters<typeof createReceiptDraft>[0]): Promise<boolean> => {
+    const res = await createReceiptDraft(input)
+    if (!res.success) {
+      toast(`儲存失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+      return false
+    }
+    setReceipts((list) => [res.data, ...list])
+    toast(`已儲存草稿 ${res.data.receiptNumber}，待人工確認`, 'info')
+    return true
   }
 
   const exportCsv = () =>
@@ -205,7 +223,7 @@ export function ReceiptsClient() {
               )}
               <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
                 {ocrState(selected) === 'DRAFT' && (
-                  <Button size="sm" onClick={() => confirmReceipt(selected.id)}>
+                  <Button size="sm" loading={busy} onClick={() => confirmReceipt(selected.id)}>
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
                     確認辨識結果
                   </Button>
@@ -226,7 +244,8 @@ export function ReceiptsClient() {
 
 /* ───────────────────────────── OCR 流程 ───────────────────────────── */
 
-function OcrSheet({ open, onOpenChange, onSaveDraft }: { open: boolean; onOpenChange: (o: boolean) => void; onSaveDraft: (r: Receipt) => void }) {
+function OcrSheet({ open, onOpenChange, onSaveDraft }: { open: boolean; onOpenChange: (o: boolean) => void; onSaveDraft: (input: Parameters<typeof createReceiptDraft>[0]) => Promise<boolean> }) {
+  const [saving, setSaving] = useState(false)
   const [step, setStep] = useState<OcrStep>('idle')
   const [fileName, setFileName] = useState<string | null>(null)
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -259,21 +278,25 @@ function OcrSheet({ open, onOpenChange, onSaveDraft }: { open: boolean; onOpenCh
     if (f) start(f)
   }
 
-  const save = () => {
+  const save = async () => {
     const amount = Number(fields.amount) || 0
     const date = fields.date ? new Date(fields.date) : new Date()
-    onSaveDraft({
-      id: `receipt-ocr-${Date.now()}`,
-      receiptNumber: `RCP-OCR-${String(Date.now()).slice(-6)}`,
-      paymentId: '—',
-      amount,
-      issueDate: isNaN(date.getTime()) ? new Date() : date,
-      paymentMethod: 'CASH',
-      vendorName: fields.vendor || '未填寫',
-      ocrData: { status: 'DRAFT', fields: { ...fields }, confidence: 0.82 },
-    })
-    reset()
-    onOpenChange(false)
+    setSaving(true)
+    try {
+      const ok = await onSaveDraft({
+        amount,
+        issueDate: isNaN(date.getTime()) ? new Date() : date,
+        paymentMethod: 'CASH',
+        vendorName: fields.vendor || '未填寫',
+        fields: { ...fields },
+        confidence: 0.82,
+      })
+      if (!ok) return
+      reset()
+      onOpenChange(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const STEPS: { key: OcrStep; label: string }[] = [
@@ -360,7 +383,7 @@ function OcrSheet({ open, onOpenChange, onSaveDraft }: { open: boolean; onOpenCh
                 </Field>
               </div>
               <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
-                <Button size="sm" onClick={save}>儲存為草稿</Button>
+                <Button size="sm" loading={saving} onClick={save}>儲存為草稿</Button>
                 <Button size="sm" variant="secondary" onClick={reset}>重新掃描</Button>
               </div>
               <p className="text-xs text-muted">儲存後仍是草稿，不會自動建立任何會計分錄。</p>

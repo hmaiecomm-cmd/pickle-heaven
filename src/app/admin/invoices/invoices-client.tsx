@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/co
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { getInvoices, getMembers, getReservations } from '@/lib/api-service'
+import { getInvoices, getMembers, getReservations, updateInvoiceStatus } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Invoice, Member, Reservation } from '@/lib/models'
 
@@ -80,8 +80,8 @@ export function InvoicesClient() {
   }, [])
 
   const now = new Date()
-  const memberName = (id: string) => members.find((m) => m.id === id)?.name ?? '—'
-  const bookingCode = (id: string) => reservations.find((r) => r.id === id)?.bookingCode ?? id
+  const memberName = (i: Invoice) => i.memberName ?? members.find((m) => m.id === i.memberId)?.name ?? '—'
+  const bookingCode = (i: Invoice) => i.bookingCode ?? reservations.find((r) => r.id === i.reservationId)?.bookingCode ?? i.reservationId
 
   const filtered = useMemo(() => {
     const from = periodStart(period)
@@ -89,7 +89,7 @@ export function InvoicesClient() {
     return invoices
       .filter((i) => !from || i.issueDate >= from)
       .filter((i) => status === 'ALL' || effectiveStatus(i, now) === status)
-      .filter((i) => !q || `${i.invoiceNumber} ${memberName(i.memberId)} ${bookingCode(i.reservationId)}`.toLowerCase().includes(q))
+      .filter((i) => !q || `${i.invoiceNumber} ${memberName(i)} ${bookingCode(i)}`.toLowerCase().includes(q))
       .sort((a, b) => b.issueDate.getTime() - a.issueDate.getTime())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices, members, reservations, period, status, query])
@@ -107,17 +107,29 @@ export function InvoicesClient() {
 
   const selected = invoices.find((i) => i.id === selectedId) ?? null
 
-  /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setInvoiceStatus = (id: string, next: Status) => {
-    setInvoices((list) => list.map((i) => (i.id === id ? { ...i, status: next } : i)))
-    toast(`發票已改為「${STATUS_META[next].label}」（mock，未寫入資料庫）`, next === 'CANCELLED' ? 'info' : 'success')
+  const [busy, setBusy] = useState(false)
+
+  /** 寫入資料庫並留下稽核紀錄。 */
+  const setInvoiceStatus = async (id: string, next: Status) => {
+    setBusy(true)
+    try {
+      const res = await updateInvoiceStatus(id, next)
+      if (!res.success) {
+        toast(`變更失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+        return
+      }
+      setInvoices((list) => list.map((i) => (i.id === id ? res.data : i)))
+      toast(`發票已改為「${STATUS_META[next].label}」`, next === 'CANCELLED' ? 'info' : 'success')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const exportCsv = () =>
     downloadCsv(
       `invoices-${fmtDate(now).replace(/\//g, '')}.csv`,
       ['發票號碼', '會員', '訂單', '開立日期', '到期日', '金額', '狀態'],
-      filtered.map((i) => [i.invoiceNumber, memberName(i.memberId), bookingCode(i.reservationId), fmtDate(i.issueDate), fmtDate(i.dueDate), i.amount, STATUS_META[effectiveStatus(i, now)].label]),
+      filtered.map((i) => [i.invoiceNumber, memberName(i), bookingCode(i), fmtDate(i.issueDate), fmtDate(i.dueDate), i.amount, STATUS_META[effectiveStatus(i, now)].label]),
     )
 
   const selectClass = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] px-2.5 text-sm'
@@ -204,8 +216,8 @@ export function InvoicesClient() {
                   return (
                     <tr key={i.id} onClick={() => setSelectedId(i.id)} className="cursor-pointer border-b border-[rgb(var(--border))] last:border-0 hover:surface-2">
                       <td className="px-4 py-3 font-mono font-medium">{i.invoiceNumber}</td>
-                      <td className="px-4 py-3">{memberName(i.memberId)}</td>
-                      <td className="px-4 py-3 font-mono">{bookingCode(i.reservationId)}</td>
+                      <td className="px-4 py-3">{memberName(i)}</td>
+                      <td className="px-4 py-3 font-mono">{bookingCode(i)}</td>
                       <td className="px-4 py-3 tabular-nums">{fmtDate(i.issueDate)}</td>
                       <td className={`px-4 py-3 tabular-nums ${s === 'OVERDUE' ? 'text-red-600' : ''}`}>{fmtDate(i.dueDate)}</td>
                       <td className="px-4 py-3 text-right font-mono">{fmtMoney(i.amount)}</td>
@@ -224,7 +236,7 @@ export function InvoicesClient() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-mono text-sm font-semibold">{i.invoiceNumber}</p>
-                      <p className="truncate text-sm">{memberName(i.memberId)}　<span className="font-mono text-muted">{bookingCode(i.reservationId)}</span></p>
+                      <p className="truncate text-sm">{memberName(i)}　<span className="font-mono text-muted">{bookingCode(i)}</span></p>
                       <p className="mt-0.5 text-xs text-muted tabular-nums">開立 {fmtDate(i.issueDate)}　到期 {fmtDate(i.dueDate)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -251,8 +263,8 @@ export function InvoicesClient() {
                 </div>
 
                 <section className="grid grid-cols-2 gap-3">
-                  <Info label="會員" value={memberName(selected.memberId)} />
-                  <Info label="訂單" value={bookingCode(selected.reservationId)} mono />
+                  <Info label="會員" value={memberName(selected)} />
+                  <Info label="訂單" value={bookingCode(selected)} mono />
                 </section>
 
                 <section>
@@ -280,15 +292,15 @@ export function InvoicesClient() {
                 </section>
 
                 <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
-                  {selected.status === 'DRAFT' && <Button size="sm" onClick={() => setInvoiceStatus(selected.id, 'ISSUED')}>開立發票</Button>}
-                  {(s === 'ISSUED' || s === 'OVERDUE') && <Button size="sm" onClick={() => setInvoiceStatus(selected.id, 'PAID')}>標記已付款</Button>}
+                  {selected.status === 'DRAFT' && <Button size="sm" loading={busy} onClick={() => setInvoiceStatus(selected.id, 'ISSUED')}>開立發票</Button>}
+                  {(s === 'ISSUED' || s === 'OVERDUE') && <Button size="sm" loading={busy} onClick={() => setInvoiceStatus(selected.id, 'PAID')}>標記已付款</Button>}
                   {selected.status !== 'CANCELLED' && selected.status !== 'PAID' && (
-                    <Button size="sm" variant="danger" onClick={() => setInvoiceStatus(selected.id, 'CANCELLED')}>作廢</Button>
+                    <Button size="sm" variant="danger" disabled={busy} onClick={() => setInvoiceStatus(selected.id, 'CANCELLED')}>作廢</Button>
                   )}
                   <Button size="sm" variant="secondary" disabled title="Phase 2 實作">下載 PDF</Button>
                   <Button size="sm" variant="secondary" disabled title="Phase 2 實作">寄送給會員</Button>
                 </div>
-                <p className="text-xs text-muted">狀態變更目前僅更新畫面（mock 模式），Phase 2 會寫回資料庫並串接電子發票。</p>
+                <p className="text-xs text-muted">狀態變更會寫入資料庫並留下稽核紀錄；電子發票串接為後續項目。</p>
               </div>
             </SheetContent>
           )

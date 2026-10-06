@@ -69,6 +69,57 @@ CREATE TABLE "Device" (
 );
 
 -- CreateTable
+CREATE TABLE "Expense" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "expenseNumber" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'OTHER',
+    "amount" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "description" TEXT NOT NULL,
+    "submittedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "approvedAt" DATETIME,
+    "approvedBy" TEXT,
+    "receiptId" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Expense_receiptId_fkey" FOREIGN KEY ("receiptId") REFERENCES "Receipt" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Receipt" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "receiptNumber" TEXT NOT NULL,
+    "paymentId" TEXT,
+    "amount" INTEGER NOT NULL,
+    "issueDate" DATETIME NOT NULL,
+    "paymentMethod" TEXT NOT NULL,
+    "vendorName" TEXT NOT NULL,
+    "ocrStatus" TEXT,
+    "ocrFields" JSONB,
+    "ocrConfidence" REAL,
+    "imageUrl" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Invoice" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "invoiceNumber" TEXT NOT NULL,
+    "userId" TEXT,
+    "bookingId" TEXT,
+    "issueDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dueDate" DATETIME NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "items" JSONB NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Invoice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Invoice_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "PriceRule" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "venueId" TEXT NOT NULL,
@@ -322,6 +373,33 @@ CREATE INDEX "Court_venueId_sortOrder_idx" ON "Court"("venueId", "sortOrder");
 
 -- CreateIndex
 CREATE INDEX "Device_courtId_idx" ON "Device"("courtId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Expense_expenseNumber_key" ON "Expense"("expenseNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Expense_receiptId_key" ON "Expense"("receiptId");
+
+-- CreateIndex
+CREATE INDEX "Expense_status_submittedAt_idx" ON "Expense"("status", "submittedAt");
+
+-- CreateIndex
+CREATE INDEX "Expense_category_idx" ON "Expense"("category");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Receipt_receiptNumber_key" ON "Receipt"("receiptNumber");
+
+-- CreateIndex
+CREATE INDEX "Receipt_issueDate_idx" ON "Receipt"("issueDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invoice_invoiceNumber_key" ON "Invoice"("invoiceNumber");
+
+-- CreateIndex
+CREATE INDEX "Invoice_status_dueDate_idx" ON "Invoice"("status", "dueDate");
+
+-- CreateIndex
+CREATE INDEX "Invoice_userId_idx" ON "Invoice"("userId");
 
 -- CreateIndex
 CREATE INDEX "PriceRule_venueId_dayType_idx" ON "PriceRule"("venueId", "dayType");

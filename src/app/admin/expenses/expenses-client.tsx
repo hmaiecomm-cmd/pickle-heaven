@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { getExpenses } from '@/lib/api-service'
+import { createExpense, getExpenses, updateExpenseStatus } from '@/lib/api-service'
 import { downloadCsv } from '@/lib/csv'
 import type { Expense, ExpenseStatus } from '@/lib/models'
 
@@ -101,17 +101,33 @@ export function ExpensesClient() {
 
   const selected = expenses.find((e) => e.id === selectedId) ?? null
 
-  /** Phase 1 僅更新本機狀態；Phase 2 改呼叫 API。 */
-  const setExpenseStatus = (id: string, next: ExpenseStatus) => {
-    setExpenses((list) =>
-      list.map((e) => (e.id === id ? { ...e, status: next, approvedAt: next === 'APPROVED' ? new Date() : e.approvedAt } : e)),
-    )
-    toast(`費用已改為「${STATUS_META[next].label}」（mock，未寫入資料庫）`, next === 'REJECTED' ? 'info' : 'success')
+  const [busy, setBusy] = useState(false)
+
+  /** 寫入資料庫並留下稽核紀錄。 */
+  const setExpenseStatus = async (id: string, next: ExpenseStatus) => {
+    setBusy(true)
+    try {
+      const res = await updateExpenseStatus(id, next)
+      if (!res.success) {
+        toast(`變更失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+        return
+      }
+      setExpenses((list) => list.map((e) => (e.id === id ? res.data : e)))
+      toast(`費用已改為「${STATUS_META[next].label}」`, next === 'REJECTED' ? 'info' : 'success')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const addExpense = (e: Expense) => {
-    setExpenses((list) => [e, ...list])
-    toast(`已登錄費用 ${e.expenseNumber}（${STATUS_META[e.status].label}）`, 'success')
+  const addExpense = async (input: Parameters<typeof createExpense>[0]): Promise<boolean> => {
+    const res = await createExpense(input)
+    if (!res.success) {
+      toast(`登錄失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+      return false
+    }
+    setExpenses((list) => [res.data, ...list])
+    toast(`已登錄費用 ${res.data.expenseNumber}（${STATUS_META[res.data.status].label}）`, 'success')
+    return true
   }
 
   const exportCsv = () =>
@@ -280,17 +296,17 @@ export function ExpensesClient() {
                 </section>
               )}
               <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
-                {selected.status === 'DRAFT' && <Button size="sm" onClick={() => setExpenseStatus(selected.id, 'SUBMITTED')}>送出審核</Button>}
+                {selected.status === 'DRAFT' && <Button size="sm" loading={busy} onClick={() => setExpenseStatus(selected.id, 'SUBMITTED')}>送出審核</Button>}
                 {selected.status === 'SUBMITTED' && (
                   <>
-                    <Button size="sm" onClick={() => setExpenseStatus(selected.id, 'APPROVED')}>核准</Button>
-                    <Button size="sm" variant="danger" onClick={() => setExpenseStatus(selected.id, 'REJECTED')}>退回</Button>
+                    <Button size="sm" loading={busy} onClick={() => setExpenseStatus(selected.id, 'APPROVED')}>核准</Button>
+                    <Button size="sm" variant="danger" disabled={busy} onClick={() => setExpenseStatus(selected.id, 'REJECTED')}>退回</Button>
                   </>
                 )}
-                {selected.status === 'REJECTED' && <Button size="sm" variant="secondary" onClick={() => setExpenseStatus(selected.id, 'DRAFT')}>改回草稿</Button>}
+                {selected.status === 'REJECTED' && <Button size="sm" variant="secondary" loading={busy} onClick={() => setExpenseStatus(selected.id, 'DRAFT')}>改回草稿</Button>}
                 <Button size="sm" variant="secondary" disabled title="Phase 2 實作">編輯</Button>
               </div>
-              <p className="text-xs text-muted">審核動作目前僅更新畫面（mock 模式），Phase 2 會寫回資料庫。</p>
+              <p className="text-xs text-muted">審核動作會寫入資料庫並留下稽核紀錄{selected.approvedBy ? `；核准者 ${selected.approvedBy}` : ''}。</p>
             </div>
           </SheetContent>
         )}
@@ -303,26 +319,31 @@ export function ExpensesClient() {
 
 /* ───────────────────────────── 手動登錄 ───────────────────────────── */
 
-function CreateExpenseSheet({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (e: Expense) => void }) {
+function CreateExpenseSheet({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (o: boolean) => void; onCreate: (input: Parameters<typeof createExpense>[0]) => Promise<boolean> }) {
+  const [saving, setSaving] = useState(false)
   const today = new Date().toISOString().slice(0, 10)
   const EMPTY = { category: 'OTHER' as Category, amount: '', date: today, description: '' }
   const [form, setForm] = useState(EMPTY)
   const set = <K extends keyof typeof EMPTY>(k: K, v: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [k]: v }))
   const valid = Number(form.amount) > 0 && form.description.trim().length > 0
 
-  const submit = (asDraft: boolean) => {
+  const submit = async (asDraft: boolean) => {
     const d = new Date(form.date)
-    onCreate({
-      id: `exp-${Date.now()}`,
-      expenseNumber: `EXP-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
-      category: form.category,
-      amount: Number(form.amount),
-      status: asDraft ? 'DRAFT' : 'SUBMITTED',
-      submittedAt: isNaN(d.getTime()) ? new Date() : d,
-      description: form.description.trim(),
-    })
-    setForm(EMPTY)
-    onOpenChange(false)
+    setSaving(true)
+    try {
+      const ok = await onCreate({
+        category: form.category,
+        amount: Number(form.amount),
+        status: asDraft ? 'DRAFT' : 'SUBMITTED',
+        submittedAt: isNaN(d.getTime()) ? new Date() : d,
+        description: form.description.trim(),
+      })
+      if (!ok) return
+      setForm(EMPTY)
+      onOpenChange(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -353,10 +374,10 @@ function CreateExpenseSheet({ open, onOpenChange, onCreate }: { open: boolean; o
             <Input id="exp-desc" value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="例：球場地板打蠟保養" />
           </Field>
           <div className="flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-4">
-            <Button size="sm" disabled={!valid} onClick={() => submit(false)}>送出審核</Button>
-            <Button size="sm" variant="secondary" disabled={!valid} onClick={() => submit(true)}>存為草稿</Button>
+            <Button size="sm" disabled={!valid} loading={saving} onClick={() => submit(false)}>送出審核</Button>
+            <Button size="sm" variant="secondary" disabled={!valid || saving} onClick={() => submit(true)}>存為草稿</Button>
           </div>
-          <p className="text-xs text-muted">目前只存在畫面上（mock 模式），Phase 2 會寫回資料庫。</p>
+          <p className="text-xs text-muted">會直接寫入資料庫並產生費用編號。</p>
         </div>
       </SheetContent>
     </Sheet>

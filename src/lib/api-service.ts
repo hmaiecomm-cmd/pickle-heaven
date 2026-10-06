@@ -92,6 +92,19 @@ async function fetchAdmin<T>(path: string): Promise<ApiResponse<T>> {
 /** JSON 的日期字串還原成 Date。 */
 const toDate = (v: unknown): Date | undefined => (typeof v === 'string' ? new Date(v) : undefined)
 
+const reviveReceipt = (r: Omit<Receipt, 'issueDate'> & { issueDate: string }): Receipt => ({ ...r, issueDate: toDate(r.issueDate) ?? new Date() })
+const reviveExpense = (e: Omit<Expense, 'submittedAt' | 'approvedAt' | 'receipt'> & { submittedAt: string; approvedAt?: string; receipt?: Omit<Receipt, 'issueDate'> & { issueDate: string } }): Expense => ({
+  ...e,
+  submittedAt: toDate(e.submittedAt) ?? new Date(),
+  approvedAt: toDate(e.approvedAt),
+  receipt: e.receipt ? reviveReceipt(e.receipt) : undefined,
+})
+const reviveInvoice = (i: Omit<Invoice, 'issueDate' | 'dueDate'> & { issueDate: string; dueDate: string }): Invoice => ({
+  ...i,
+  issueDate: toDate(i.issueDate) ?? new Date(),
+  dueDate: toDate(i.dueDate) ?? new Date(),
+})
+
 // ============ RESERVATIONS ============
 export async function getReservations(
   filters?: {
@@ -332,23 +345,7 @@ export async function getFinancialSummary(
         data: { period: { from: new Date(), to: new Date() }, grossRevenue: 0, expenses: 0, netRevenue: 0, operatingProfit: 0, profitMargin: 0 },
       }
     }
-    // 費用尚無資料表：先以 mock 費用（依提交日期）補齊，讓淨收入與利潤率有意義
-    const from = new Date(res.data.period.from)
-    const to = new Date(res.data.period.to)
-    const expenses = filterByDateRange(MOCK_DATA.expenses, from, to).reduce((s, e) => s + e.amount, 0)
-    const { grossRevenue } = res.data
-    const netRevenue = grossRevenue - expenses
-    return {
-      ...res,
-      data: {
-        period: { from, to },
-        grossRevenue,
-        expenses,
-        netRevenue,
-        operatingProfit: netRevenue,
-        profitMargin: grossRevenue > 0 ? Math.round((netRevenue / grossRevenue) * 10000) / 100 : 0,
-      },
-    }
+    return { ...res, data: { ...res.data, period: { from: new Date(res.data.period.from), to: new Date(res.data.period.to) } } }
   }
   try {
     const range = getDateRange(dateRange)
@@ -399,6 +396,11 @@ export async function getInvoices(
     status?: string
   },
 ): Promise<ApiResponse<Invoice[]>> {
+  if (ADMIN_LIVE) {
+    const q = filters?.status ? `?status=${encodeURIComponent(filters.status)}` : ''
+    const res = await fetchAdmin<Parameters<typeof reviveInvoice>[0][]>(`/api/admin/invoices${q}`)
+    return res.success ? { ...res, data: res.data.map(reviveInvoice) } : { ...res, data: [] }
+  }
   try {
     let invoices = [...MOCK_DATA.invoices]
 
@@ -426,7 +428,17 @@ export async function getInvoices(
 }
 
 // ============ RECEIPTS ============
+/** 變更發票狀態（Phase 2）。 */
+export async function updateInvoiceStatus(id: string, status: Invoice['status']): Promise<ApiResponse<Invoice>> {
+  const res = await sendAdmin<Parameters<typeof reviveInvoice>[0]>(`/api/admin/invoices/${encodeURIComponent(id)}/status`, 'PATCH', { status })
+  return res.success ? { ...res, data: reviveInvoice(res.data) } : { ...res, data: undefined as unknown as Invoice }
+}
+
 export async function getReceipts(): Promise<ApiResponse<Receipt[]>> {
+  if (ADMIN_LIVE) {
+    const res = await fetchAdmin<Parameters<typeof reviveReceipt>[0][]>('/api/admin/receipts')
+    return res.success ? { ...res, data: res.data.map(reviveReceipt) } : { ...res, data: [] }
+  }
   try {
     return {
       success: true,
@@ -448,12 +460,32 @@ export async function getReceipts(): Promise<ApiResponse<Receipt[]>> {
 }
 
 // ============ EXPENSES ============
+/** 建立 OCR 草稿收據（Phase 2）。 */
+export async function createReceiptDraft(input: { amount: number; issueDate: Date; vendorName: string; paymentMethod?: string; fields?: Record<string, string>; confidence?: number }): Promise<ApiResponse<Receipt>> {
+  const res = await sendAdmin<Parameters<typeof reviveReceipt>[0]>('/api/admin/receipts', 'POST', { ...input, issueDate: input.issueDate.toISOString() })
+  return res.success ? { ...res, data: reviveReceipt(res.data) } : { ...res, data: undefined as unknown as Receipt }
+}
+
+/** 人工確認 OCR 辨識結果（Phase 2）。 */
+export async function confirmReceiptOcr(id: string): Promise<ApiResponse<Receipt>> {
+  const res = await sendAdmin<Parameters<typeof reviveReceipt>[0]>(`/api/admin/receipts/${encodeURIComponent(id)}/confirm`, 'PATCH')
+  return res.success ? { ...res, data: reviveReceipt(res.data) } : { ...res, data: undefined as unknown as Receipt }
+}
+
 export async function getExpenses(
   filters?: {
     category?: string
     status?: string
   },
 ): Promise<ApiResponse<Expense[]>> {
+  if (ADMIN_LIVE) {
+    const p = new URLSearchParams()
+    if (filters?.category) p.set('category', filters.category)
+    if (filters?.status) p.set('status', filters.status)
+    const q = p.toString() ? `?${p}` : ''
+    const res = await fetchAdmin<Parameters<typeof reviveExpense>[0][]>(`/api/admin/expenses${q}`)
+    return res.success ? { ...res, data: res.data.map(reviveExpense) } : { ...res, data: [] }
+  }
   try {
     let expenses = [...MOCK_DATA.expenses]
 
@@ -488,6 +520,18 @@ export async function getExpenses(
 export async function updateCourtStatus(id: string, status: Court['status']): Promise<ApiResponse<{ id: string; status: Court['status']; active: boolean }>> {
   if (!ADMIN_LIVE) return { success: true, data: { id, status, active: status === 'ACTIVE' } }
   return sendAdmin(`/api/admin/courts/${encodeURIComponent(id)}/status`, 'PATCH', { status })
+}
+
+/** 手動登錄費用（Phase 2）。 */
+export async function createExpense(input: { category: Expense['category']; amount: number; description: string; submittedAt?: Date; status?: 'DRAFT' | 'SUBMITTED'; receiptId?: string }): Promise<ApiResponse<Expense>> {
+  const res = await sendAdmin<Parameters<typeof reviveExpense>[0]>('/api/admin/expenses', 'POST', { ...input, submittedAt: input.submittedAt?.toISOString() })
+  return res.success ? { ...res, data: reviveExpense(res.data) } : { ...res, data: undefined as unknown as Expense }
+}
+
+/** 費用審核狀態變更（Phase 2）。 */
+export async function updateExpenseStatus(id: string, status: Expense['status']): Promise<ApiResponse<Expense>> {
+  const res = await sendAdmin<Parameters<typeof reviveExpense>[0]>(`/api/admin/expenses/${encodeURIComponent(id)}/status`, 'PATCH', { status })
+  return res.success ? { ...res, data: reviveExpense(res.data) } : { ...res, data: undefined as unknown as Expense }
 }
 
 export async function getDevices(): Promise<ApiResponse<Device[]>> {

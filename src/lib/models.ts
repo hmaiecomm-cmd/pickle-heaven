@@ -130,6 +130,9 @@ export interface Invoice {
   invoiceNumber: string
   memberId: string
   reservationId: string
+  /** 真實 API 附帶 */
+  memberName?: string
+  bookingCode?: string
   issueDate: Date
   dueDate: Date
   amount: number
@@ -165,6 +168,7 @@ export interface Expense {
   status: ExpenseStatus
   submittedAt: Date
   approvedAt?: Date
+  approvedBy?: string
   description: string
   receipt?: Receipt
   ocrData?: {

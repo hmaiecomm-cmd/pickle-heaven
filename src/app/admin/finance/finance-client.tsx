@@ -98,7 +98,7 @@ export function FinanceClient() {
 
   const range = useMemo(() => getDateRange(period), [period])
   const expensesInRange = useMemo(
-    () => expenses.filter((e) => e.submittedAt >= range.from && e.submittedAt <= range.to),
+    () => expenses.filter((e) => e.status === 'APPROVED' && e.submittedAt >= range.from && e.submittedAt <= range.to),
     [expenses, range],
   )
 
@@ -183,7 +183,7 @@ export function FinanceClient() {
             <ChartCard title="營收趨勢" subtitle={trend.rev.length > 31 ? '按月' : '按日'}>
               <BarChart data={trend.rev} series="series-1" />
             </ChartCard>
-            <ChartCard title="費用趨勢" subtitle="依提交日期">
+            <ChartCard title="費用趨勢" subtitle="已核准，依提交日期">
               <BarChart data={trend.exp} series="series-2" />
             </ChartCard>
             <ChartCard title="累計淨額" subtitle="營收減費用，逐期累加">
@@ -221,7 +221,7 @@ export function FinanceClient() {
           <RevenueTable rows={revenue} courts={courts} />
 
           <p className="text-xs text-muted">
-            計算說明：總營收為期間內已付款／已完成訂單的實收總額（依付款時間歸屬，來源 Turso）；費用尚無資料表，暫以 mock 費用依提交日期歸屬；淨收入 = 總營收 − 費用；營業利潤目前等於淨收入；利潤率 = 營業利潤 ÷ 總營收。
+            計算說明：總營收為期間內已付款／已完成訂單的實收總額（依付款時間歸屬，來源 Turso）；費用為已核准的費用紀錄，依提交日期歸屬；淨收入 = 總營收 − 費用；營業利潤目前等於淨收入；利潤率 = 營業利潤 ÷ 總營收。
           </p>
         </>
       )}
