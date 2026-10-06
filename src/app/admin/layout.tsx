@@ -53,7 +53,7 @@ const NAV: NavGroup[] = [
   },
   {
     title: '管理',
-    items: [{ label: '設定', href: '/admin/settings', mock: true }],
+    items: [{ label: '設定', href: '/admin/settings' }],
   },
 ]
 

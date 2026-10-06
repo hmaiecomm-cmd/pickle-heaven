@@ -16,6 +16,9 @@ import {
   Member,
   MembershipTierRow,
   PriceRuleRow,
+  SystemSettings,
+  VenueSettingsPatch,
+  AuditEntry,
   Court,
   FinancialSummary,
   RevenueByCourtByType,
@@ -275,6 +278,26 @@ export async function getPricing(): Promise<ApiResponse<{ priceRules: PriceRuleR
 export async function updateMembershipTiers(tiers: { level: MembershipTierRow['level']; discountPct: number }[]): Promise<ApiResponse<MembershipTierRow[]>> {
   if (!ADMIN_LIVE) return { success: true, data: tiers.map((t) => ({ ...t, label: t.level })) }
   return sendAdmin('/api/admin/pricing/tiers', 'PUT', { tiers })
+}
+
+/** 系統設定：場館、金流與整合狀態、系統資訊、安全提醒（Phase 2）。 */
+export async function getSettings(): Promise<ApiResponse<SystemSettings>> {
+  return fetchAdmin<SystemSettings>('/api/admin/settings')
+}
+
+/** 更新場館設定（部分欄位）。 */
+export async function updateVenueSettings(id: string, patch: VenueSettingsPatch): Promise<ApiResponse<{ id: string; changed: string[] }>> {
+  return sendAdmin(`/api/admin/settings/venue/${encodeURIComponent(id)}`, 'PATCH', patch)
+}
+
+/** 稽核紀錄，新到舊。 */
+export async function getAuditLogs(opts?: { limit?: number; before?: Date }): Promise<ApiResponse<AuditEntry[]>> {
+  const p = new URLSearchParams()
+  if (opts?.limit) p.set('limit', String(opts.limit))
+  if (opts?.before) p.set('before', opts.before.toISOString())
+  const q = p.toString() ? `?${p}` : ''
+  const res = await fetchAdmin<Array<Omit<AuditEntry, 'createdAt'> & { createdAt: string }>>(`/api/admin/audit${q}`)
+  return res.success ? { ...res, data: res.data.map((a) => ({ ...a, createdAt: toDate(a.createdAt) ?? new Date() })) } : { ...res, data: [] }
 }
 
 export async function getCourts(): Promise<ApiResponse<Court[]>> {

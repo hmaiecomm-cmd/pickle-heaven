@@ -39,6 +39,45 @@ export interface PriceRuleRow {
   priority: number
 }
 
+/** 場館可編輯設定（對應資料庫 Venue） */
+export interface VenueSettings {
+  id: string
+  name: string
+  address: string
+  phone: string
+  description: string
+  notice: string
+  policy: string
+  openMinute: number
+  closeMinute: number
+  slotMinutes: number
+  bookAheadDays: number
+  holdMinutes: number
+  timezone: string
+  active: boolean
+}
+
+export type VenueSettingsPatch = Partial<Pick<VenueSettings, 'name' | 'address' | 'phone' | 'description' | 'notice' | 'policy' | 'openMinute' | 'closeMinute' | 'bookAheadDays' | 'holdMinutes'>>
+
+export interface SystemSettings {
+  organization: { name: string } | null
+  venues: VenueSettings[]
+  payment: { provider: string; providerLabel: string; providers: { key: string; label: string; configured: boolean }[] }
+  integrations: { key: string; label: string; configured: boolean }[]
+  system: { environment: string; region: string | null; database: string; adminSource: 'live' | 'mock' }
+  rules: { paymentWindowMinutes: number; refundPolicy: { window: string; ratio: string }[] }
+  warnings: { level: 'danger' | 'warning'; message: string }[]
+}
+
+export interface AuditEntry {
+  id: string
+  actor: string
+  action: string
+  target?: string
+  detail: Record<string, unknown> | null
+  createdAt: Date
+}
+
 export interface MembershipTierRow {
   level: 'BASIC' | 'PREMIUM' | 'VIP'
   label: string
