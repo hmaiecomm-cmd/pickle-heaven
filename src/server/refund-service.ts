@@ -1,4 +1,5 @@
 import 'server-only'
+import { applyPoints } from './points-ledger'
 import { Prisma, RegistrationStatus } from '@prisma/client'
 import { isDemoTenant, prisma } from '@/lib/db'
 import { getPaymentProvider } from '@/lib/payments'
@@ -264,7 +265,7 @@ export async function executeRefund(req: RefundRequest): Promise<RefundResultVie
     // 點數與人工：立即回補點數並（若勾選）取消預約
     if (req.method !== 'ORIGINAL') {
       const credit = points + (req.method === 'POINTS' ? cash : 0)
-      if (credit > 0) await tx.user.update({ where: { id: b.userId }, data: { points: { increment: credit } } })
+      if (credit > 0) await applyPoints(tx, { userId: b.userId, delta: credit, kind: 'REFUND', reason: `訂單 ${b.code} 退款回補`, actor: req.actor, idempotencyKey: `refund:${req.idempotencyKey}:points`, bookingId: b.id })
       if (req.cancelItems) await cancelPicked(tx, b, picked)
     }
     await tx.auditLog.create({
@@ -313,7 +314,7 @@ export async function executeRefund(req: RefundRequest): Promise<RefundResultVie
     if (!b) throw new RefundError('找不到訂單')
     const items = await tx.refundItem.findMany({ where: { refundId: r.id } })
     if (ok) {
-      if (r.pointsAmount > 0) await tx.user.update({ where: { id: b.userId }, data: { points: { increment: r.pointsAmount } } })
+      if (r.pointsAmount > 0) await applyPoints(tx, { userId: b.userId, delta: r.pointsAmount, kind: 'REFUND', reason: `訂單 ${b.code} 退款（點數部分）回補`, actor: req.actor, idempotencyKey: `refund:${r.id}:points-ok`, bookingId: b.id })
       if (r.cancelItems) {
         const { items: all } = computeItems(b)
         await cancelPicked(tx, b, all.filter((i) => items.some((x) => x.itemId === i.itemId)))

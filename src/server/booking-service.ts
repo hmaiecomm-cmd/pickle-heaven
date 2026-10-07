@@ -13,6 +13,7 @@ import { isUniqueViolation } from './occupancy'
 import { notifySeatWatchers, publicCapacity, seatsUsed, visibleSessionWhere } from './activity-service'
 import { syncRefundStatus } from './refund-service'
 import { assertNotRestricted, RestrictedError } from './member-restrictions'
+import { applyPoints } from './points-ledger'
 
 /** 待付款訂單的付款期限（分鐘） */
 export const PAYMENT_WINDOW_MINUTES = 15
@@ -405,11 +406,11 @@ export async function createPendingBooking(
     }
 
     if (q.pointsUsed > 0) {
-      const spent = await tx.user.updateMany({
-        where: { id: userId, points: { gte: q.pointsUsed } },
-        data: { points: { decrement: q.pointsUsed } },
-      })
-      if (spent.count === 0) throw new BookingError('點數不足')
+      try {
+        await applyPoints(tx, { userId, delta: -q.pointsUsed, kind: 'REDEEM', reason: `訂單 ${created.code} 結帳折抵`, actor: `user:${userId}`, idempotencyKey: `redeem:${created.id}`, bookingId: created.id })
+      } catch {
+        throw new BookingError('點數不足')
+      }
     }
 
     return created
@@ -432,10 +433,17 @@ export async function createPendingBooking(
  * 付款前檢查：訂單內的活動場次必須仍有效。已取消、已開始的場次不能繼續付款。
  */
 export async function assertBookingPayable(bookingId: string): Promise<void> {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { status: true, expiresAt: true } })
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { status: true, expiresAt: true, userId: true } })
   if (!booking) throw new BookingError('找不到訂單', 'NOT_FOUND')
   if (booking.status !== 'PENDING') throw new BookingError('此訂單已取消或已處理，無法付款', 'PAYMENT_FAILED')
   if (booking.expiresAt && booking.expiresAt < now()) throw new BookingError('付款時間已逾時，請重新預約', 'HOLD_EXPIRED')
+  // 付款前再次核驗帳戶限制（黑名單對已開啟的購物車與舊 session 同樣生效）
+  try {
+    await assertNotRestricted(booking.userId, 'BOOKING')
+  } catch (err) {
+    if (err instanceof RestrictedError) throw new BookingError(err.message, 'UNAUTHORIZED')
+    throw err
+  }
   const items = await prisma.bookingActivityItem.findMany({
     where: { bookingId, status: 'ACTIVE' },
     include: { session: { select: { title: true, status: true, deletedAt: true, startAt: true } } },
@@ -566,7 +574,7 @@ export async function markBookingPaid(bookingId: string, info: PaidInfo): Promis
       await tx.bookingActivityItem.updateMany({ where: { bookingId }, data: { status: 'CANCELLED' } })
       await tx.voucher.updateMany({ where: { bookingId }, data: { bookingId: null, usedAt: null } })
       if (booking.pointsUsed > 0 && fromStatus === 'PENDING') {
-        await tx.user.update({ where: { id: booking.userId }, data: { points: { increment: booking.pointsUsed } } })
+        await applyPoints(tx, { userId: booking.userId, delta: booking.pointsUsed, kind: 'RELEASE', reason: `訂單 ${booking.code} 付款失敗，歸還折抵點數`, actor: 'system', idempotencyKey: `release:${bookingId}:fail`, bookingId })
       }
       await tx.auditLog.create({
         data: {
@@ -793,7 +801,7 @@ export async function cancelBooking(
 
   // 3. 記入退款帳：逐項分攤，之後不會再被重複退
   await prisma.$transaction(async (tx) => {
-    if (creditPoints > 0) await tx.user.update({ where: { id: booking.userId }, data: { points: { increment: creditPoints } } })
+    if (creditPoints > 0) await applyPoints(tx, { userId: booking.userId, delta: creditPoints, kind: 'REFUND', reason: `訂單 ${booking.code} 取消退款回補`, actor: actorUserId ? (opts.asAdmin ? actorUserId : `user:${actorUserId}`) : 'system', idempotencyKey: `cancel:${booking.id}:points`, bookingId: booking.id })
     if (cashRefund > 0 || pointsRefund > 0) {
       const lines = [
         ...booking.items.map((i) => ({ type: 'COURT' as const, id: i.id, gross: i.price, label: `場地 ${i.courtName}` })),
@@ -878,7 +886,7 @@ export async function expireStaleBookings(): Promise<number> {
       })
       await tx.voucher.updateMany({ where: { bookingId: b.id }, data: { bookingId: null, usedAt: null } })
       if (b.pointsUsed > 0) {
-        await tx.user.update({ where: { id: b.userId }, data: { points: { increment: b.pointsUsed } } })
+        await applyPoints(tx, { userId: b.userId, delta: b.pointsUsed, kind: 'RELEASE', reason: `訂單 ${b.id.slice(-6)} 逾時未付款，歸還折抵點數`, actor: 'system', idempotencyKey: `expire:${b.id}`, bookingId: b.id })
       }
       return true
     }, TX_OPTIONS)

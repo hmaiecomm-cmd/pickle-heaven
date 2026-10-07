@@ -27,6 +27,11 @@ export function AppShell({ user, children }: { user: SessionUser | null; childre
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteNav user={user} />
+      {user?.restricted && (
+        <p role="status" className="bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-900">
+          此帳戶目前限制使用，若有疑問請聯絡場館。
+        </p>
+      )}
       <main className={cn('mx-auto w-full max-w-6xl flex-1 px-4 pt-4', checkout ? 'pb-8' : 'pb-12')}>{children}</main>
     </div>
   )

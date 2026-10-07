@@ -148,6 +148,8 @@ export interface SessionUser {
   phone: string | null
   points: number
   role: 'USER' | 'STAFF' | 'ADMIN'
+  /** 帳戶目前受限（黑名單）：可瀏覽與查看本人資料，不能新增預約、報名、消費 */
+  restricted: boolean
 }
 
 export interface ApiError {

@@ -17,6 +17,7 @@ import { addDays, formatDateTime, now, taipeiDateString, taipeiMinuteOfDay, taip
 import { findConflicts, occupyCourts, OccupancyConflictError, releaseOccupancy, validateRange, withBuffer, type Conflict } from './occupancy'
 import { notifySeatWatchers, publicCapacity, seatsUsed } from './activity-service'
 import { cancelBooking } from './booking-service'
+import { applyPoints } from './points-ledger'
 import { deleteAssetIfUnused } from './media'
 
 /**
@@ -804,7 +805,7 @@ export async function cancelActivitySession(sessionId: string, reason: string, a
         where: { id: item.registrationId },
         data: { status: RegistrationStatus.CANCELLED, cancelledAt: now() },
       })
-      if (toPoints > 0) await tx.user.update({ where: { id: b.userId }, data: { points: { increment: toPoints } } })
+      if (toPoints > 0) await applyPoints(tx, { userId: b.userId, delta: toPoints, kind: 'REFUND', reason: `活動「${s.title}」取消，訂單 ${b.code} 退款回補`, actor, idempotencyKey: `session-cancel:${sessionId}:${item.id}`, bookingId: b.id })
       if (remainingActive === 0) await tx.booking.update({ where: { id: b.id }, data: { status: 'CANCELLED', cancelledAt: now() } })
       await tx.auditLog.create({
         data: {

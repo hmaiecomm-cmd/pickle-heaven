@@ -69,12 +69,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'members',
-    label: '會員管理',
+    label: '人員管理',
     items: [
-      { label: '會員列表', href: '/admin/members', permission: 'members', exact: true },
+      { label: '人員列表', href: '/admin/members', permission: 'members', exact: true },
       { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'members' },
       { label: '點數與票券', href: '/admin/members/points', permission: 'members' },
-      { label: '會員限制與黑名單', href: '/admin/members/restrictions', permission: 'members.restrict' },
+      { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members.restrict' },
     ],
   },
   {

@@ -37,6 +37,15 @@ const MAX_FAILS_PER_IP = 20
  *   展示帳號 DEMO 由環境變數 DEMO_ACCOUNT_PASSWORD 初始化。兩者都只在帳號不存在時建立，不會重設既有密碼。
  */
 
+/** 後台帳號對應的會員是否在黑名單中（正式資料庫） */
+async function memberBlacklisted(userId: string): Promise<boolean> {
+  const hit = await mainPrisma.memberRestriction.findFirst({
+    where: { userId, type: 'BLACKLIST', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    select: { id: true },
+  })
+  return Boolean(hit)
+}
+
 function secret(): Uint8Array {
   const s = process.env.SESSION_SECRET
   if (!s || s.length < 16) {
@@ -133,6 +142,7 @@ export async function signInAdmin(username: string, password: string): Promise<S
   const ok = Boolean(account && account.active && passwordOk)
   await mainPrisma.adminLoginAttempt.create({ data: { usernameKey: key, ip, success: ok } })
   if (!ok || !account) return { ok: false, error: '帳號或密碼錯誤' }
+  if (account.userId && (await memberBlacklisted(account.userId))) return { ok: false, error: '此帳戶目前限制使用，無法進入後台，若有疑問請聯絡場館' }
 
   const tenant: Tenant = account.tenant === 'demo' ? 'demo' : 'main'
   if (tenant === 'demo' && !isDemoConfigured()) {
@@ -206,6 +216,8 @@ export const getAdminContext = cache(async (): Promise<AdminContext | null> => {
   const session = await mainPrisma.adminSession.findUnique({ where: { id: payload.sid }, include: { account: true } })
   const now = Date.now()
   if (!session || session.revokedAt || session.expiresAt.getTime() <= now || !session.account.active) return null
+  // 對應的前台會員被列入黑名單：即使持有有效 session 也不能操作後台
+  if (session.account.userId && (await memberBlacklisted(session.account.userId))) return null
   if (session.lastSeenAt.getTime() < now - IDLE_MINUTES * 60_000) {
     await mainPrisma.adminSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } })
     return null

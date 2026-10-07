@@ -57,7 +57,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     )
   }
 
-  const [{ upcoming, past, cancelled, all }, regs, vouchers, profile] = await Promise.all([
+  const [{ upcoming, past, cancelled, all }, regs, vouchers, profile, courts] = await Promise.all([
     listUserBookings(user.id),
     prisma.sessionRegistration.findMany({
       where: { userId: user.id, status: { notIn: ['EXPIRED'] } },
@@ -66,12 +66,16 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       take: 60,
     }),
     prisma.voucher.findMany({
-      where: { OR: [{ userId: user.id }, { userId: null }], usedAt: null, bookingId: null },
+      // 本人專屬或全站通用、未核銷、未撤銷、未過期
+      where: { OR: [{ userId: user.id }, { userId: null }], usedAt: null, bookingId: null, revokedAt: null, AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }] },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: 20,
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, createdAt: true } }),
+    prisma.court.findMany({ where: { active: true }, select: { id: true, name: true } }),
   ])
+  const courtName = new Map(courts.map((c) => [c.id, c.name]))
+  const TICKET_LABEL: Record<string, string> = { OFFPEAK: '離峰券', PEAK: '尖峰券', GENERAL: '通用券' }
 
   const toCard = (b: (typeof all)[number]): BookingCardData => {
     const base = taipeiToUtc(b.playDate, 0).getTime()
@@ -201,27 +205,30 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <CardContent className="space-y-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <Ticket className="h-4 w-4" aria-hidden />
-                我的折價券
+                我的票券
               </h2>
               <Separator />
               {vouchers.length === 0 ? (
-                <p className="py-2 text-xs text-muted">目前沒有可使用的折價券</p>
+                <p className="py-2 text-xs text-muted">目前沒有可使用的票券</p>
               ) : (
                 <ul className="space-y-2">
                   {vouchers.map((v) => (
                     <li key={v.id} className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-[rgb(var(--border))] px-3 py-2.5">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{v.title}</p>
+                        <p className="truncate text-sm font-medium">{v.ticketKind ? `${TICKET_LABEL[v.ticketKind] ?? v.ticketKind}・${v.units ?? 1} 小時` : v.title}</p>
                         <p className="mt-0.5 text-[11px] text-muted">
                           <span className="tabular">{v.code}</span>
-                          {v.minSpend > 0 && ` · 滿 ${ntd(v.minSpend)} 可用`}
+                          {v.ticketKind && ` · 適用 ${v.courtIds ? v.courtIds.split(',').filter(Boolean).map((c) => courtName.get(c) ?? c).join('、') : '全部場地'}`}
+                          {!v.ticketKind && v.minSpend > 0 && ` · 滿 ${ntd(v.minSpend)} 可用`}
+                          {v.expiresAt ? ` · 有效至 ${v.expiresAt.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}` : ' · 不限期'}
                         </p>
                       </div>
-                      <Badge variant="brand">{v.type === 'AMOUNT' ? `折 ${ntd(v.value)}` : `${v.value / 10} 折`}</Badge>
+                      <Badge variant="brand">{v.ticketKind ? '場地時數券' : v.type === 'AMOUNT' ? `折 ${ntd(v.value)}` : `${v.value / 10} 折`}</Badge>
                     </li>
                   ))}
                 </ul>
               )}
+              <p className="text-[11px] text-muted">場地時數券由場館發放；結帳時以時數券抵扣的功能尚未開放，目前請於現場出示票券代碼。</p>
             </CardContent>
           </Card>
         </section>

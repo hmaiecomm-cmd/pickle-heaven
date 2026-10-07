@@ -3,6 +3,9 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "lineUserId" TEXT,
     "googleSub" TEXT,
+    "lastLoginAt" DATETIME,
+    "adminNote" TEXT,
+    "isCoach" BOOLEAN NOT NULL DEFAULT false,
     "displayName" TEXT NOT NULL,
     "pictureUrl" TEXT,
     "phone" TEXT,
@@ -145,6 +148,7 @@ CREATE TABLE "Coach" (
     "specialties" JSONB NOT NULL,
     "hourlyRate" INTEGER NOT NULL DEFAULT 0,
     "bio" TEXT,
+    "userId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -269,6 +273,14 @@ CREATE TABLE "Voucher" (
     "usedAt" DATETIME,
     "bookingId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "ticketKind" TEXT,
+    "units" INTEGER NOT NULL DEFAULT 1,
+    "courtIds" TEXT NOT NULL DEFAULT '',
+    "issuedBy" TEXT,
+    "issueReason" TEXT,
+    "revokedAt" DATETIME,
+    "revokedBy" TEXT,
+    "revokeReason" TEXT,
     CONSTRAINT "Voucher_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Voucher_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -549,6 +561,7 @@ CREATE TABLE "AdminAccount" (
     "active" BOOLEAN NOT NULL DEFAULT true,
     "lastLoginAt" DATETIME,
     "createdBy" TEXT,
+    "userId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -667,6 +680,7 @@ CREATE TABLE "MemberRestriction" (
     "userId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
+    "internalNote" TEXT,
     "createdBy" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" DATETIME,
@@ -739,6 +753,21 @@ CREATE TABLE "MaintenanceEvent" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "MaintenanceEvent_planId_fkey" FOREIGN KEY ("planId") REFERENCES "MaintenancePlan" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "PointsLedger" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "delta" INTEGER NOT NULL,
+    "balanceAfter" INTEGER NOT NULL,
+    "kind" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "actor" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "bookingId" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PointsLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateIndex
@@ -998,4 +1027,10 @@ CREATE INDEX "MaintenanceEvent_planId_startAt_idx" ON "MaintenanceEvent"("planId
 
 -- CreateIndex
 CREATE INDEX "MaintenanceEvent_venueId_startAt_idx" ON "MaintenanceEvent"("venueId", "startAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PointsLedger_idempotencyKey_key" ON "PointsLedger"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "PointsLedger_userId_createdAt_idx" ON "PointsLedger"("userId", "createdAt");
 

@@ -29,7 +29,8 @@
     "verify:db": "node scripts/verify-db-isolation.mjs",
     "dropbox:ignore": "node scripts/dropbox-ignore.mjs",
     "verify:activities": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-activities.ts",
-    "demo:setup": "tsx -r ./scripts/stub-server-only.cjs scripts/demo-setup.ts"
+    "demo:setup": "tsx -r ./scripts/stub-server-only.cjs scripts/demo-setup.ts",
+    "verify:people": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-people.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

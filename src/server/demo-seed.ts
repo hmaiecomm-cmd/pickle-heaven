@@ -123,9 +123,11 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
     users.push(
       await db.user.create({
         data: {
-          lineUserId: `DEMO_LINE_${i}`,
+          // 展示會員一律為 Google 登入帳號（與正式前台一致）；每 9 位有 1 位未填電話
+          googleSub: `DEMO_GOOGLE_${i}`,
           displayName: name,
-          phone: `0900${String(100000 + i * 3731).slice(-6)}`,
+          phone: i % 9 === 4 ? null : `0900${String(100000 + i * 3731).slice(-6)}`,
+          lastLoginAt: new Date(now.getTime() - (i % 11) * 86_400_000 - i * 3_600_000),
           email: `demo${i + 1}@example.test`,
           points: i % 7 === 0 ? 300 : 0,
           membershipLevel: i % 10 === 0 ? 'VIP' : i % 4 === 0 ? 'PREMIUM' : 'BASIC',

@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
           data: {
             pictureUrl: profile.picture ?? existing.pictureUrl,
             email: profile.emailVerified && profile.email ? profile.email : existing.email,
+            lastLoginAt: new Date(),
           },
         })
       : await prisma.user.create({
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
             displayName: profile.name,
             pictureUrl: profile.picture,
             email: profile.emailVerified ? profile.email : null,
+            lastLoginAt: new Date(),
           },
         })
 

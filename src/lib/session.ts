@@ -45,7 +45,15 @@ export class SessionUnavailableError extends Error {
   code = 'SESSION_UNAVAILABLE' as const
 }
 
-const USER_SELECT = { id: true, displayName: true, pictureUrl: true, phone: true, points: true, role: true } as const
+const USER_SELECT = {
+  id: true,
+  displayName: true,
+  pictureUrl: true,
+  phone: true,
+  points: true,
+  role: true,
+  restrictions: { where: { type: 'BLACKLIST', revokedAt: null }, select: { expiresAt: true } },
+} as const
 
 /**
  * 讀取目前登入者：沒有 Cookie、簽章無效、會員不存在 → null（確認未登入）。
@@ -71,7 +79,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     try {
       const user = await prisma.user.findUnique({ where: { id: uid }, select: USER_SELECT })
       if (!user) return null
-      return { id: user.id, displayName: user.displayName, pictureUrl: user.pictureUrl, phone: user.phone, points: user.points, role: user.role }
+      const restricted = user.restrictions.some((r) => !r.expiresAt || r.expiresAt > new Date())
+      return { id: user.id, displayName: user.displayName, pictureUrl: user.pictureUrl, phone: user.phone, points: user.points, role: user.role, restricted }
     } catch (err) {
       lastErr = err
     }

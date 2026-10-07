@@ -128,6 +128,12 @@ model User {
   lineUserId      String?         @unique
   /// Google 登入的 subject（sub）；前台改用 Google 授權登入後的主要識別
   googleSub       String?         @unique
+  /// 最近一次成功登入
+  lastLoginAt     DateTime?
+  /// 後台內部備註（不會出現在前台）
+  adminNote       String?
+  /// 教練身分（與後台管理角色分開；不授予後台權限）
+  isCoach         Boolean         @default(false)
   displayName     String
   pictureUrl      String?
   phone           String?
@@ -154,6 +160,7 @@ model User {
   notifications  NotificationLog[]
   sessionWatches SessionWatch[]
   restrictions   MemberRestriction[]
+  pointsLedger   PointsLedger[]
 
   @@index([createdAt])
 }
@@ -343,6 +350,8 @@ model Coach {
   /// 每小時課程費用（新台幣整數元）
   hourlyRate  Int         @default(0)
   bio         String?
+  /// 對應的前台會員（選填）
+  userId      String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -519,17 +528,28 @@ model Payment {
 
 /// 折價券
 model Voucher {
-  id        String      @id @default(cuid())
-  code      String      @unique
-  title     String
-  type      VoucherType @default(AMOUNT)
-  value     Int
-  minSpend  Int         @default(0)
-  userId    String?
-  expiresAt DateTime?
-  usedAt    DateTime?
-  bookingId String?     @unique
-  createdAt DateTime    @default(now())
+  id           String      @id @default(cuid())
+  code         String      @unique
+  title        String
+  type         VoucherType @default(AMOUNT)
+  value        Int
+  minSpend     Int         @default(0)
+  userId       String?
+  expiresAt    DateTime?
+  usedAt       DateTime?
+  bookingId    String?     @unique
+  createdAt    DateTime    @default(now())
+  /// 使用券：OFFPEAK 離峰券／PEAK 尖峰券／GENERAL 通用券；null 為折價券
+  ticketKind   String?
+  /// 每張時數／次數
+  units        Int         @default(1)
+  /// 適用場地 id（逗號分隔；空 = 全部）
+  courtIds     String      @default("")
+  issuedBy     String?
+  issueReason  String?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
 
   user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
@@ -1058,6 +1078,8 @@ model AdminAccount {
   active       Boolean   @default(true)
   lastLoginAt  DateTime?
   createdBy    String?
+  /// 對應的前台會員（選填）；黑名單會員不能進入後台
+  userId       String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1232,6 +1254,8 @@ model MemberRestriction {
   /// BLACKLIST 黑名單（禁止所有線上預約）/ NO_ACTIVITY 禁止報名活動
   type         String
   reason       String
+  /// 內部備註（不公開）
+  internalNote String?
   createdBy    String
   createdAt    DateTime  @default(now())
   expiresAt    DateTime?
@@ -1328,4 +1352,25 @@ model MaintenanceEvent {
 
   @@index([planId, startAt])
   @@index([venueId, startAt])
+}
+
+/// 點數異動帳本：每筆異動記錄數量、前後餘額、原因與操作人；餘額只能由帳本推進，不直接覆寫。
+model PointsLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  /// 正數加點、負數扣點
+  delta          Int
+  balanceAfter   Int
+  /// ADMIN_ADD 後台加點／ADMIN_DEDUCT 後台扣點／REDEEM 結帳折抵／REFUND 退款回補／RELEASE 訂單取消歸還
+  kind           String
+  reason         String
+  actor          String
+  /// 防重複提交（同一鍵只會記一筆）
+  idempotencyKey String   @unique
+  bookingId      String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

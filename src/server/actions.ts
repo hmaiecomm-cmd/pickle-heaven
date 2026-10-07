@@ -65,6 +65,7 @@ export async function devLogin(displayName = '測試球友'): Promise<ActionResu
         phone: user.phone,
         points: user.points,
         role: user.role,
+        restricted: false,
       },
     }
   } catch (err) {
