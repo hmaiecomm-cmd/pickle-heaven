@@ -4,7 +4,7 @@ import * as React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, CircleUserRound, LogOut, Menu, ShieldCheck, ShoppingCart, Users, X } from 'lucide-react'
+import { CalendarDays, CircleUserRound, LogOut, Menu, ShoppingCart, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brand, images } from '@/config/site'
 import { useCartCount } from '@/store/cart'
@@ -21,10 +21,11 @@ const MENU = [
 
 /**
  * 全站頂部導覽：左側正式 Logo 與場館名稱（回首頁），右側只有購物車與選單按鈕。
+ * 前台任何地方都不放後台入口；管理人員只透過後台網址進入登入頁。
  * 導覽列底色沿用 logo 原檔的黑底，logo 不需要另外加框。
  * 首頁用 fixed 疊在主視覺上方；內頁用 sticky。
  */
-export function SiteNav({ user, isAdmin = false, variant = 'inner' }: { user: SessionUser | null; isAdmin?: boolean; variant?: 'inner' | 'home' }) {
+export function SiteNav({ user, variant = 'inner' }: { user: SessionUser | null; variant?: 'inner' | 'home' }) {
   const pathname = usePathname()
   const cartCount = useCartCount()
   const [open, setOpen] = React.useState(false)
@@ -184,15 +185,6 @@ export function SiteNav({ user, isAdmin = false, variant = 'inner' }: { user: Se
             </nav>
 
             <div className="border-t border-white/15 px-4 py-4 pb-safe">
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="mb-3 flex items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-white/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                >
-                  <ShieldCheck className="h-4 w-4" aria-hidden />
-                  後台管理
-                </Link>
-              )}
               {user ? <UserBlock user={user} /> : <GoogleLoginButton next={currentPath()} />}
             </div>
           </div>

@@ -8,7 +8,6 @@ import { AppShell } from '@/components/app-shell'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { getCartToken } from '@/lib/session'
 import { getCart } from '@/lib/availability'
-import { getAdminUser } from '@/lib/admin-auth'
 import { googleConfigured } from '@/lib/google-auth'
 import { brand, SITE_URL } from '@/config/site'
 
@@ -46,7 +45,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let authUnavailable = false
-  const [user, cartToken, h, admin] = await Promise.all([
+  const [user, cartToken, h] = await Promise.all([
     getSessionUser().catch((err) => {
       if (err instanceof SessionUnavailableError) {
         authUnavailable = true
@@ -56,7 +55,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     }),
     getCartToken(),
     headers(),
-    getAdminUser().catch(() => null),
   ])
   const cart = await getCart(cartToken).catch(() => ({ items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }))
   const area = h.get('x-ph-area') === 'admin' ? 'admin' : 'public'
@@ -69,7 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ToastProvider>
           <AuthProvider initialUser={user} googleConfigured={googleConfigured()} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
             <CartStoreProvider initialCart={cart}>
-              <AppShell user={user} isAdmin={Boolean(admin)}>
+              <AppShell user={user}>
                 {children}
               </AppShell>
             </CartStoreProvider>
