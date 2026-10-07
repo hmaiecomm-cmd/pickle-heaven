@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { CancellationMode, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requirePermission } from '@/lib/admin-auth'
-const requireAdmin = async () => (await requirePermission('activities')).username
+import { permissionDenied, requirePermission } from '@/lib/admin-auth'
 import { describeWeekdays, formatWeekdays } from '@/lib/session-schedule'
 import { generateUpcomingSessions } from './session-scheduler'
 
@@ -71,7 +70,7 @@ function toData(input: TemplateInput) {
 }
 
 export async function createTemplate(input: TemplateInput): Promise<TemplateResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return { ok: false, message: d } }
 
   const error = validate(input)
   if (error) return { ok: false, message: error }
@@ -96,7 +95,7 @@ export async function createTemplate(input: TemplateInput): Promise<TemplateResu
 }
 
 export async function updateTemplate(id: string, input: TemplateInput): Promise<TemplateResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return { ok: false, message: d } }
 
   const error = validate(input)
   if (error) return { ok: false, message: error }
@@ -115,7 +114,7 @@ export async function updateTemplate(id: string, input: TemplateInput): Promise<
  * 已開打或已結束的場次保留作為歷史紀錄（templateId 會被設為 null）。
  */
 export async function deleteTemplate(id: string): Promise<TemplateResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return { ok: false, message: d } }
 
   const template = await prisma.sessionTemplate.findUnique({ where: { id } })
   if (!template) return { ok: false, message: '找不到這個範本' }
@@ -168,7 +167,7 @@ function refreshAll() {
 }
 
 export async function toggleTemplate(id: string, active: boolean): Promise<TemplateResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return { ok: false, message: d } }
   await prisma.sessionTemplate.update({ where: { id }, data: { active } })
   revalidatePath('/admin/templates')
   return { ok: true, message: active ? '範本已啟用' : '範本已停用，不再產生新場次' }
@@ -176,7 +175,7 @@ export async function toggleTemplate(id: string, active: boolean): Promise<Templ
 
 /** 立刻依所有啟用中的範本補足未來場次，不必等排程。 */
 export async function generateNow(): Promise<TemplateResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return { ok: false, message: d } }
 
   const result = await generateUpcomingSessions()
   revalidatePath('/admin/templates')

@@ -93,7 +93,7 @@ const pointsSchema = z.object({
 /** 加點／扣點：帳本記錄、餘額不得為負、同一 idempotencyKey 不重複 */
 export async function adjustPointsAction(input: z.infer<typeof pointsSchema>): Promise<R<{ balanceBefore: number; balanceAfter: number; duplicate: boolean }>> {
   try {
-    const ctx = await requirePermission('finance')
+    const ctx = await requirePermission('finance.adjust')
     const v = pointsSchema.parse(input)
     const res = await adminAdjustPoints({ userId: v.userId, delta: v.delta, reason: v.reason, actor: `admin:${ctx.username}`, idempotencyKey: `admin:${v.idempotencyKey}` })
     if (!res.duplicate) {
@@ -131,7 +131,7 @@ function voucherCode() {
 /** 發放使用券：張數、每張時數、適用場地、有效期、原因；以 idempotencyKey 防重複發放 */
 export async function issueVoucherAction(input: z.infer<typeof voucherSchema>): Promise<R<{ codes: string[] }>> {
   try {
-    const ctx = await requirePermission('marketing')
+    const ctx = await requirePermission('finance.adjust')
     const v = voucherSchema.parse(input)
     const user = await prisma.user.findUnique({ where: { id: v.userId }, select: { displayName: true } })
     if (!user) return { ok: false, error: '找不到會員' }
@@ -172,7 +172,7 @@ export async function issueVoucherAction(input: z.infer<typeof voucherSchema>): 
 
 export async function revokeVoucherAction(voucherId: string, reason: string): Promise<R> {
   try {
-    const ctx = await requirePermission('marketing')
+    const ctx = await requirePermission('finance.adjust')
     if (!reason.trim()) return { ok: false, error: '請填寫撤銷原因' }
     const v = await prisma.voucher.findUnique({ where: { id: voucherId } })
     if (!v || !v.userId) return { ok: false, error: '找不到票券' }
@@ -204,7 +204,7 @@ export async function setAdminNoteAction(userId: string, note: string): Promise<
 /** 教練身分與後台角色分開；不會授予後台權限 */
 export async function setCoachFlagAction(userId: string, isCoach: boolean): Promise<R> {
   try {
-    const ctx = await requirePermission('members')
+    const ctx = await requirePermission('members.restrict')
     const u = await prisma.user.update({ where: { id: userId }, data: { isCoach }, select: { displayName: true } })
     await prisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: isCoach ? 'MEMBER_COACH_ON' : 'MEMBER_COACH_OFF', target: userId, detail: { name: u.displayName } } })
     refresh(userId)

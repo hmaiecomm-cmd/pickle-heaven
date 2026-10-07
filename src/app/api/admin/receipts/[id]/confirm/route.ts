@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 
 /** 人工確認 OCR 辨識結果。只標示 CONFIRMED，不建立任何費用或分錄。 */
 export async function PATCH(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminApi('finance')
+  const admin = await requireAdminApi('expenses.own')
   if (!admin) return unauthorized()
   const { id } = await params
   const current = await prisma.receipt.findUnique({ where: { id }, select: { ocrStatus: true, receiptNumber: true } })

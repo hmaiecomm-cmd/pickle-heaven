@@ -15,7 +15,7 @@ const STATUS: Record<string, [string, 'green' | 'blue' | 'amber' | 'gray']> = {
 }
 
 export default async function RegistrationsPage() {
-  if ((await pagePermission('activities')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('activities.view')) === 'forbidden') return <Forbidden />
   const now = new Date()
   const sessions = await prisma.session.findMany({
     where: { deletedAt: null, endAt: { gt: now }, status: { notIn: ['CANCELLED', 'DRAFT'] } },

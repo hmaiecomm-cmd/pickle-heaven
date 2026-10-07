@@ -49,7 +49,7 @@ export function PointsPanel({ userId, balance, canEdit }: { userId: string; bala
     router.refresh()
   }
 
-  if (!canEdit) return <p className="text-xs text-muted">目前帳號沒有調整點數的權限（需財務權限）。</p>
+  if (!canEdit) return <p className="text-xs text-muted">目前帳號沒有調整點數的權限（僅擁有者）。</p>
   return (
     <div className="grid gap-2 rounded-xl border border-dashed border-zinc-300 p-3 sm:grid-cols-[auto_8rem_1fr_auto]">
       <select value={mode} onChange={(e) => setMode(e.target.value as 'add')} className={input} aria-label="加點或扣點">
@@ -98,7 +98,7 @@ export function VoucherIssuePanel({ userId, courts, canEdit }: { userId: string;
     router.refresh()
   }
 
-  if (!canEdit) return <p className="text-xs text-muted">目前帳號沒有發放票券的權限（需行銷權限）。</p>
+  if (!canEdit) return <p className="text-xs text-muted">目前帳號沒有發放票券的權限（僅擁有者）。</p>
   return (
     <div className="space-y-2 rounded-xl border border-dashed border-zinc-300 p-3">
       <div className="grid gap-2 sm:grid-cols-4">

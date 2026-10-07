@@ -61,7 +61,7 @@ export async function hashPassword(password: string): Promise<string> {
   return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`
 }
 
-async function verifyPassword(password: string, stored: string): Promise<boolean> {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, saltHex, hashHex] = stored.split('$')
   if (scheme !== 'scrypt' || !saltHex || !hashHex) return false
   const expected = Buffer.from(hashHex, 'hex')
@@ -120,7 +120,7 @@ async function requestMeta() {
   return { ip, userAgent: (h.get('user-agent') ?? '').slice(0, 200) }
 }
 
-export type SignInResult = { ok: true } | { ok: false; error: string }
+export type SignInResult = { ok: true; mustChangePassword: boolean } | { ok: false; error: string }
 
 /** 檢查帳密；成功則建立 session 並寫入 Cookie。 */
 export async function signInAdmin(username: string, password: string): Promise<SignInResult> {
@@ -170,7 +170,7 @@ export async function signInAdmin(username: string, password: string): Promise<S
     path: '/',
     maxAge: ADMIN_SESSION_HOURS * 3600,
   })
-  return { ok: true }
+  return { ok: true, mustChangePassword: account.mustChangePassword }
 }
 
 /** 登出：撤銷伺服器端 session 並刪除 Cookie */
@@ -198,6 +198,10 @@ export interface AdminContext {
   tenant: Tenant
   sessionId: string
   permissions: Permission[]
+  /** 首次登入或密碼被重設後，必須先更換密碼才能使用其他功能 */
+  mustChangePassword: boolean
+  /** 授權場館（null = 全部） */
+  venueId: string | null
 }
 
 /** 目前登入者（同一請求內快取）。session 被撤銷、逾時或帳號停用時回 null。 */
@@ -238,6 +242,8 @@ export const getAdminContext = cache(async (): Promise<AdminContext | null> => {
     tenant,
     sessionId: session.id,
     permissions: permissionsOf(role),
+    mustChangePassword: session.account.mustChangePassword,
+    venueId: session.account.venueId,
   }
 })
 
@@ -251,6 +257,21 @@ export async function requireAdmin(): Promise<string> {
   const ctx = await getAdminContext()
   if (!ctx) redirect('/admin/login')
   return ctx.username
+}
+
+/** 頁面與 server action 用：未登入導向登入頁；沒有權限丟出 PermissionError。回傳帳號名稱 */
+export async function requireAdminWith(p: Permission): Promise<string> {
+  const ctx = await getAdminContext()
+  if (!ctx) redirect('/admin/login')
+  if (!can(ctx.role, p)) throw new PermissionError(p)
+  return ctx.username
+}
+
+/** server action 用（不丟例外）：未登入導向登入頁；沒有權限回傳錯誤訊息，有權限回傳 null */
+export async function permissionDenied(p: Permission): Promise<string | null> {
+  const ctx = await getAdminContext()
+  if (!ctx) redirect('/admin/login')
+  return can(ctx.role, p) ? null : '目前帳號沒有這項操作的權限'
 }
 
 export class PermissionError extends Error {

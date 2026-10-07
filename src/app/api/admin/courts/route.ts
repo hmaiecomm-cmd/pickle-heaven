@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAdminUser } from '@/lib/admin-auth'
+import { requireAdminApi } from '@/lib/admin-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
  * 照明／風扇／門禁狀態取自對應類型的 Device（沒有裝置則為 undefined）。
  */
 export async function GET() {
-  if (!(await getAdminUser())) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
+  if (!(await requireAdminApi('courts'))) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入，或目前帳號沒有這項權限' } }, { status: 403 })
 
   const courts = await prisma.court.findMany({
     orderBy: [{ venueId: 'asc' }, { sortOrder: 'asc' }],

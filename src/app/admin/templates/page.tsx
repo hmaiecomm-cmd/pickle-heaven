@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin-auth'
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { parseWeekdays } from '@/lib/session-schedule'
 import { TemplatesClient, type TemplateRow } from './templates-client'
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: '週期性範本' }
 export const dynamic = 'force-dynamic'
 
 export default async function AdminTemplatesPage() {
-  await requireAdmin()
+  if ((await pagePermission('activities')) === 'forbidden') return <Forbidden />
   // 週期性範本已併入「活動」（可設定結束日期／次數、跳過日期，並先預覽場地衝突）
   redirect('/admin/activities')
 

@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { requireAdmin } from '@/lib/admin-auth'
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { prisma } from '@/lib/db'
 import { ACTIVITY_TYPE_LABEL, type ActivityTypeKey, type PriceUnitKey } from '@/lib/activity-shared'
 import { getActivityAdmin } from '@/server/activity-admin'
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: '編輯活動' }
 export const dynamic = 'force-dynamic'
 
 export default async function EditActivityPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin()
+  if ((await pagePermission('activities')) === 'forbidden') return <Forbidden />
   const { id } = await params
   const [data, venue] = await Promise.all([
     getActivityAdmin(id),

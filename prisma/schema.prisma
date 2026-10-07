@@ -264,6 +264,8 @@ model Expense {
   submittedAt   DateTime        @default(now())
   approvedAt    DateTime?
   approvedBy    String?
+  /// 申請人（admin:帳號）；管理員與工作人員只能看自己的申請
+  submittedBy   String?
   /// 來源收據（選填）
   receiptId     String?         @unique
   createdAt     DateTime        @default(now())
@@ -273,6 +275,7 @@ model Expense {
 
   @@index([status, submittedAt])
   @@index([category])
+  @@index([submittedBy])
 }
 
 /// 收據歸檔；OCR 辨識結果一律先為草稿，人工確認後才標示 CONFIRMED
@@ -289,6 +292,8 @@ model Receipt {
   ocrFields     Json?
   ocrConfidence Float?
   imageUrl      String?
+  /// 登錄人（admin:帳號）
+  createdBy     String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -1080,6 +1085,10 @@ model AdminAccount {
   createdBy    String?
   /// 對應的前台會員（選填）；黑名單會員不能進入後台
   userId       String?
+  /// 首次登入（或密碼被重設後）必須更換密碼
+  mustChangePassword Boolean @default(false)
+  /// 授權場館（null = 全部場館）
+  venueId      String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

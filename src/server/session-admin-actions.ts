@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { CancellationMode, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requirePermission } from '@/lib/admin-auth'
-const requireAdmin = async () => (await requirePermission('activities')).username
+import { getAdminUser, permissionDenied, requirePermission } from '@/lib/admin-auth'
 import { computeSessionTimes } from '@/lib/session-schedule'
 import type { TemplateInput } from './template-admin-actions'
 import { joinSession } from './session-service'
@@ -16,7 +15,7 @@ import { releaseOccupancy } from './occupancy'
 /**
  * 主辦者對球敘的管理操作（規格 §14）。
  *
- * 每個動作都先經過 requireAdmin()，未登入會被導向後台登入頁。
+ * 每個動作都先檢查權限（報到：checkin；其餘：activities），未登入會被導向後台登入頁。
  * 名單相關的異動一律走 session-service / session-scheduler 既有的邏輯，
  * 避免後台繞過正取人數與候補順位的規則。
  */
@@ -34,7 +33,7 @@ function refresh(sessionId: string) {
 
 /** 依顯示名稱手動加入球友；找不到就建一個沒有 LINE 綁定的帳號。 */
 export async function adminAddPlayer(sessionId: string, displayName: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
   const name = displayName.trim()
   if (!name) return fail('請輸入球友名稱')
 
@@ -67,7 +66,7 @@ export async function adminAddPlayer(sessionId: string, displayName: string): Pr
 
 /** 把某位候補立刻升為正取（可超出名額，由主辦者自行負責）。 */
 export async function adminPromote(registrationId: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   const reg = await prisma.sessionRegistration.findUnique({
     where: { id: registrationId },
@@ -91,7 +90,7 @@ export async function adminPromote(registrationId: string): Promise<AdminResult>
 
 /** 把某位正取改為候補（例如主辦者要調整名單）。 */
 export async function adminDemote(registrationId: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   const reg = await prisma.sessionRegistration.findUnique({
     where: { id: registrationId },
@@ -121,7 +120,7 @@ export async function adminDemote(registrationId: string): Promise<AdminResult> 
 
 /** 直接把某位球友移出名單。 */
 export async function adminRemove(registrationId: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   const reg = await prisma.sessionRegistration.findUnique({
     where: { id: registrationId },
@@ -147,7 +146,7 @@ export async function adminMarkAttendance(
   registrationId: string,
   attended: boolean,
 ): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('checkin'); if (d) return fail(d) }
 
   const reg = await prisma.sessionRegistration.findUnique({
     where: { id: registrationId },
@@ -182,7 +181,7 @@ export async function adminMarkAttendance(
 
 /** 手動鎖定：立刻產生最終名單，之後不再接受一般報名。 */
 export async function adminLockSession(sessionId: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   const session = await prisma.session.findUnique({ where: { id: sessionId } })
   if (!session) return fail('找不到這場球敘')
@@ -213,7 +212,8 @@ export async function adminCancelSession(
   sessionId: string,
   reason: string,
 ): Promise<AdminResult> {
-  const admin = await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
+  const admin = (await getAdminUser()) ?? ''
   // 與活動頁相同的取消流程：釋放場地、已付款全額退款、待付款訂單取消、通知報名者
   try {
     const summary = await cancelActivitySession(sessionId, reason, `admin:${admin}`)
@@ -238,7 +238,7 @@ export async function adminUpdateSession(
     allowPostLockReplacement: boolean
   },
 ): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   if (input.capacity < 1) return fail('容量至少要 1 人')
   if (input.reservedCapacity < 0 || input.reservedCapacity >= input.capacity) {
@@ -276,7 +276,7 @@ export async function adminUpdateSession(
  * 若真的刪掉，下一輪排程會因為「這天還沒有場次」又把它產生回來。
  */
 export async function adminDeleteSession(sessionId: string): Promise<AdminResult> {
-  await requireAdmin()
+  { const d = await permissionDenied('activities'); if (d) return fail(d) }
 
   const session = await prisma.session.findUnique({ where: { id: sessionId } })
   if (!session || session.deletedAt) return fail('找不到這場球敘')

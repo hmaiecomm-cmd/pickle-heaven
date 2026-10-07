@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
-import { listOrders } from '@/server/admin-orders'
+import { listOrders, maskOrderListAmounts } from '@/server/admin-orders'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { TransactionsClient } from './transactions-client'
 
@@ -13,7 +13,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const ctx = await pagePermission('bookings')
   if (ctx === 'forbidden') return <Forbidden />
   const sp = await searchParams
-  const initial = await listOrders({
+  const unmasked = await listOrders({
     q: sp.q ?? '',
     dateType: sp.dateType ?? 'play',
     from: sp.from ?? '',
@@ -27,6 +27,8 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
     sort: sp.sort ?? 'created_desc',
     page: sp.page ?? 1,
   }).catch(() => listOrders({}))
+  // 沒有財務權限：金額在伺服器端清除，不送到前端
+  const initial = can(ctx.role, 'finance') ? unmasked : maskOrderListAmounts(unmasked)
   const courts = await prisma.court.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } })
   return (
     <div>

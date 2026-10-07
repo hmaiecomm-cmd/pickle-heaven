@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { getAdminUser } from '@/lib/admin-auth'
+import { requireAdminApi } from '@/lib/admin-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -11,8 +11,8 @@ type CourtStatus = (typeof STATUSES)[number]
 
 /** 變更球場營運狀態；非 ACTIVE 時同步關閉 active，前台即不再開放預約。寫入稽核紀錄。 */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await getAdminUser()
-  if (!admin) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
+  const admin = await requireAdminApi('courts.manage')
+  if (!admin) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入，或目前帳號沒有這項權限' } }, { status: 403 })
 
   const { id } = await params
   const body = (await req.json().catch(() => null)) as { status?: string } | null

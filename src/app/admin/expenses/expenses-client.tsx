@@ -47,7 +47,7 @@ function periodStart(p: Period): Date | null {
 /** 費用本身或其 OCR 來源仍是草稿時，都視為「草稿」提醒。 */
 const isDraft = (e: Expense) => e.status === 'DRAFT' || e.ocrData?.status === 'DRAFT' || e.receipt?.ocrData?.status === 'DRAFT'
 
-export function ExpensesClient() {
+export function ExpensesClient({ review }: { review: boolean }) {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -160,7 +160,7 @@ export function ExpensesClient() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard icon={<ReceiptIcon className="h-5 w-5" />} label="費用總額" value={kpi.total.toLocaleString()} unit="元" />
+        <KPICard icon={<ReceiptIcon className="h-5 w-5" />} label={review ? '費用總額' : '本人申請合計'} value={kpi.total.toLocaleString()} unit="元" />
         <KPICard icon={<CheckCircle2 className="h-5 w-5" />} label="已核准" value={kpi.approved.toLocaleString()} unit="元" />
         <KPICard icon={<Clock className="h-5 w-5" />} label="待審核" value={kpi.pending} unit="筆" />
         <KPICard icon={<FileEdit className="h-5 w-5" />} label="草稿" value={kpi.draft} unit="筆" />
@@ -299,7 +299,7 @@ export function ExpensesClient() {
                 {selected.status === 'DRAFT' && <Button size="sm" loading={busy} onClick={() => setExpenseStatus(selected.id, 'SUBMITTED')}>送出審核</Button>}
                 {selected.status === 'SUBMITTED' && (
                   <>
-                    <Button size="sm" loading={busy} onClick={() => setExpenseStatus(selected.id, 'APPROVED')}>核准</Button>
+                    {review && <Button size="sm" loading={busy} onClick={() => setExpenseStatus(selected.id, 'APPROVED')}>核准</Button>}
                     <Button size="sm" variant="danger" disabled={busy} onClick={() => setExpenseStatus(selected.id, 'REJECTED')}>退回</Button>
                   </>
                 )}

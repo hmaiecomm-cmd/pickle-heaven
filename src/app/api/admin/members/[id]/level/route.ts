@@ -9,7 +9,7 @@ const LEVELS = ['BASIC', 'PREMIUM', 'VIP'] as const
 
 /** 調整會員等級，寫入稽核紀錄。 */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminApi('members')
+  const admin = await requireAdminApi('members.restrict')
   if (!admin) return unauthorized()
   const { id } = await params
   const body = await readJson<{ level?: string }>(req)

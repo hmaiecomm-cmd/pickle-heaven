@@ -15,7 +15,7 @@ const TRANSITIONS: Record<string, string[]> = {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminApi('finance')
+  const admin = await requireAdminApi('expenses.review')
   if (!admin) return unauthorized()
   const { id } = await params
   const body = await readJson<{ status?: string }>(req)

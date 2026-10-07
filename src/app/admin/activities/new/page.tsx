@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
-import { requireAdmin } from '@/lib/admin-auth'
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { prisma } from '@/lib/db'
 import { addDays, taipeiDateString } from '@/lib/time'
 import { ActivityEditor, type EditorForm } from '../activity-editor'
@@ -10,7 +11,7 @@ export const metadata: Metadata = { title: '新增活動' }
 export const dynamic = 'force-dynamic'
 
 export default async function NewActivityPage({ searchParams }: { searchParams: Promise<{ repeat?: string }> }) {
-  await requireAdmin()
+  if ((await pagePermission('activities')) === 'forbidden') return <Forbidden />
   const { repeat } = await searchParams
   const weekly = repeat === 'WEEKLY'
   const venue = await prisma.venue.findFirst({

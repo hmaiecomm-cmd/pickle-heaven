@@ -14,7 +14,9 @@ import { invoiceResendAction, invoiceVoidReissueAction, manualRefundDoneAction, 
 import { adminCancelBooking } from '@/server/admin-actions'
 import { CloseButton, INVOICE, ORDER, PAYMENT, REFUND, StatusPill } from './transactions-client'
 
-const money = (n: number) => `NT$${n.toLocaleString()}`
+const money = (n: number) => `NT${n.toLocaleString()}`
+/** 沒有財務權限時，金額一律顯示為「—」（資料已在伺服器端清除） */
+const amt = (hidden: boolean, n: number) => (hidden ? '—' : money(n))
 const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '—')
 const REFUND_STATE: Record<string, [string, 'blue' | 'green' | 'red' | 'amber' | 'gray']> = {
   PROCESSING: ['處理中', 'blue'],
@@ -124,7 +126,7 @@ export function OrderDrawer({
                     <dt className="text-muted">會員</dt>
                     <dd>
                       <Link href={`/admin/members/${detail.customer.userId}`} className="text-brand-700 hover:underline">#{detail.customer.userId.slice(-6)} 查看會員紀錄</Link>
-                      <span className="ml-2 text-xs text-muted">目前點數 {detail.customer.points}</span>
+                      {!detail.amountsHidden && <span className="ml-2 text-xs text-muted">目前點數 {detail.customer.points}</span>}
                     </dd>
                     {detail.note && (<><dt className="text-muted">訂單備註</dt><dd className="whitespace-pre-wrap">{detail.note}</dd></>)}
                   </dl>
@@ -139,15 +141,15 @@ export function OrderDrawer({
                   </div>
                   <table className="mt-2 w-full text-sm">
                     <thead className="text-left text-xs text-muted">
-                      <tr><th className="py-1 font-medium">項目</th><th className="py-1 font-medium">日期時段</th><th className="py-1 text-right font-medium">數量×單價</th><th className="py-1 text-right font-medium">小計</th><th className="py-1 font-medium">狀態</th></tr>
+                      <tr><th className="py-1 font-medium">項目</th><th className="py-1 font-medium">日期時段</th>{!detail.amountsHidden && <><th className="py-1 text-right font-medium">數量×單價</th><th className="py-1 text-right font-medium">小計</th></>}<th className="py-1 font-medium">狀態</th></tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                       {detail.courtItems.map((i) => (
                         <tr key={i.id}>
                           <td className="py-1.5">場地 {i.courtName}<span className="block text-[11px] text-muted">{i.rateName}</span></td>
                           <td className="py-1.5 text-xs">{i.date} {i.timeLabel}</td>
-                          <td className="py-1.5 text-right text-xs">1 × {money(i.price)}</td>
-                          <td className="py-1.5 text-right">{money(i.price)}{(i.refundedAmount > 0 || i.refundedPoints > 0) && <span className="block text-[11px] text-muted">已退 {money(i.refundedAmount)}{i.refundedPoints ? `＋${i.refundedPoints}點` : ''}</span>}</td>
+                          {!detail.amountsHidden && (<><td className="py-1.5 text-right text-xs">1 × {money(i.price)}</td>
+                          <td className="py-1.5 text-right">{money(i.price)}{(i.refundedAmount > 0 || i.refundedPoints > 0) && <span className="block text-[11px] text-muted">已退 {money(i.refundedAmount)}{i.refundedPoints ? `＋${i.refundedPoints}點` : ''}</span>}</td></>)}
                           <td className="py-1.5"><Pill tone={i.status === 'ACTIVE' ? 'blue' : 'gray'}>{i.status === 'ACTIVE' ? '有效' : '已取消'}</Pill></td>
                         </tr>
                       ))}
@@ -155,13 +157,16 @@ export function OrderDrawer({
                         <tr key={i.id}>
                           <td className="py-1.5">活動 {i.title}<span className="block text-[11px] text-muted">{i.courtNames}</span></td>
                           <td className="py-1.5 text-xs">{i.date} {i.timeLabel}</td>
-                          <td className="py-1.5 text-right text-xs">{i.quantity} × {money(i.unitPrice)}</td>
-                          <td className="py-1.5 text-right">{money(i.amount)}{(i.refundedAmount > 0 || i.refundedPoints > 0) && <span className="block text-[11px] text-muted">已退 {money(i.refundedAmount)}{i.refundedPoints ? `＋${i.refundedPoints}點` : ''}</span>}</td>
+                          {!detail.amountsHidden && (<><td className="py-1.5 text-right text-xs">{i.quantity} × {money(i.unitPrice)}</td>
+                          <td className="py-1.5 text-right">{money(i.amount)}{(i.refundedAmount > 0 || i.refundedPoints > 0) && <span className="block text-[11px] text-muted">已退 {money(i.refundedAmount)}{i.refundedPoints ? `＋${i.refundedPoints}點` : ''}</span>}</td></>)}
                           <td className="py-1.5"><Pill tone={i.status === 'ACTIVE' ? 'blue' : 'gray'}>{{ ACTIVE: '有效', CANCELLED: '已取消', REFUNDED: '場次取消已退' }[i.status] ?? i.status}</Pill></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {detail.amountsHidden ? (
+                    <p className="mt-3 border-t border-zinc-100 pt-2 text-xs text-muted">金額、折抵與金流明細僅擁有者可見；此處只顯示付款是否已確認。</p>
+                  ) : (
                   <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 border-t border-zinc-100 pt-2 text-sm">
                     <dt className="text-muted">原價合計</dt><dd className="text-right">{money(detail.amounts.subtotal)}</dd>
                     {detail.amounts.discount > 0 && (<><dt className="text-muted">折價券 {detail.amounts.voucherCode}</dt><dd className="text-right">−{money(detail.amounts.discount)}</dd></>)}
@@ -169,6 +174,7 @@ export function OrderDrawer({
                     <dt className="font-semibold">實際付款</dt><dd className="text-right font-semibold">{money(detail.amounts.total)}</dd>
                     <dt className="text-muted">已退款（實付）</dt><dd className="text-right">{money(detail.amounts.refundedAmount)}</dd>
                   </dl>
+                  )}
                   {detail.status === 'PENDING' && perms.refund && <CancelPending bookingId={detail.id} onDone={refreshAll} />}
                 </section>
 
@@ -179,8 +185,8 @@ export function OrderDrawer({
                       {detail.payments.map((p) => (
                         <li key={p.id} className="flex flex-wrap items-center gap-2">
                           <Pill tone={p.status === 'SUCCESS' ? 'green' : p.status === 'FAILED' ? 'red' : p.status === 'REFUNDED' ? 'violet' : 'gray'}>{p.status}</Pill>
-                          {money(p.amount)}・{p.provider}{p.simulated && '（模擬金流）'}・{p.method}{p.card ? `・${p.card}` : ''}
-                          <span className="text-[11px] text-muted">交易編號 {p.providerRef ?? '—'}・{dt(p.at)}</span>
+                          {amt(detail.amountsHidden, p.amount)}・{p.provider}{p.simulated && '（模擬金流）'}・{p.method}{p.card ? `・${p.card}` : ''}
+                          <span className="text-[11px] text-muted">{detail.amountsHidden ? '' : `交易編號 ${p.providerRef ?? '—'}・`}{dt(p.at)}</span>
                           {p.failReason && <span className="text-xs text-red-700">{p.failReason}</span>}
                         </li>
                       ))}
@@ -199,7 +205,7 @@ export function OrderDrawer({
                             <div className="flex flex-wrap items-center gap-2">
                               <Pill tone={tone}>{label}</Pill>
                               {r.simulated && <Pill tone="violet">模擬結果</Pill>}
-                              <span>{money(r.cashAmount)}{r.pointsAmount ? `＋${r.pointsAmount} 點` : ''}・{METHOD_LABEL[r.method] ?? r.method}</span>
+                              <span>{detail.amountsHidden ? '' : `${money(r.cashAmount)}${r.pointsAmount ? `＋${r.pointsAmount} 點` : ''}・`}{METHOD_LABEL[r.method] ?? r.method}</span>
                               <span className="text-[11px] text-muted">{dt(r.createdAt)}・{r.createdBy}</span>
                             </div>
                             <p className="mt-1 text-xs">原因：{r.reason}{r.cancelItems ? '・同時取消預約' : '・不取消預約'}</p>
@@ -224,7 +230,7 @@ export function OrderDrawer({
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs">{inv.number}</span>
                             <StatusPill map={INVOICE} value={inv.providerStatus ?? 'INTERNAL'} />
-                            <span>{money(inv.amount)}</span>
+                            {!detail.amountsHidden && <span>{money(inv.amount)}</span>}
                             <span className="text-[11px] text-muted">開立 {dt(inv.issueDate)}・收件 {inv.recipientEmail ?? '—'}</span>
                           </div>
                           {inv.events.map((e) => (

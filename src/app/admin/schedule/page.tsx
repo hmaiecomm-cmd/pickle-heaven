@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin-auth'
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { getAvailability } from '@/lib/availability'
 import { dateRange, isValidDateString, taipeiDateString } from '@/lib/time'
 import { AdminScheduleClient } from './schedule-client'
@@ -11,7 +12,7 @@ export default async function AdminSchedulePage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  await requireAdmin()
+  if ((await pagePermission('courts')) === 'forbidden') return <Forbidden />
   const sp = await searchParams
 
   const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' } })

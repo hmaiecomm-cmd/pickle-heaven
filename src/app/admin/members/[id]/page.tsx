@@ -37,10 +37,10 @@ export default async function MemberDetailPage({ params, searchParams }: { param
   const d = await getMemberDetail(id, tab === 'orders' ? { dateType, from: sp.from, to: sp.to } : {})
   if (!d) notFound()
   const u = d.user
-  const showMoney = can(ctx.role, 'finance') || can(ctx.role, 'bookings')
+  const showMoney = can(ctx.role, 'finance')
   const canRestrict = can(ctx.role, 'members.restrict')
-  const canPoints = can(ctx.role, 'finance')
-  const canVoucher = can(ctx.role, 'marketing')
+  const canPoints = can(ctx.role, 'finance.adjust')
+  const canVoucher = can(ctx.role, 'finance.adjust')
   const canNote = can(ctx.role, 'members')
   const roles = [u.staff ? `${u.staff.roleLabel}（後台）` : null, u.isCoach || u.coach ? '教練' : null].filter(Boolean) as string[]
   const href = (t: MemberDetailTab) => `/admin/members/${u.id}?tab=${t}`
@@ -227,7 +227,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
               <dd className="flex flex-wrap items-center gap-2">
                 {u.isCoach || u.coach ? <Pill tone="violet">教練</Pill> : <span className="text-muted">否</span>}
                 {u.coach && <span className="text-xs text-muted">教練名冊：{u.coach.name}（{u.coach.status === 'ACTIVE' ? '在職' : u.coach.status === 'ON_LEAVE' ? '請假' : '停用'}）</span>}
-                <CoachToggle userId={u.id} isCoach={u.isCoach} canEdit={canNote} />
+                <CoachToggle userId={u.id} isCoach={u.isCoach} canEdit={canRestrict} />
               </dd>
               <dt className="text-muted">後台帳號</dt>
               <dd>{u.staff ? <>{u.staff.username}・<Pill tone="blue">{u.staff.roleLabel}</Pill> {!u.staff.active && <Pill tone="gray">停用</Pill>}</> : <span className="text-muted">無（此會員沒有後台權限）</span>}</dd>

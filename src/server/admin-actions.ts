@@ -90,7 +90,7 @@ export async function adminCancelBooking(bookingId: string): Promise<AdminResult
 export async function markCompleted(bookingId: string): Promise<AdminResult> {
   let admin: string
   try {
-    admin = await need('bookings')
+    admin = await need('bookings.manage')
   } catch (err) {
     return denied(err) ?? { ok: false, error: '操作失敗' }
   }

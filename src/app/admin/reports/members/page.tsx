@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: '會員分析' }
 export const dynamic = 'force-dynamic'
 
 export default async function MemberReportPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('reports')) === 'forbidden') return <Forbidden />
   const p = periodOf((await searchParams).days)
   const m = await memberStats(p)
   return (

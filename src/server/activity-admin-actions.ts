@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { ZodError } from 'zod'
-import { requirePermission } from '@/lib/admin-auth'
-const requireAdmin = async () => (await requirePermission('activities')).username
+import { PermissionError, requireAdminWith, requirePermission } from '@/lib/admin-auth'
 import {
   ActivityAdminError,
   addSession,
@@ -25,6 +24,7 @@ import {
 type R<T> = ({ ok: true; message?: string } & T) | { ok: false; message: string }
 
 function fail(err: unknown): { ok: false; message: string } {
+  if (err instanceof PermissionError) return { ok: false, message: '目前帳號沒有這項操作的權限' }
   if (err instanceof ActivityAdminError) return { ok: false, message: err.message }
   if (err instanceof ZodError) return { ok: false, message: err.errors[0]?.message ?? '輸入資料有誤' }
   console.error('[activity-admin]', err)
@@ -41,7 +41,7 @@ function refreshAll(activityId?: string) {
 
 export async function previewActivityAction(input: unknown, activityId?: string | null): Promise<R<{ preview: PreviewResult }>> {
   try {
-    await requireAdmin()
+    await requireAdminWith('activities')
     return { ok: true, preview: await previewActivity(input, activityId) }
   } catch (err) {
     return fail(err)
@@ -56,7 +56,7 @@ export async function saveActivityAction(params: {
   holdDays?: number
 }): Promise<R<{ result: SaveResult }>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     const result = await saveActivity({ ...params, actor: `admin:${admin}` })
     refreshAll(result.activityId)
     return { ok: true, result, message: result.message }
@@ -67,7 +67,7 @@ export async function saveActivityAction(params: {
 
 export async function previewSessionEditAction(input: unknown): Promise<R<{ rows: EditImpactRow[] }>> {
   try {
-    await requireAdmin()
+    await requireAdminWith('activities')
     return { ok: true, rows: await previewSessionEdit(input) }
   } catch (err) {
     return fail(err)
@@ -80,7 +80,7 @@ export async function applySessionEditAction(
   activityId?: string,
 ): Promise<R<{ applied: number; skipped: { sessionId: string; reason: string }[] }>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     const res = await applySessionEdit(input, { confirmAffected, actor: `admin:${admin}` })
     refreshAll(activityId)
     return {
@@ -100,7 +100,7 @@ export async function cancelSessionAction(
   activityId?: string,
 ): Promise<R<{ summary: Awaited<ReturnType<typeof cancelActivitySession>> }>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     const summary = await cancelActivitySession(sessionId, reason, `admin:${admin}`)
     refreshAll(activityId)
     revalidatePath(`/admin/sessions/${sessionId}`)
@@ -116,7 +116,7 @@ export async function cancelSessionAction(
 
 export async function archiveActivityAction(id: string): Promise<R<{ cancelled: number }>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     const res = await archiveActivity(id, `admin:${admin}`)
     refreshAll(id)
     return { ok: true, cancelled: res.cancelled, message: '已下架' }
@@ -127,7 +127,7 @@ export async function archiveActivityAction(id: string): Promise<R<{ cancelled: 
 
 export async function syncOccupancyAction(): Promise<R<Awaited<ReturnType<typeof syncLegacyOccupancy>>>> {
   try {
-    await requireAdmin()
+    await requireAdminWith('activities')
     const res = await syncLegacyOccupancy()
     refreshAll()
     return { ok: true, ...res }
@@ -138,7 +138,7 @@ export async function syncOccupancyAction(): Promise<R<Awaited<ReturnType<typeof
 
 export async function previewAddSessionAction(input: unknown): Promise<R<{ preview: Awaited<ReturnType<typeof previewAddSession>> }>> {
   try {
-    await requireAdmin()
+    await requireAdminWith('activities')
     return { ok: true, preview: await previewAddSession(input) }
   } catch (err) {
     return fail(err)
@@ -147,7 +147,7 @@ export async function previewAddSessionAction(input: unknown): Promise<R<{ previ
 
 export async function addSessionAction(input: unknown, activityId: string): Promise<R<{ sessionId: string }>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     const res = await addSession(input, `admin:${admin}`)
     refreshAll(activityId)
     return { ok: true, sessionId: res.sessionId, message: '已新增場次' }
@@ -158,7 +158,7 @@ export async function addSessionAction(input: unknown, activityId: string): Prom
 
 export async function removeDraftSessionAction(sessionId: string, activityId: string): Promise<R<object>> {
   try {
-    const admin = await requireAdmin()
+    const admin = await requireAdminWith('activities')
     await removeDraftSession(sessionId, `admin:${admin}`)
     refreshAll(activityId)
     return { ok: true, message: '已移除未發布場次' }
@@ -169,7 +169,7 @@ export async function removeDraftSessionAction(sessionId: string, activityId: st
 
 export async function courtAvailabilityAction(params: { date: string; startMinute: number; endMinute: number; bufferBeforeMinutes?: number; bufferAfterMinutes?: number; excludeSessionId?: string | null }): Promise<R<{ availability: Awaited<ReturnType<typeof courtAvailabilityForForm>> }>> {
   try {
-    await requireAdmin()
+    await requireAdminWith('activities')
     return { ok: true, availability: await courtAvailabilityForForm(params) }
   } catch (err) {
     return fail(err)

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAdminUser } from '@/lib/admin-auth'
+import { requireAdminApi } from '@/lib/admin-api'
 import { isFinanceRange, resolveFinanceRange } from '@/lib/finance-range'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const runtime = 'nodejs'
  * 費用來自 Expense（已核准，以 submittedAt 歸屬期間）。
  */
 export async function GET(req: NextRequest) {
-  if (!(await getAdminUser())) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
+  if (!(await requireAdminApi('finance'))) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入，或目前帳號沒有這項權限' } }, { status: 403 })
 
   const range = req.nextUrl.searchParams.get('range') ?? 'month'
   if (!isFinanceRange(range)) return NextResponse.json({ success: false, error: { code: 'BAD_RANGE', message: '期間參數不正確' } }, { status: 400 })

@@ -85,6 +85,7 @@ CREATE TABLE "Expense" (
     "submittedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "approvedAt" DATETIME,
     "approvedBy" TEXT,
+    "submittedBy" TEXT,
     "receiptId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -104,6 +105,7 @@ CREATE TABLE "Receipt" (
     "ocrFields" JSONB,
     "ocrConfidence" REAL,
     "imageUrl" TEXT,
+    "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -562,6 +564,8 @@ CREATE TABLE "AdminAccount" (
     "lastLoginAt" DATETIME,
     "createdBy" TEXT,
     "userId" TEXT,
+    "mustChangePassword" BOOLEAN NOT NULL DEFAULT false,
+    "venueId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -799,6 +803,9 @@ CREATE INDEX "Expense_status_submittedAt_idx" ON "Expense"("status", "submittedA
 
 -- CreateIndex
 CREATE INDEX "Expense_category_idx" ON "Expense"("category");
+
+-- CreateIndex
+CREATE INDEX "Expense_submittedBy_idx" ON "Expense"("submittedBy");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Receipt_receiptNumber_key" ON "Receipt"("receiptNumber");

@@ -26,6 +26,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     return <div className="min-h-dvh bg-[rgb(var(--bg))]">{children}</div>
   }
 
+  // 首次登入或密碼被重設：先更換密碼，其他頁面一律導回
+  const isChangePw = path === '/admin/change-password'
+  if (ctx.mustChangePassword && !isChangePw) redirect('/admin/change-password')
+
   // 場館資料依登入者的資料範圍讀取（展示帳號只會讀到展示場館）
   const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } })
 

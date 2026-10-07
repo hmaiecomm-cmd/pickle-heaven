@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin-auth'
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { zonedParts } from '@/lib/timezone'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,7 +40,7 @@ export default async function AdminSessionDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireAdmin()
+  if ((await pagePermission('activities.view')) === 'forbidden') return <Forbidden />
   const { id } = await params
 
   const session = await prisma.session.findUnique({

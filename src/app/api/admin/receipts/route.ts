@@ -1,14 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { audit, badRequest, nextNumber, readJson, requireAdminApi, toDateOrNull, toInt, unauthorized } from '@/lib/admin-api'
+import { audit, badRequest, nextNumber, readJson, toDateOrNull, toInt, unauthorized } from '@/lib/admin-api'
+import { getAdminContext } from '@/lib/admin-auth'
+import { can } from '@/lib/admin-permissions'
 import { serializeReceipt } from '@/lib/admin-serializers'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
-  if (!(await requireAdminApi('finance'))) return unauthorized()
-  const rows = await prisma.receipt.findMany({ orderBy: { issueDate: 'desc' }, take: 500 })
+  const ctx = await getAdminContext()
+  if (!ctx || !can(ctx.role, 'expenses.own')) return unauthorized()
+  // 擁有者看全部；其他人只看自己登錄的收據
+  const own = can(ctx.role, 'expenses.review') ? {} : { createdBy: `admin:${ctx.username}` }
+  const rows = await prisma.receipt.findMany({ where: own, orderBy: { issueDate: 'desc' }, take: 500 })
   return NextResponse.json({ success: true, data: rows.map(serializeReceipt), meta: { total: rows.length } })
 }
 
@@ -17,8 +22,9 @@ export async function GET() {
  * 一律以 ocrStatus = DRAFT 建立，絕不自動建立費用或會計分錄。
  */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi('finance')
-  if (!admin) return unauthorized()
+  const ctx = await getAdminContext()
+  if (!ctx || !can(ctx.role, 'expenses.own')) return unauthorized()
+  const admin = ctx.username
   const body = await readJson<{ amount?: unknown; issueDate?: string; vendorName?: string; paymentMethod?: string; fields?: Record<string, string>; confidence?: number }>(req)
   if (!body) return badRequest('缺少內容')
   const amount = toInt(body.amount)
@@ -37,6 +43,7 @@ export async function POST(req: NextRequest) {
         ocrStatus: 'DRAFT',
         ocrFields: body.fields ?? {},
         ocrConfidence: typeof body.confidence === 'number' ? body.confidence : 0.8,
+        createdBy: `admin:${admin}`,
       },
     })
   let row

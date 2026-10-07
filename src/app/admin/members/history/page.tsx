@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: '會員預約與消費紀錄' }
 export const dynamic = 'force-dynamic'
 
 export default async function MemberHistoryPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  if ((await pagePermission('members')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
   const { q = '' } = await searchParams
   const text = q.trim()
   const digits = text.replace(/[^\d]/g, '')

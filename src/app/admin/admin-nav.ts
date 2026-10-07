@@ -34,7 +34,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
       { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
       { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
-      { label: '自動化規則', href: '/admin/automation', permission: 'monitor', notOpen: true },
+      { label: '自動化規則', href: '/admin/automation', permission: 'settings', notOpen: true },
     ],
   },
   {
@@ -43,7 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地與時段', href: '/admin/courts', permission: 'courts' },
-      { label: '封場與維護', href: '/admin/maintenance?tab=manual', permission: 'courts' },
+      { label: '封場與維護', href: '/admin/maintenance?tab=manual', permission: 'courts.manage' },
     ],
   },
   {
@@ -51,8 +51,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '交易管理',
     items: [
       { label: '訂場與活動訂單', href: '/admin/bookings', permission: 'bookings', exact: true },
-      { label: '商品訂單', href: '/admin/bookings/products', permission: 'bookings', notOpen: true },
-      { label: '退款紀錄', href: '/admin/refunds', permission: 'bookings' },
+      { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
+      { label: '退款紀錄', href: '/admin/refunds', permission: 'finance' },
       { label: '發票管理', href: '/admin/invoices', permission: 'invoice' },
     ],
   },
@@ -61,9 +61,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '活動管理',
     items: [
       { label: '活動列表', href: '/admin/activities', permission: 'activities' },
-      { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities' },
-      { label: '報名與候補／通知名單', href: '/admin/registrations', permission: 'activities' },
-      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts' },
+      { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities.view' },
+      { label: '報名與候補／通知名單', href: '/admin/registrations', permission: 'activities.view' },
+      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts.manage' },
       { label: '教練', href: '/admin/events', permission: 'activities' },
     ],
   },
@@ -72,7 +72,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '人員管理',
     items: [
       { label: '人員列表', href: '/admin/members', permission: 'members', exact: true },
-      { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'members' },
+      { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'finance' },
       { label: '點數與票券', href: '/admin/members/points', permission: 'members' },
       { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members.restrict' },
     ],
@@ -90,12 +90,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     key: 'reports',
     label: '營運報表',
     items: [
-      { label: '營運概況', href: '/admin/reports', permission: 'finance', exact: true },
+      { label: '營運概況（含帳務）', href: '/admin/reports', permission: 'finance', exact: true },
       { label: '收入與退款', href: '/admin/finance', permission: 'finance' },
-      { label: '場地使用率', href: '/admin/reports/utilization', permission: 'finance' },
-      { label: '活動參與', href: '/admin/reports/activities', permission: 'finance' },
-      { label: '會員分析', href: '/admin/reports/members', permission: 'finance' },
-      { label: '支出與收據', href: '/admin/expenses', permission: 'finance' },
+      { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' },
+      { label: '活動參與', href: '/admin/reports/activities', permission: 'reports' },
+      { label: '會員分析', href: '/admin/reports/members', permission: 'reports' },
+      { label: '費用與收據（申請與審核）', href: '/admin/expenses', permission: 'expenses.own' },
     ],
   },
   {
@@ -107,7 +107,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
       { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
-      { label: '員工帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
+      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
       { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
     ],
   },

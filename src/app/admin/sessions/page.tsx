@@ -44,7 +44,7 @@ function fmtTime(date: Date, tz: string) {
  * 缺場地的場次標示「待補使用場地」，補填時先檢查衝突、確認後才建立占用；不會自動指派。
  */
 export default async function AdminSessionsPage() {
-  const ctx = await pagePermission('activities')
+  const ctx = await pagePermission('activities.view')
   if (ctx === 'forbidden') return <Forbidden />
 
   const venue = await prisma.venue.findFirst({

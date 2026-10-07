@@ -197,7 +197,7 @@ export function TransactionsClient({
                   <th className="px-3 py-2 font-medium">付款</th>
                   <th className="px-3 py-2 font-medium">訂單</th>
                   <th className="px-3 py-2 font-medium">退款</th>
-                  <th className="px-3 py-2 text-right font-medium"><button type="button" onClick={() => sortBy('total')} className="font-medium hover:text-zinc-900">實付{sortMark('total')}</button></th>
+                  {!data.amountsHidden && <th className="px-3 py-2 text-right font-medium"><button type="button" onClick={() => sortBy('total')} className="font-medium hover:text-zinc-900">實付{sortMark('total')}</button></th>}
                   <th className="px-3 py-2 font-medium">發票</th>
                   <th className="px-3 py-2 font-medium"><button type="button" onClick={() => sortBy('created')} className="font-medium hover:text-zinc-900">下單日期{sortMark('created')}</button></th>
                   <th className="px-3 py-2 font-medium">操作</th>
@@ -224,10 +224,12 @@ export function TransactionsClient({
                     <td className="px-3 py-2"><StatusPill map={PAYMENT} value={r.paymentStatus} />{r.simulatedPayment && <span className="ml-1 text-[10px] text-violet-700">模擬</span>}</td>
                     <td className="px-3 py-2"><StatusPill map={ORDER} value={r.orderStatus} /></td>
                     <td className="px-3 py-2"><StatusPill map={REFUND} value={r.refundStatus} /></td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular">
-                      NT${r.total.toLocaleString()}
-                      {r.refundedAmount > 0 && <span className="block text-[11px] text-muted">已退 NT${r.refundedAmount.toLocaleString()}</span>}
-                    </td>
+                    {!data.amountsHidden && (
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular">
+                        NT${r.total.toLocaleString()}
+                        {r.refundedAmount > 0 && <span className="block text-[11px] text-muted">已退 NT${r.refundedAmount.toLocaleString()}</span>}
+                      </td>
+                    )}
                     <td className="px-3 py-2"><StatusPill map={INVOICE} value={r.invoiceStatus} /></td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{new Date(r.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-3 py-2">

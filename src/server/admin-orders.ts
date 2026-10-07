@@ -194,6 +194,8 @@ export async function listOrders(raw: unknown) {
     total,
     pages: Math.max(1, Math.ceil(total / q.pageSize)),
     queriedAt: new Date().toISOString(),
+    /** true = 呼叫者沒有財務權限，金額欄位已在伺服器端清為 0 */
+    amountsHidden: false,
     rows: rows.map((b) => {
       const courts = b.items.length
       const acts = b.activityItems.length
@@ -295,6 +297,7 @@ export async function getOrderDetail(id: string) {
       points: b.user.points,
     },
     note: b.note,
+    amountsHidden: false,
     amounts: {
       subtotal: b.subtotal,
       discount: b.discount,
@@ -364,3 +367,22 @@ export async function getOrderDetail(id: string) {
 }
 
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrderDetail>>>
+
+/** 沒有財務權限時，在伺服器端移除金額（不把完整資料送到前端再隱藏） */
+export function maskOrderListAmounts(r: OrderListResult): OrderListResult {
+  return { ...r, amountsHidden: true, rows: r.rows.map((row) => ({ ...row, total: 0, refundedAmount: 0 })) }
+}
+
+export function maskOrderDetailAmounts(d: OrderDetail): OrderDetail {
+  return {
+    ...d,
+    amountsHidden: true,
+    customer: { ...d.customer, points: 0 },
+    amounts: { ...d.amounts, subtotal: 0, discount: 0, pointsUsed: 0, total: 0, refundedAmount: 0 },
+    courtItems: d.courtItems.map((i) => ({ ...i, price: 0, refundedAmount: 0, refundedPoints: 0 })),
+    activityItems: d.activityItems.map((i) => ({ ...i, unitPrice: 0, amount: 0, refundedAmount: 0, refundedPoints: 0 })),
+    payments: d.payments.map((p) => ({ ...p, amount: 0, card: null, providerRef: null })),
+    refunds: d.refunds.map((r) => ({ ...r, cashAmount: 0, pointsAmount: 0 })),
+    invoices: d.invoices.map((i) => ({ ...i, amount: 0 })),
+  }
+}

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: '活動參與' }
 export const dynamic = 'force-dynamic'
 
 export default async function ActivityReportPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('reports')) === 'forbidden') return <Forbidden />
   const p = periodOf((await searchParams).days)
   const rows = await activityStats(p)
   const avg = rows.length ? Math.round(rows.reduce((s, r) => s + r.fill, 0) / rows.length) : 0

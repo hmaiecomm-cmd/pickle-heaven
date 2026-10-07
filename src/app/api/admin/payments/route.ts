@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAdminUser } from '@/lib/admin-auth'
+import { requireAdminApi } from '@/lib/admin-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -10,7 +10,7 @@ const STATUS_MAP = { PENDING: 'PENDING', SUCCESS: 'PAID', FAILED: 'FAILED', REFU
 
 /** 付款紀錄（Phase 2）。最近 500 筆，附訂單編號與聯絡人供列表顯示。 */
 export async function GET(req: NextRequest) {
-  if (!(await getAdminUser())) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入' } }, { status: 401 })
+  if (!(await requireAdminApi('finance'))) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: '請先登入，或目前帳號沒有這項權限' } }, { status: 403 })
 
   const status = req.nextUrl.searchParams.get('status')
   const dbStatus = status === 'PAID' ? 'SUCCESS' : status

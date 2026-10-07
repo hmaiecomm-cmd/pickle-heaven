@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { z, ZodError } from 'zod'
-import { PermissionError, requirePermission } from '@/lib/admin-auth'
-import type { Permission } from '@/lib/admin-permissions'
-import { getOrderDetail, listOrders, type OrderDetail, type OrderListResult } from './admin-orders'
+import { PermissionError, requirePermission, type AdminContext } from '@/lib/admin-auth'
+import { can, type Permission } from '@/lib/admin-permissions'
+import { getOrderDetail, listOrders, maskOrderDetailAmounts, maskOrderListAmounts, type OrderDetail, type OrderListResult } from './admin-orders'
 import { executeRefund, getRefundOptions, markManualRefundDone, RefundError, type RefundOptions, type RefundResultView } from './refund-service'
 import { InvoiceActionError, resendInvoice, voidAndReissue } from './invoice-service'
 import {
@@ -23,10 +23,10 @@ import {
 
 type R<T> = ({ ok: true } & T) | { ok: false; error: string }
 
-async function guard<T>(permission: Permission, fn: (actor: string) => Promise<T>): Promise<R<{ data: T }>> {
+async function guard<T>(permission: Permission, fn: (actor: string, ctx: AdminContext) => Promise<T>): Promise<R<{ data: T }>> {
   try {
     const ctx = await requirePermission(permission)
-    return { ok: true, data: await fn(`admin:${ctx.username}`) }
+    return { ok: true, data: await fn(`admin:${ctx.username}`, ctx) }
   } catch (err) {
     if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有這項操作的權限' }
     if (err instanceof RefundError || err instanceof InvoiceActionError || err instanceof DeviceCommandError) return { ok: false, error: err.message }
@@ -38,11 +38,17 @@ async function guard<T>(permission: Permission, fn: (actor: string) => Promise<T
 }
 
 export async function searchOrdersAction(query: unknown): Promise<R<{ data: OrderListResult }>> {
-  return guard('bookings', () => listOrders(query))
+  return guard('bookings', async (_a, ctx) => {
+    const r = await listOrders(query)
+    return can(ctx.role, 'finance') ? r : maskOrderListAmounts(r)
+  })
 }
 
 export async function orderDetailAction(id: string): Promise<R<{ data: OrderDetail | null }>> {
-  return guard('bookings', () => getOrderDetail(id))
+  return guard('bookings', async (_a, ctx) => {
+    const d = await getOrderDetail(id)
+    return !d || can(ctx.role, 'finance') ? d : maskOrderDetailAmounts(d)
+  })
 }
 
 export async function refundOptionsAction(bookingId: string): Promise<R<{ data: RefundOptions }>> {

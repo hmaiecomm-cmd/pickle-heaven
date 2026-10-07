@@ -62,7 +62,7 @@ export function isAiConfigured() {
 const TOOL_PERMISSION: Record<string, Permission> = {
   get_financial_summary: 'finance',
   get_revenue_breakdown: 'finance',
-  list_expenses: 'finance',
+  list_expenses: 'expenses.review',
   list_invoices: 'finance',
   list_bookings: 'bookings',
   get_court_utilization: 'courts',

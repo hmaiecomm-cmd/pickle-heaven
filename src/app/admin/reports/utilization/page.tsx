@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: '場地使用率' }
 export const dynamic = 'force-dynamic'
 
 export default async function UtilizationPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('reports')) === 'forbidden') return <Forbidden />
   const p = periodOf((await searchParams).days)
   const u = await utilization(p)
   return (

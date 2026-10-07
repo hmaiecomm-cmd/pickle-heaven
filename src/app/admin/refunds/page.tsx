@@ -17,7 +17,7 @@ const STATE: Record<string, [string, 'blue' | 'green' | 'red' | 'amber']> = {
 const METHOD: Record<string, string> = { ORIGINAL: '原付款方式', POINTS: '點數', MANUAL: '人工' }
 
 export default async function RefundsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  if ((await pagePermission('bookings')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
   const { status = '' } = await searchParams
   const rows = await prisma.refund.findMany({
     where: status ? { status } : {},
