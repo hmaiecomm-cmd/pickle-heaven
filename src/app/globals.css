@@ -19,6 +19,33 @@
     --warn: 217 119 6;
   }
 
+  /*
+   * 前台品牌 token（大新店森林匹克球）。改色只改這裡，tailwind 的 hp-* 顏色與首頁元件都會跟著變。
+   * 數值為 R G B，方便搭配透明度：rgb(var(--hp-purple) / .5)
+   */
+  :root {
+    --hp-purple: 113 60 222;   /* 品牌紫 #713CDE：主要按鈕、重點標題、選取狀態 */
+    --hp-deep: 40 19 67;       /* 深紫 #281343：品牌重點區、頁尾 */
+    --hp-lilac: 238 230 250;   /* 淡紫 #EEE6FA：輔助底色 */
+    --hp-cream: 250 248 244;   /* 暖白 #FAF8F4：主要閱讀底色 */
+    --hp-ink: 33 26 43;        /* 深色文字 #211A2B */
+    --hp-logo-bg: 1 1 1;       /* 官方 logo 原檔底色，logo 放在同色底上才不會出現邊框 */
+
+    /* 字級 */
+    --hp-fs-display: clamp(2.4rem, 5.4vw, 4.9rem);
+    --hp-fs-h2: clamp(2rem, 4.6vw, 3.9rem);
+    --hp-fs-h3: clamp(1.35rem, 2.2vw, 1.75rem);
+    --hp-fs-lead: clamp(1.02rem, 1.4vw, 1.2rem);
+
+    /* 間距與圓角 */
+    --hp-section-y: clamp(4.5rem, 10vw, 9rem);
+    --hp-gutter: clamp(1rem, 4vw, 3rem);
+    --hp-radius-sm: 0.625rem;
+    --hp-radius-md: 1.25rem;
+    --hp-radius-lg: 2rem;
+    --hp-btn-h: 3.25rem;
+  }
+
   .dark {
     --bg: 9 13 22;
     --surface: 18 24 36;

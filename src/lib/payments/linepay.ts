@@ -8,6 +8,7 @@ import type {
   RefundResult,
 } from './types'
 import { PaymentError, scrubSensitive } from './types'
+import { brand } from '@/config/site'
 
 /**
  * LINE Pay v3。
@@ -77,7 +78,7 @@ export const linepayProvider: PaymentProvider = {
         {
           id: ctx.bookingId,
           amount: ctx.amount,
-          name: '匹克精靈 場地預約',
+          name: `${brand.name} 場地預約`,
           products: ctx.itemNames.map((name) => ({ name, quantity: 1, price: 0 })),
         },
       ],

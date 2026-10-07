@@ -8,6 +8,7 @@ import { LogoutButton } from '@/components/account-actions'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ntd } from '@/lib/utils'
+import { brand } from '@/config/site'
 
 export const metadata: Metadata = { title: '我的帳戶' }
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,7 @@ export default async function AccountPage() {
   const user = await getSessionUser()
 
   if (!user) {
-    return <LoginPrompt title="登入匹克精靈" description="使用 LINE 登入即可預約場地、查看訂單與管理點數。" />
+    return <LoginPrompt title={`登入${brand.name}`} description="使用 LINE 登入即可預約場地、查看訂單與管理點數。" />
   }
 
   const [vouchers, bookingCount] = await Promise.all([
@@ -129,7 +130,7 @@ export default async function AccountPage() {
 
       <LogoutButton />
 
-      <p className="pb-4 text-center text-[11px] text-muted">匹克精靈 Pickle Heaven · 版本 1.0.0</p>
+      <p className="pb-4 text-center text-[11px] text-muted">{brand.name} · {brand.englishName}</p>
     </div>
   )
 }

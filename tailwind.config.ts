@@ -10,6 +10,15 @@ const config: Config = {
           400: '#34d399', 500: '#10b981', 600: '#0fa36b', 700: '#047857',
           800: '#065f46', 900: '#064e3b',
         },
+        // 前台品牌色，數值集中在 globals.css 的 --hp-* token
+        hp: {
+          purple: 'rgb(var(--hp-purple) / <alpha-value>)',
+          deep: 'rgb(var(--hp-deep) / <alpha-value>)',
+          lilac: 'rgb(var(--hp-lilac) / <alpha-value>)',
+          cream: 'rgb(var(--hp-cream) / <alpha-value>)',
+          ink: 'rgb(var(--hp-ink) / <alpha-value>)',
+          logo: 'rgb(var(--hp-logo-bg) / <alpha-value>)',
+        },
         ball: { 300: '#e9f98a', 400: '#dff26a', 500: '#d0e94a', 600: '#b6cf2f' },
         ink: {
           50: '#f6f7f9', 100: '#eceef2', 200: '#d5d9e2', 300: '#b0b8c7',
@@ -18,6 +27,7 @@ const config: Config = {
         },
       },
       fontFamily: {
+        display: ['var(--font-hp-display)', 'var(--font-app)', 'sans-serif'],
         sans: [
           'var(--font-app)', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI',
           'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Helvetica Neue',

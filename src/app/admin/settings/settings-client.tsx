@@ -281,7 +281,7 @@ export function SettingsClient() {
             ) : (
               <KV
                 rows={[
-                  ['營業人', settings.organization?.name ?? '—'],
+                  ['系統組織名稱', settings.organization?.name ?? '—'],
                   ['場館名稱', venue.name],
                   ['地址', venue.address || '—'],
                   ['電話', venue.phone || '—'],

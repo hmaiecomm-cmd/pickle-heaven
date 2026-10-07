@@ -1,6 +1,7 @@
 import 'server-only'
 import { formatMinute, formatDateFull } from './time'
 import { ntd } from './utils'
+import { brand } from '@/config/site'
 
 const LINE_VERIFY_URL = 'https://api.line.me/oauth2/v2.1/verify'
 const LINE_PUSH_URL = 'https://api.line.me/v2/bot/message/push'
@@ -156,7 +157,7 @@ export function buildBookingFlex(b: BookingNotifyPayload) {
 
   return {
     type: 'flex',
-    altText: `【匹克精靈】訂單 ${b.code} 已成立`,
+    altText: `【${brand.name}】訂單 ${b.code} 已成立`,
     contents: {
       type: 'bubble',
       header: {
@@ -245,7 +246,7 @@ export async function notifyBookingCancelled(
   if (!lineUserId) return
   const text =
     refundPoints > 0
-      ? `【匹克精靈】訂單 ${code} 已取消，已回補 ${refundPoints} 點至您的帳戶，可於下次預約折抵。`
-      : `【匹克精靈】訂單 ${code} 已取消。依取消政策本次不予退款，如有疑問請洽櫃台。`
+      ? `【${brand.name}】訂單 ${code} 已取消，已回補 ${refundPoints} 點至您的帳戶，可於下次預約折抵。`
+      : `【${brand.name}】訂單 ${code} 已取消。依取消政策本次不予退款，如有疑問請洽櫃台。`
   await pushMessages(lineUserId, [{ type: 'text', text }])
 }

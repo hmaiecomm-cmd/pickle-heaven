@@ -144,11 +144,14 @@ export function BookingBoard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-lg font-semibold tracking-tight">{venue.name}</h1>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate">{venue.address}</span>
-              </p>
+              {venue.address.trim() && (
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{venue.address}</span>
+                </p>
+              )}
             </div>
+            {venue.phone.trim() && (
             <a
               href={`tel:${venue.phone}`}
               className="flex shrink-0 items-center gap-1.5 rounded-xl surface-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-brand-50 hover:text-brand-700"
@@ -156,6 +159,7 @@ export function BookingBoard({
               <Phone className="h-3.5 w-3.5" aria-hidden />
               致電
             </a>
+            )}
           </div>
           {venue.notice && (
             <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs leading-relaxed text-brand-800 dark:bg-brand-900/30 dark:text-brand-200">

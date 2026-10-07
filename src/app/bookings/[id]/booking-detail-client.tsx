@@ -168,6 +168,7 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
         <CardContent className="space-y-3">
           <h2 className="text-sm font-semibold">{booking.venue.name}</h2>
           <div className="space-y-2 text-xs text-muted">
+            {booking.venue.address.trim() && (
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.venue.address)}`}
               target="_blank"
@@ -177,10 +178,13 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
               <MapPin className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
               <span className="underline-offset-2 hover:underline">{booking.venue.address}</span>
             </a>
+            )}
+            {booking.venue.phone.trim() && (
             <a href={`tel:${booking.venue.phone}`} className="flex items-center gap-1.5 hover:text-brand-600">
               <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {booking.venue.phone}
             </a>
+            )}
           </div>
           {booking.venue.notice && (
             <p className="rounded-xl surface-2 px-3 py-2 text-[11px] leading-relaxed text-muted">

@@ -7,20 +7,25 @@ import { AppShell } from '@/components/app-shell'
 import { getSessionUser } from '@/lib/session'
 import { getCartToken } from '@/lib/session'
 import { getCart } from '@/lib/availability'
+import { brand, SITE_URL } from '@/config/site'
 
+// 前台一律使用對外場館名稱；後台在 admin/layout 另外設定系統名稱
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: '匹克精靈 · 場地預約',
-    template: '%s｜匹克精靈',
+    default: `${brand.name}｜場地預約`,
+    template: `%s｜${brand.name}`,
   },
-  description: '台灣室內匹克球場線上預約系統。選日期、挑場地、加入購物車，於 LINE 內完成付款。',
-  applicationName: '匹克精靈',
+  description: brand.description,
+  applicationName: brand.name,
   formatDetection: { telephone: false, address: false, email: false },
   openGraph: {
-    title: '匹克精靈 · 場地預約',
-    description: '室內恆溫匹克球場，線上即時查詢空檔並完成預約。',
+    title: `${brand.name}｜場地預約`,
+    description: brand.description,
+    siteName: brand.name,
     locale: 'zh_TW',
     type: 'website',
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: `${brand.name} ${brand.englishName}` }],
   },
   robots: { index: true, follow: true },
 }
@@ -30,8 +35,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#0fa36b' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
+    { media: '(prefers-color-scheme: light)', color: '#281343' },
+    { media: '(prefers-color-scheme: dark)', color: '#281343' },
   ],
   // LIFF 全螢幕模式需要延伸到安全區域
   viewportFit: 'cover',

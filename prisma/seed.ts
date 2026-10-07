@@ -64,10 +64,11 @@ async function main() {
       organizationId: org.id,
       timezone: 'Asia/Taipei',
       slug: 'taipei-dazhi',
-      name: '匹克精靈 · 台北大直館',
-      address: '台北市中山區敬業三路 128 號（頂樓雨棚球場）',
-      phone: '02-2532-8888',
-      description: '2 面標準匹克球場，室外雨棚全遮蔽、下雨照常開打，專業 PU 地墊與獨立更衣淋浴間，捷運劍南路站步行 5 分鐘。',
+      // 對外場館名稱；地址、電話、介紹待場館確認後由後台設定填入
+      name: '大新店森林匹克球',
+      address: '',
+      phone: '',
+      description: null,
       openMinute: 600, // 10:00
       closeMinute: 1440, // 24:00
       slotMinutes: 60,
@@ -184,7 +185,7 @@ async function main() {
       organizationId: org.id,
       venueId: venue.id,
       courtId: courts[0].id,
-      title: '大興店固定球敘',
+      title: '大新店固定球敘',
       weekday: 2, // 週二
       startMinute: 12 * 60,
       endMinute: 14 * 60,

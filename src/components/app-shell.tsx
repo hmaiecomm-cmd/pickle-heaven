@@ -9,6 +9,7 @@ import { useCartCount } from '@/store/cart'
 import { useLiff } from '@/components/liff-provider'
 import { Button } from '@/components/ui/button'
 import type { SessionUser } from '@/lib/types'
+import { brand } from '@/config/site'
 
 const NAV = [
   { href: '/booking', label: '場地預定', icon: CalendarDays },
@@ -20,7 +21,7 @@ const NAV = [
 
 function Logo() {
   return (
-    <Link href="/booking" className="flex items-center gap-2" aria-label="匹克精靈首頁">
+    <Link href="/" className="flex items-center gap-2" aria-label={`${brand.name}首頁`}>
       <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 text-white shadow-sm">
         {/* 匹克球拍與球的簡化標記 */}
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
@@ -29,7 +30,7 @@ function Logo() {
           <circle cx="18" cy="16.5" r="3" fill="#d0e94a" />
         </svg>
       </span>
-      <span className="text-[15px] font-semibold tracking-tight">匹克精靈</span>
+      <span className="text-[15px] font-semibold tracking-tight">{brand.name}</span>
     </Link>
   )
 }
@@ -42,8 +43,8 @@ export function AppShell({ user, children }: { user: SessionUser | null; childre
   // 結帳與付款流程隱藏底部導覽，避免誤觸離開
   const hideNav = pathname.startsWith('/checkout')
 
-  // 後台有自己的版型，不套用顧客端外框
-  if (pathname.startsWith('/admin')) return <>{children}</>
+  // 後台與首頁有自己的版型，不套用顧客端外框
+  if (pathname.startsWith('/admin') || pathname === '/') return <>{children}</>
 
   return (
     <div className="flex min-h-dvh flex-col">
