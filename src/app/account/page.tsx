@@ -8,7 +8,6 @@ import { formatRange, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc } from '@
 import { shortDateLabel } from '@/lib/activity-shared'
 import { LoginPrompt } from '@/components/login-prompt'
 import { LogoutButton } from '@/components/account-actions'
-import { LineLinkButton } from '@/components/line-link'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Badge, BookingStatusBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -71,7 +70,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       orderBy: { createdAt: 'desc' },
       take: 10,
     }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { email: true, lineUserId: true, googleSub: true, createdAt: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, createdAt: true } }),
   ])
 
   const toCard = (b: (typeof all)[number]): BookingCardData => {
@@ -236,18 +235,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <Separator />
               <dl className="grid grid-cols-[6rem_1fr] gap-y-1.5 text-sm">
                 <dt className="text-muted">登入方式</dt>
-                <dd>{profile?.googleSub ? 'Google 帳號' : profile?.lineUserId ? 'LINE（舊帳號）' : '—'}</dd>
+                <dd>{profile?.googleSub ? 'Google 帳號' : '—'}</dd>
                 <dt className="text-muted">Email</dt>
                 <dd className="truncate">{profile?.email ?? '—'}</dd>
                 <dt className="text-muted">加入日期</dt>
                 <dd>{profile?.createdAt.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' }) ?? '—'}</dd>
               </dl>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="space-y-3">
-              <h2 className="text-sm font-semibold">LINE 舊帳號</h2>
-              <LineLinkButton linked={Boolean(profile?.lineUserId)} />
             </CardContent>
           </Card>
           <LogoutButton />

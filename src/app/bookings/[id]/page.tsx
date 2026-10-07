@@ -18,7 +18,7 @@ export default async function BookingDetailPage({
   const [{ id }, sp, user] = await Promise.all([params, searchParams, getSessionUser()])
 
   if (!user) {
-    return <LoginPrompt title="登入後查看預約" description="這筆預約需要登入才能檢視，請使用 LINE 登入。" />
+    return <LoginPrompt title="登入後查看預約" description="這筆預約需要登入才能檢視。" />
   }
 
   const booking = await getBookingDetail(id, user.id)

@@ -192,7 +192,7 @@ export async function previewQuote(
 ): Promise<ActionResult<{ quote: Awaited<ReturnType<typeof quote>> }>> {
   try {
     const user = await getSessionUser()
-    if (!user) throw new BookingError('請先以 LINE 登入', 'UNAUTHORIZED')
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
     const cartToken = await getCartToken()
     const cart = await getCart(cartToken)
     const q = await quote(cart, user.id, voucherCode, usePoints)
@@ -215,7 +215,7 @@ export async function submitBooking(
 ): Promise<ActionResult<{ bookingId: string; code: string; total: number }>> {
   try {
     const user = await getSessionUser()
-    if (!user) throw new BookingError('請先以 LINE 登入', 'UNAUTHORIZED')
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
 
     const parsed = createBookingSchema.parse(input)
     const cartToken = await getCartToken()
@@ -239,7 +239,7 @@ export async function startPayment(
 ): Promise<ActionResult<{ instruction: ChargeInstruction }>> {
   try {
     const user = await getSessionUser()
-    if (!user) throw new BookingError('請先以 LINE 登入', 'UNAUTHORIZED')
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -290,7 +290,7 @@ export async function startPayment(
 export async function cancelMyBooking(bookingId: string): Promise<ActionResult<{ refundPoints: number; ratio: number }>> {
   try {
     const user = await getSessionUser()
-    if (!user) throw new BookingError('請先以 LINE 登入', 'UNAUTHORIZED')
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
     const result = await cancelBooking(bookingId, user.id)
     revalidatePath('/bookings')
     revalidatePath(`/bookings/${bookingId}`)
@@ -304,7 +304,7 @@ export async function cancelMyBooking(bookingId: string): Promise<ActionResult<{
 export async function saveProfile(phone: string): Promise<ActionResult<{ phone: string }>> {
   try {
     const user = await getSessionUser()
-    if (!user) throw new BookingError('請先以 LINE 登入', 'UNAUTHORIZED')
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
     await prisma.user.update({ where: { id: user.id }, data: { phone } })
     return { ok: true, phone }
   } catch (err) {

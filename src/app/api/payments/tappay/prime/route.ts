@@ -20,7 +20,7 @@ const schema = z.object({
  */
 export async function POST(req: Request) {
   const user = await getSessionUser()
-  if (!user) return NextResponse.json({ ok: false, error: '請先以 LINE 登入' }, { status: 401 })
+  if (!user) return NextResponse.json({ ok: false, error: '請先登入' }, { status: 401 })
 
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ ok: false, error: '參數錯誤' }, { status: 400 })

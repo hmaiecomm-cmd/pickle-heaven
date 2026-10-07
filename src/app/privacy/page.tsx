@@ -23,7 +23,6 @@ export default function PrivacyPage() {
           <li><strong>Google 登入資料</strong>：您以 Google 帳號登入時，本站只會取得 Google 提供的帳號識別碼、顯示名稱、頭像與電子郵件。本站不會取得、也不會儲存您的 Google 密碼。</li>
           <li><strong>聯絡資料</strong>：預約時填寫的姓名與手機號碼，用於到場報到與場館聯絡。</li>
           <li><strong>預約與交易資料</strong>：預約的場地、時段、活動報名、訂單金額、付款狀態與發票資訊。信用卡號由合作的金流服務商處理，本站不儲存完整卡號。</li>
-          <li><strong>舊 LINE 帳號資料</strong>：若您曾以 LINE 登入並選擇綁定，本站會保留該 LINE 使用者識別碼，以便延續您的預約紀錄與點數，並可透過 LINE 傳送預約通知。</li>
           <li><strong>技術資料</strong>：為維持登入狀態與購物車，本站會使用必要的 Cookie；不使用第三方廣告追蹤。</li>
         </ul>
       </Section>
@@ -39,7 +38,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="四、資料分享對象">
-        <p>僅在提供服務所必要時，與下列對象分享最少限度的資料：Google（登入驗證）、金流服務商（付款與退款）、電子發票服務商（如有開立）、LINE（您已綁定且需要傳送通知時）。</p>
+        <p>僅在提供服務所必要時，與下列對象分享最少限度的資料：Google（登入驗證）、金流服務商（付款與退款）、電子發票服務商（如有開立）。</p>
       </Section>
 
       <Section title="五、資料保存與刪除">

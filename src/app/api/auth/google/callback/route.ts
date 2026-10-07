@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
  * Google 授權回呼。
  * 成功：以 Google sub 找或建立會員、建立本站 session、回到原本要去的頁面。
  * 取消或失敗：回到原頁並帶上 auth=cancelled / auth=failed，由前端提示；不會建立 session。
- * 絕不以 Email 或姓名自動合併既有會員；舊 LINE 會員請在帳戶頁完成身分驗證後綁定。
+ * 絕不以 Email 或姓名自動合併既有會員。
  */
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams

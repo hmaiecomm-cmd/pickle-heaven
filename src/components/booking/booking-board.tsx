@@ -46,7 +46,7 @@ export function BookingBoard({
   const [pendingKey, setPendingKey] = React.useState<string | null>(null)
   const [openSession, setOpenSession] = React.useState<string | null>(initialSessionId)
 
-  // 日期與開啟中的活動寫回網址：重新整理或 LINE 登入返回時能回到同一個位置
+  // 日期與開啟中的活動寫回網址：重新整理或登入返回時能回到同一個位置
   const syncUrl = React.useCallback((nextDate: string, sessionId: string | null) => {
     const url = new URL(window.location.href)
     url.searchParams.set('date', nextDate)

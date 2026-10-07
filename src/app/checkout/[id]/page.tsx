@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 export default async function RetryPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, user] = await Promise.all([params, getSessionUser()])
 
-  if (!user) return <LoginPrompt title="登入後完成付款" description="請先以 LINE 登入以繼續付款流程。" />
+  if (!user) return <LoginPrompt title="登入後完成付款" description="請先登入以繼續付款流程。" />
 
   const booking = await getBookingDetail(id, user.id)
   if (!booking) notFound()
