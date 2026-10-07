@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/admin-auth'
 import { zonedParts } from '@/lib/timezone'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { CreateSessionButton } from './create-session'
 
 export const metadata: Metadata = { title: '球敘管理' }
 export const dynamic = 'force-dynamic'
@@ -31,8 +32,13 @@ function fmtDateTime(date: Date, tz: string) {
   return `${p.month}/${p.day}（${WEEKDAYS[p.weekday]}）${t}`
 }
 
-export default async function AdminSessionsPage() {
+export default async function AdminSessionsPage({ searchParams }: { searchParams: Promise<{ create?: string }> }) {
   await requireAdmin()
+  const { create } = await searchParams
+  const autoOpen = create === '1'
+  // 單次球敘建在第一個啟用中的場館（與 adminCreateSession 相同的選法）
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { timezone: true } })
+  const timezone = venue?.timezone ?? 'Asia/Taipei'
 
   const sessions = await prisma.session.findMany({
     // 已軟刪除的場次不列出（詳情頁也會回 404）
@@ -54,9 +60,14 @@ export default async function AdminSessionsPage() {
   if (sessions.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center text-sm text-muted">
-          尚未有任何球敘。請先建立範本並執行{' '}
-          <code className="rounded surface-2 px-1.5 py-0.5">/api/cron/sessions</code> 產生場次。
+        <CardContent className="space-y-4 py-12 text-center text-sm text-muted">
+          <p>尚未有任何球敘。可以新增一場單次球敘，或建立週期性範本讓排程自動產生場次。</p>
+          <div className="flex justify-center gap-3">
+            <CreateSessionButton timezone={timezone} autoOpen={autoOpen} />
+            <Link href="/admin/templates" className="inline-flex h-9 items-center rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
+              週期性範本
+            </Link>
+          </div>
         </CardContent>
       </Card>
     )
@@ -69,9 +80,12 @@ export default async function AdminSessionsPage() {
           <h1 className="text-base font-semibold">球敘管理</h1>
           <p className="mt-0.5 text-xs text-muted">共 {sessions.length} 場，點選可管理名單</p>
         </div>
-        <Link href="/admin/templates" className="text-xs text-brand-600 hover:underline">
-          週期性範本 →
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/templates" className="text-xs text-brand-600 hover:underline">
+            週期性範本 →
+          </Link>
+          <CreateSessionButton timezone={timezone} autoOpen={autoOpen} />
+        </div>
       </div>
 
       <Card>

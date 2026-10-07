@@ -268,9 +268,9 @@ export type OneOffInput = Omit<TemplateInput, 'weekdays' | 'generateWeeksAhead' 
   date: string
 }
 
-/** 新增一場不重複的球敘。時間戳的算法與範本產生的場次完全相同。 */
-export async function adminCreateSession(input: OneOffInput): Promise<AdminResult> {
-  await requireAdmin()
+/** 新增一場不重複的球敘。時間戳的算法與範本產生的場次完全相同。成功時回傳新場次 id。 */
+export async function adminCreateSession(input: OneOffInput): Promise<AdminResult & { sessionId?: string }> {
+  const admin = await requireAdmin()
 
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.date)
   if (!match) return fail('請選擇日期')
@@ -284,6 +284,15 @@ export async function adminCreateSession(input: OneOffInput): Promise<AdminResul
   if (input.bookingOpenDaysBefore < 0) return fail('報名開放天數不能是負數')
   if (input.cancellationMode === CancellationMode.CUSTOM_TIMESTAMP) {
     return fail('單場球敘請選「前一日 00:00」或「開打前 N 小時」')
+  }
+  if (
+    input.cancellationMode === CancellationMode.HOURS_BEFORE_START &&
+    (input.cancellationHoursBefore == null || input.cancellationHoursBefore < 0)
+  ) {
+    return fail('請填寫開打前幾小時截止')
+  }
+  if (input.skillLevelMin != null && input.skillLevelMax != null && input.skillLevelMin > input.skillLevelMax) {
+    return fail('程度下限不能高於上限')
   }
 
   const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' } })
@@ -329,8 +338,17 @@ export async function adminCreateSession(input: OneOffInput): Promise<AdminResul
     },
   })
 
+  await prisma.auditLog.create({
+    data: {
+      actor: admin,
+      action: 'SESSION_CREATE',
+      target: session.id,
+      detail: { title: session.title, date: input.date, capacity: session.capacity, price: session.price },
+    },
+  })
+
   refresh(session.id)
-  return ok('已新增球敘')
+  return { ...ok('已新增球敘'), sessionId: session.id }
 }
 
 /**

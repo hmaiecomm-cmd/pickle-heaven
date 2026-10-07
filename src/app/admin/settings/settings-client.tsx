@@ -53,6 +53,7 @@ const ACTION_LABEL: Record<string, string> = {
   AI_ACTION_CONFIRMED: '確認 AI 操作預覽（未執行）',
   AI_ACTION_DECLINED: '取消 AI 操作預覽',
   COACH_CREATE: '新增教練',
+  SESSION_CREATE: '新增單次球敘',
   COACH_UPDATE: '修改教練',
 }
 
@@ -88,8 +89,10 @@ function summarize(a: AuditEntry): string {
       const diff = Object.keys(to).filter((k) => from[k] !== to[k]).map((k) => `${code(k)} ${from[k] ?? '—'}% → ${to[k]}%`)
       return diff.join('、') || '無變動'
     }
+    case 'SESSION_CREATE':
+      return `${d.title ?? ''}　${d.date ?? ''}　${d.capacity ?? ''} 人　NT$${Number(d.price ?? 0).toLocaleString()}`
     case 'COACH_CREATE':
-      return `${d.name ?? ''}　NT${Number(d.hourlyRate ?? 0).toLocaleString()}/時`
+      return `${d.name ?? ''}　NT$${Number(d.hourlyRate ?? 0).toLocaleString()}/時`
     case 'COACH_UPDATE':
       return `${d.name ?? ''}：${Array.isArray(d.fields) ? d.fields.join('、') : ''}${arrow}`
     case 'AI_ACTION_CONFIRMED':

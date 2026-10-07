@@ -181,10 +181,15 @@ function EventsTab() {
             className="h-9 w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] pl-8 pr-3 text-sm"
           />
         </label>
-        <Link href="/admin/templates" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
-          <Plus className="h-4 w-4" aria-hidden />
-          新增活動（範本）
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/sessions?create=1" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
+            <Plus className="h-4 w-4" aria-hidden />
+            新增單次
+          </Link>
+          <Link href="/admin/templates" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
+            週期範本
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -195,7 +200,7 @@ function EventsTab() {
         <div className={panelClass}>
           <EmptyState
             title={scope === 'upcoming' ? '目前沒有未來的活動' : '沒有已結束的活動'}
-            description="活動來自球敘場次；建立週期性範本後，排程會自動產生場次。"
+            description="活動來自球敘場次：可新增單次球敘，或建立週期性範本由排程自動產生。"
             icon="🏆"
           />
         </div>
