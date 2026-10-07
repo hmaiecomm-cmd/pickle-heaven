@@ -247,7 +247,7 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
           subtotal,
           total: subtotal,
           contactName: u.displayName,
-          contactPhone: u.phone!,
+          contactPhone: u.phone ?? '0900000000',
           expiresAt: status === 'PENDING' ? new Date(now.getTime() + 10 * 60_000) : null,
           paidAt: paid ? new Date(createdAt.getTime() + 5 * 60_000) : null,
           cancelledAt: status === 'CANCELLED' ? new Date(createdAt.getTime() + 86_400_000) : null,
@@ -324,7 +324,7 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
           subtotal: s.price * qty,
           total: s.price * qty,
           contactName: u.displayName,
-          contactPhone: u.phone!,
+          contactPhone: u.phone ?? '0900000000',
           paidAt: new Date(createdAt.getTime() + 3 * 60_000),
           createdAt,
           activityItems: {
