@@ -11,7 +11,7 @@ type Category = (typeof CATEGORIES)[number]
 
 /** 費用清單。查詢參數 category、status。 */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('finance'))) return unauthorized()
   const category = req.nextUrl.searchParams.get('category')
   const status = req.nextUrl.searchParams.get('status')
   const rows = await prisma.expense.findMany({
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
 /** 手動登錄費用。body: { category, amount, description, submittedAt?, status?: 'DRAFT' | 'SUBMITTED', receiptId? } */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('finance')
   if (!admin) return unauthorized()
   const body = await readJson<{ category?: string; amount?: unknown; description?: string; submittedAt?: string; status?: string; receiptId?: string }>(req)
   if (!body) return badRequest('缺少內容')

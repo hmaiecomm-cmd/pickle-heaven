@@ -11,8 +11,8 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   if (!username || !password) return { error: '請輸入帳號與密碼' }
 
-  const ok = await signInAdmin(username, password)
-  if (!ok) return { error: '帳號或密碼錯誤' }
+  const res = await signInAdmin(username, password)
+  if (!res.ok) return { error: res.error }
 
   redirect('/admin')
 }

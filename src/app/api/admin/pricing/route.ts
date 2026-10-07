@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 /** 定價資料（Phase 2）：場地費率規則（即前台計價用的 PriceRule）與會員折扣。 */
 export async function GET() {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('settings'))) return unauthorized()
   const [rules, tiers] = await Promise.all([
     prisma.priceRule.findMany({
       orderBy: [{ venueId: 'asc' }, { dayType: 'asc' }, { startMinute: 'asc' }],

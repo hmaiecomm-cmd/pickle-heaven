@@ -1,75 +1,50 @@
 import type { Metadata } from 'next'
-import { getAdminUser } from '@/lib/admin-auth'
-import { AppShell } from '@/components/layout'
-import type { NavGroup } from '@/components/layout/Sidebar'
-import { AdminSignOut } from './sign-out'
+import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { getAdminContext } from '@/lib/admin-auth'
+import { ROLE_LABEL } from '@/lib/admin-permissions'
+import { prisma } from '@/lib/db'
+import { AdminShell } from '@/components/admin/admin-shell'
 
 export const metadata: Metadata = {
   title: { default: '後台管理', template: '%s｜匹克精靈後台' },
   robots: { index: false, follow: false },
 }
+export const dynamic = 'force-dynamic'
 
 /**
- * 後台導覽。標示 mock 的頁面資料來自 lib/mock-data，尚未接資料庫。
- * 存取保護在 src/middleware.ts。
+ * 後台版面。每次請求都在伺服器端核對登入 session（登出、逾時、停用帳號即失效），
+ * 不只依賴 middleware 的憑證簽章檢查。
  */
-const NAV: NavGroup[] = [
-  {
-    title: '總覽',
-    items: [
-      { label: '今日總覽', href: '/admin', exact: true },
-    ],
-  },
-  {
-    title: '營運',
-    items: [
-      { label: '訂單管理', href: '/admin/bookings' },
-      { label: '場地時段', href: '/admin/schedule' },
-      { label: '活動', href: '/admin/activities' },
-      { label: '場次名單', href: '/admin/sessions' },
-      { label: '教練', href: '/admin/events' },
-      { label: '會員', href: '/admin/members' },
-      { label: '球場', href: '/admin/courts' },
-      { label: '定價', href: '/admin/pricing' },
-    ],
-  },
-  {
-    title: '財務',
-    items: [
-      { label: '營收與財務', href: '/admin/finance', exact: true },
-      { label: '付款狀態', href: '/admin/finance/payments' },
-      { label: '發票', href: '/admin/invoices' },
-      { label: '收據', href: '/admin/receipts' },
-      { label: '費用', href: '/admin/expenses' },
-      { label: '報表與分析', href: '/admin/reports', mock: true },
-    ],
-  },
-  {
-    title: 'AI 與智慧場館',
-    items: [
-      { label: 'AI 智慧球場', href: '/admin/ai-courts' },
-      { label: 'AI 管理助理', href: '/admin/ai-assistant' },
-    ],
-  },
-  {
-    title: '管理',
-    items: [{ label: '設定', href: '/admin/settings' }],
-  },
-]
-
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const admin = await getAdminUser()
+  const ctx = await getAdminContext()
+  const path = (await headers()).get('x-ph-path') ?? ''
+  const isLogin = path === '/admin/login' || path.startsWith('/admin/login/')
 
-  // 登入頁不套後台外框
-  if (!admin) return <div className="min-h-dvh bg-[rgb(var(--bg))]">{children}</div>
+  if (!ctx) {
+    if (!isLogin) redirect('/admin/login')
+    return <div className="min-h-dvh bg-[rgb(var(--bg))]">{children}</div>
+  }
+
+  // 場館資料依登入者的資料範圍讀取（展示帳號只會讀到展示場館）
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } })
+
+  // 日期在伺服器端格式化，避免瀏覽器語系不同造成 hydration 不一致
+  const today = new Date().toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', month: 'long', day: 'numeric', weekday: 'short' })
 
   return (
-    <AppShell
-      nav={NAV}
-      brand={{ href: '/admin', label: '匹克精靈後台', short: 'PH' }}
-      headerRight={<AdminSignOut username={admin} />}
+    <AdminShell
+      today={today}
+      user={{
+        username: ctx.username,
+        displayName: ctx.displayName,
+        roleLabel: ROLE_LABEL[ctx.role] ?? ctx.role,
+        tenant: ctx.tenant,
+        permissions: ctx.permissions,
+      }}
+      venue={venue ?? { id: 'none', name: '尚未建立場館' }}
     >
       {children}
-    </AppShell>
+    </AdminShell>
   )
 }

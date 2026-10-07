@@ -12,7 +12,7 @@ const LABEL: Record<string, string> = {
 
 /** 修改教練（部分欄位）。提供 availability 時整組取代。 */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('activities')
   if (!admin) return unauthorized()
   const { id } = await params
   const body = await readJson<CoachInput>(req)

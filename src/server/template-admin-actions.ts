@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { CancellationMode, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin-auth'
+import { requirePermission } from '@/lib/admin-auth'
+const requireAdmin = async () => (await requirePermission('activities')).username
 import { describeWeekdays, formatWeekdays } from '@/lib/session-schedule'
 import { generateUpcomingSessions } from './session-scheduler'
 
@@ -141,14 +142,14 @@ export async function deleteTemplate(id: string): Promise<TemplateResult> {
   const empty = future.filter((s) => s._count.registrations === 0).map((s) => s.id)
   const withPlayers = future.filter((s) => s._count.registrations > 0).map((s) => s.id)
 
-  await prisma.$transaction([
-    prisma.session.deleteMany({ where: { id: { in: empty } } }),
-    prisma.session.updateMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.session.deleteMany({ where: { id: { in: empty } } })
+    await tx.session.updateMany({
       where: { id: { in: withPlayers } },
       data: { status: SessionStatus.CANCELLED, cancelReason: '主辦已停辦此重複球敘' },
-    }),
-    prisma.sessionTemplate.delete({ where: { id } }),
-  ])
+    })
+    await tx.sessionTemplate.delete({ where: { id } })
+  })
 
   refreshAll()
   return {

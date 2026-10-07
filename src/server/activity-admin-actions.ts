@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { ZodError } from 'zod'
-import { requireAdmin } from '@/lib/admin-auth'
+import { requirePermission } from '@/lib/admin-auth'
+const requireAdmin = async () => (await requirePermission('activities')).username
 import {
   ActivityAdminError,
   applySessionEdit,

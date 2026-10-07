@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 /** 稽核紀錄，新到舊。查詢參數 limit（預設 30，上限 200）、before（ISO 時間，分頁用）。 */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('audit'))) return unauthorized()
   const limit = Math.min(200, Math.max(1, Number(req.nextUrl.searchParams.get('limit')) || 30))
   const beforeRaw = req.nextUrl.searchParams.get('before')
   const before = beforeRaw ? new Date(beforeRaw) : null

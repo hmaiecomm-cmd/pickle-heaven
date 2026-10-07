@@ -16,7 +16,7 @@ const PROVIDER_LABEL: Record<string, string> = { mock: '模擬金流（開發用
  * 場館資料來自 Venue；金流與整合只回報「是否已設定」，絕不回傳任何金鑰值。
  */
 export async function GET() {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('settings'))) return unauthorized()
 
   const [organization, venues] = await Promise.all([
     prisma.organization.findFirst({ where: { active: true }, select: { name: true } }),

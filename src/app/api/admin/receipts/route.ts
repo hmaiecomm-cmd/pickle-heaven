@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('finance'))) return unauthorized()
   const rows = await prisma.receipt.findMany({ orderBy: { issueDate: 'desc' }, take: 500 })
   return NextResponse.json({ success: true, data: rows.map(serializeReceipt), meta: { total: rows.length } })
 }
@@ -17,7 +17,7 @@ export async function GET() {
  * 一律以 ocrStatus = DRAFT 建立，絕不自動建立費用或會計分錄。
  */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('finance')
   if (!admin) return unauthorized()
   const body = await readJson<{ amount?: unknown; issueDate?: string; vendorName?: string; paymentMethod?: string; fields?: Record<string, string>; confidence?: number }>(req)
   if (!body) return badRequest('缺少內容')

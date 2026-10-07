@@ -14,6 +14,8 @@ const ADMIN_COOKIE = 'ph_admin'
 function pass(req: NextRequest) {
   const headers = new Headers(req.headers)
   headers.set('x-ph-area', 'admin')
+  // 讓後台版面知道目前路徑（session 失效時導回登入頁）；一律覆寫用戶端送來的同名標頭
+  headers.set('x-ph-path', req.nextUrl.pathname)
   return NextResponse.next({ request: { headers } })
 }
 

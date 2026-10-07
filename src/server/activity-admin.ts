@@ -421,10 +421,10 @@ export async function saveActivity(params: {
       const drafts = existing.filter((s) => s.status === SessionStatus.DRAFT && !created.some((c) => c.sessionId === s.id))
       for (const d of drafts) {
         const opensNow = d.bookingOpenAt <= now()
-        await prisma.$transaction([
-          prisma.session.update({ where: { id: d.id }, data: { status: opensNow ? SessionStatus.OPEN : SessionStatus.SCHEDULED } }),
-          prisma.reservation.updateMany({ where: { sessionId: d.id, status: 'EVENT' }, data: { holdExpiresAt: null } }),
-        ])
+        await prisma.$transaction(async (tx) => {
+          await tx.session.update({ where: { id: d.id }, data: { status: opensNow ? SessionStatus.OPEN : SessionStatus.SCHEDULED } })
+          await tx.reservation.updateMany({ where: { sessionId: d.id, status: 'EVENT' }, data: { holdExpiresAt: null } })
+        })
       }
       await prisma.activity.update({ where: { id: activity.id }, data: { holdUntil: null } })
     }

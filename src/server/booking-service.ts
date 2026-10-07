@@ -1,6 +1,6 @@
 import 'server-only'
 import { Prisma, RegistrationStatus, SessionStatus } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { isDemoTenant, prisma } from '@/lib/db'
 import { assertBookableDate, getCart, releaseExpiredHolds } from '@/lib/availability'
 import { applyVoucher, refundRatio, resolveRate } from '@/lib/pricing'
 import { addDays, formatDateTime, formatRange, now, taipeiDateString, taipeiToUtc } from '@/lib/time'
@@ -11,6 +11,8 @@ import type { CartDTO } from '@/lib/types'
 import { activityTimeLabel } from '@/lib/activity-shared'
 import { isUniqueViolation } from './occupancy'
 import { notifySeatWatchers, publicCapacity, seatsUsed, visibleSessionWhere } from './activity-service'
+import { syncRefundStatus } from './refund-service'
+import { assertNotRestricted, RestrictedError } from './member-restrictions'
 
 /** 待付款訂單的付款期限（分鐘） */
 export const PAYMENT_WINDOW_MINUTES = 15
@@ -217,6 +219,12 @@ export async function createPendingBooking(
 ): Promise<{ bookingId: string; code: string; total: number }> {
   if (!input.contactName?.trim()) throw new BookingError('請填寫聯絡人姓名')
   if (!isTwMobile(input.contactPhone ?? '')) throw new BookingError('請填寫正確的台灣手機號碼')
+  try {
+    await assertNotRestricted(userId, 'BOOKING')
+  } catch (err) {
+    if (err instanceof RestrictedError) throw new BookingError(err.message, 'UNAUTHORIZED')
+    throw err
+  }
 
   await releaseExpiredHolds()
   const at = now()
@@ -593,13 +601,13 @@ async function refundUnfulfilledPayment(bookingId: string, info: PaidInfo, reaso
     }
   }
   if (refunded) {
-    await prisma.$transaction([
-      prisma.payment.updateMany({
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
         where: { bookingId, providerRef: info.providerRef, status: 'SUCCESS' },
         data: { status: 'REFUNDED', refundedAt: now() },
-      }),
-      prisma.booking.update({ where: { id: bookingId }, data: { status: 'CANCELLED', cancelledAt: now() } }),
-    ])
+      })
+      await tx.booking.update({ where: { id: bookingId }, data: { status: 'CANCELLED', cancelledAt: now() } })
+    })
   }
   if (booking.user.lineUserId) {
     await pushMessages(booking.user.lineUserId, [
@@ -684,7 +692,7 @@ async function sendConfirmationNotification(bookingId: string): Promise<void> {
 
 /* ────────────────────────────── 取消與逾時 ────────────────────────────── */
 
-/** 取消訂單（場地與活動一起），依政策以點數回補 */
+/** 取消訂單（場地與活動一起）。實付金額優先原路退回，不支援時改為點數；退款記入退款帳 */
 export async function cancelBooking(
   bookingId: string,
   actorUserId: string | null,
@@ -704,23 +712,30 @@ export async function cancelBooking(
   if (booking.status === 'CANCELLED') throw new BookingError('訂單已取消')
   if (booking.status === 'COMPLETED') throw new BookingError('訂單已完成，無法取消')
   if (booking.status === 'REFUND_PENDING') throw new BookingError('此訂單正在等待退款，請洽場館')
+  if (booking.refundStatus === 'PROCESSING') throw new BookingError('此訂單有退款正在處理，請稍後再試')
 
   const starts = [...booking.items.map((i) => i.startsAt), ...booking.activityItems.map((i) => i.startsAt)]
   const firstStart = starts.sort((a, b) => a.getTime() - b.getTime())[0] ?? now()
   const hoursBefore = (firstStart.getTime() - now().getTime()) / 3_600_000
   const ratio = opts.fullRefund || opts.asAdmin ? 1 : refundRatio(hoursBefore)
-
-  // 已支付金額與已折抵點數皆按比例回補為點數
-  const refundable = booking.status === 'PAID' ? booking.total + booking.pointsUsed : booking.pointsUsed
-  const refundPoints = Math.round(refundable * ratio)
   const late = ratio < 1
 
+  // 可退基礎：扣掉先前已逐項退過的部分，避免重複退款
+  const refundedPointsBefore =
+    booking.items.reduce((s, i) => s + i.refundedPoints, 0) + booking.activityItems.reduce((s, i) => s + i.refundedPoints, 0)
+  const paid = booking.status === 'PAID'
+  const cashBase = paid ? Math.max(0, booking.total - booking.refundedAmount) : 0
+  const pointsBase = Math.max(0, booking.pointsUsed - refundedPointsBefore)
+  const cashRefund = Math.round(cashBase * ratio)
+  const pointsRefund = Math.round(pointsBase * ratio)
+
+  // 1. 取消並釋放時段與活動名額（歷史保留於明細）
   await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id: bookingId },
+    const claim = await tx.booking.updateMany({
+      where: { id: bookingId, status: { in: ['PENDING', 'PAID'] } },
       data: { status: 'CANCELLED', cancelledAt: now(), expiresAt: null },
     })
-    // 釋放時段與活動名額（歷史保留於 BookingItem / BookingActivityItem）
+    if (claim.count === 0) throw new BookingError('訂單狀態已變更，請重新整理')
     await tx.reservation.deleteMany({ where: { bookingId } })
     await tx.sessionRegistration.updateMany({
       where: { bookingId, status: { in: [RegistrationStatus.PENDING, RegistrationStatus.CONFIRMED] } },
@@ -731,46 +746,93 @@ export async function cancelBooking(
         cartToken: null,
       },
     })
+    await tx.bookingItem.updateMany({ where: { bookingId, status: 'ACTIVE' }, data: { status: 'CANCELLED' } })
     await tx.bookingActivityItem.updateMany({ where: { bookingId, status: 'ACTIVE' }, data: { status: 'CANCELLED' } })
-
-    if (refundPoints > 0) {
-      await tx.user.update({ where: { id: booking.userId }, data: { points: { increment: refundPoints } } })
-    }
     // 未使用完成的折價券歸還
     await tx.voucher.updateMany({ where: { bookingId }, data: { bookingId: null, usedAt: null } })
+  }, TX_OPTIONS)
 
+  // 2. 實付金額優先原路退回；金流不支援或失敗才改為點數（不會兩邊都退）
+  let method: 'ORIGINAL' | 'POINTS' = 'POINTS'
+  let providerRef: string | null = null
+  const successPayment = booking.payments.find((p) => p.status === 'SUCCESS' && p.providerRef)
+  if (cashRefund > 0 && successPayment && successPayment.provider !== 'internal' && !(await isDemoTenant())) {
+    const provider = getPaymentProvider(successPayment.provider)
+    if (provider.refund) {
+      try {
+        const result = await provider.refund(successPayment.providerRef as string, cashRefund)
+        if (result.ok) {
+          method = 'ORIGINAL'
+          providerRef = result.providerRef ?? null
+        }
+      } catch (err) {
+        console.error('[booking] 金流退款失敗，改以點數回補', err)
+      }
+    }
+  }
+  const creditPoints = pointsRefund + (method === 'POINTS' ? cashRefund : 0)
+
+  // 3. 記入退款帳：逐項分攤，之後不會再被重複退
+  await prisma.$transaction(async (tx) => {
+    if (creditPoints > 0) await tx.user.update({ where: { id: booking.userId }, data: { points: { increment: creditPoints } } })
+    if (cashRefund > 0 || pointsRefund > 0) {
+      const lines = [
+        ...booking.items.map((i) => ({ type: 'COURT' as const, id: i.id, gross: i.price, label: `場地 ${i.courtName}` })),
+        ...booking.activityItems.map((i) => ({ type: 'ACTIVITY' as const, id: i.id, gross: i.amount, label: `活動 ${i.title}` })),
+      ]
+      const split = (total: number) => {
+        const sum = lines.reduce((s, l) => s + l.gross, 0)
+        if (sum <= 0 || total <= 0) return lines.map(() => 0)
+        const out = lines.map((l) => Math.floor((total * l.gross) / sum))
+        out[out.length - 1] += total - out.reduce((a, b) => a + b, 0)
+        return out
+      }
+      const cashParts = split(cashRefund)
+      const pointParts = split(pointsRefund)
+      await tx.refund.create({
+        data: {
+          bookingId,
+          idempotencyKey: `cancel-${bookingId}`,
+          status: 'SUCCEEDED',
+          method,
+          cashAmount: cashRefund,
+          pointsAmount: pointsRefund,
+          reason: opts.asAdmin ? '後台取消訂單' : `會員取消（退款比例 ${Math.round(ratio * 100)}%）`,
+          cancelItems: true,
+          provider: successPayment?.provider ?? null,
+          providerRef,
+          createdBy: opts.asAdmin ? `admin:${actorUserId ?? 'system'}` : `user:${actorUserId ?? 'system'}`,
+          completedAt: now(),
+          note: method === 'POINTS' && cashRefund > 0 ? '實付金額以點數回補' : null,
+          items: {
+            create: lines.map((l, i) => ({ itemType: l.type, itemId: l.id, label: l.label, cashAmount: cashParts[i], pointsAmount: pointParts[i] })),
+          },
+        },
+      })
+      for (const [i, l] of lines.entries()) {
+        const data = { refundedAmount: { increment: cashParts[i] }, refundedPoints: { increment: pointParts[i] } }
+        if (l.type === 'COURT') await tx.bookingItem.update({ where: { id: l.id }, data })
+        else await tx.bookingActivityItem.update({ where: { id: l.id }, data })
+      }
+      await tx.booking.update({ where: { id: bookingId }, data: { refundedAmount: { increment: cashRefund } } })
+      if (method === 'ORIGINAL' && successPayment && cashRefund >= booking.total) {
+        await tx.payment.update({ where: { id: successPayment.id }, data: { status: 'REFUNDED', refundedAt: now() } })
+      }
+    }
     await tx.auditLog.create({
       data: {
         actor: opts.asAdmin ? `admin:${actorUserId ?? 'system'}` : `user:${actorUserId ?? 'system'}`,
         action: 'BOOKING_CANCELLED',
         target: booking.code,
-        detail: { ratio, refundPoints, status: booking.status },
+        detail: { ratio, cashRefund, pointsRefund, method, status: booking.status },
       },
     })
+    await syncRefundStatus(tx, bookingId)
   }, TX_OPTIONS)
 
-  // 若已透過金流付款，嘗試向金流商申請退款（失敗僅記錄，點數已回補）
-  const successPayment = booking.payments.find((p) => p.status === 'SUCCESS' && p.providerRef)
-  if (successPayment && ratio > 0 && successPayment.provider !== 'internal') {
-    const provider = getPaymentProvider(successPayment.provider)
-    if (provider.refund) {
-      try {
-        const result = await provider.refund(successPayment.providerRef as string, Math.round(booking.total * ratio))
-        if (result.ok) {
-          await prisma.payment.update({
-            where: { id: successPayment.id },
-            data: { status: 'REFUNDED', refundedAt: now() },
-          })
-        }
-      } catch (err) {
-        console.error('[booking] 金流退款失敗，已改以點數回補', err)
-      }
-    }
-  }
-
   await notifySeatWatchers(booking.activityItems.map((i) => i.sessionId)).catch(() => {})
-  await notifyBookingCancelled(booking.user.lineUserId, booking.code, refundPoints)
-  return { refundPoints, ratio }
+  await notifyBookingCancelled(booking.user.lineUserId, booking.code, creditPoints)
+  return { refundPoints: creditPoints, ratio }
 }
 
 /**

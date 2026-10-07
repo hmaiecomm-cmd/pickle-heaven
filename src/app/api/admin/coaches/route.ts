@@ -9,14 +9,14 @@ export const runtime = 'nodejs'
 const AVAIL_ORDER = { orderBy: [{ dayOfWeek: 'asc' as const }, { startMinute: 'asc' as const }] }
 
 export async function GET() {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('activities'))) return unauthorized()
   const rows = await prisma.coach.findMany({ orderBy: [{ status: 'asc' }, { name: 'asc' }], include: { availability: AVAIL_ORDER } })
   return NextResponse.json({ success: true, data: rows.map(serializeCoach), meta: { total: rows.length } })
 }
 
 /** 新增教練。body: { name, phone?, email?, status?, specialties[], hourlyRate, bio?, availability[{ dayOfWeek, startMinute, endMinute }] } */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('activities')
   if (!admin) return unauthorized()
   const body = await readJson<CoachInput>(req)
   if (!body) return badRequest('缺少內容')

@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
  * 累計消費與最近到訪由已付款／已完成訂單彙整；最近 5 筆訂單供詳情顯示。
  */
 export async function GET() {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('members'))) return unauthorized()
 
   const [users, agg] = await Promise.all([
     prisma.user.findMany({

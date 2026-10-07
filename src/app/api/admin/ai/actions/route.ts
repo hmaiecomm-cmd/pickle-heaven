@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
  * body: { decision: 'confirm' | 'decline', action: { actionType, title, items, impact } }
  */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('ai')
   if (!admin) return unauthorized()
   const body = await readJson<{ decision?: string; action?: { actionType?: string; title?: string; items?: unknown; impact?: string } }>(req)
   const decision = body?.decision

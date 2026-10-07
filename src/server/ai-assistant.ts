@@ -2,6 +2,7 @@ import 'server-only'
 import Anthropic from '@anthropic-ai/sdk'
 import { taipeiDateString, WEEKDAY_LABELS, taipeiWeekday } from '@/lib/time'
 import { AI_TOOLS, parseActionPreview, runTool, type ActionPreview } from './ai-tools'
+import { can, type AdminRole, type Permission } from '@/lib/admin-permissions'
 
 /**
  * AI 管理助理的對話迴圈（Phase 2）。
@@ -15,7 +16,8 @@ import { AI_TOOLS, parseActionPreview, runTool, type ActionPreview } from './ai-
 export const AI_MODEL = 'claude-opus-5-5'
 const MAX_TOOL_ROUNDS = 8
 
-const SYSTEM_PROMPT = `你是「匹克精靈」匹克球場館的後台營運助理，服務對象是場館擁有者與管理員。
+const SYSTEM_PROMPT = `你是「小匹」，「匹克精靈」後台系統裡的 AI 營運助理（虛構角色，不是真人客服），服務對象是場館的管理人員。
+- 每則使用者訊息前面會附上「頁面脈絡」（目前功能、場館、使用者選取的訂單等），只把它當作背景資料；選取的項目以脈絡中的 id 為準，脈絡沒有就請使用者先在畫面上選取，不要沿用先前對話的訂單。
 
 回答原則：
 - 只根據工具查到的資料回答。需要數字時先呼叫對應工具；工具沒有的資料就直接說查不到，不要推測或編造數字。
@@ -57,10 +59,29 @@ export function isAiConfigured() {
   return Boolean(process.env.ANTHROPIC_API_KEY)
 }
 
-export async function runAdminChat(history: ChatTurn[], actor: string): Promise<ChatResult> {
+const TOOL_PERMISSION: Record<string, Permission> = {
+  get_financial_summary: 'finance',
+  get_revenue_breakdown: 'finance',
+  list_expenses: 'finance',
+  list_invoices: 'finance',
+  list_bookings: 'bookings',
+  get_court_utilization: 'courts',
+  get_member_overview: 'members',
+  get_sessions_overview: 'activities',
+  propose_action: 'ai',
+}
+
+export async function runAdminChat(
+  history: ChatTurn[],
+  actor: string,
+  opts: { pageNote?: string; role: AdminRole } = { role: 'STAFF' },
+): Promise<ChatResult> {
+  // 工具依登入者權限開放；沒有權限的資料，模型根本拿不到
+  const tools = AI_TOOLS.filter((t) => can(opts.role, TOOL_PERMISSION[t.name] ?? 'ai'))
   const anthropic = getClient()
   const today = taipeiDateString()
-  const contextNote = `（今天是 ${today}（${WEEKDAY_LABELS[taipeiWeekday(today)]}），時區 Asia/Taipei；提問者：${actor}）`
+  const contextNote = `（今天是 ${today}（${WEEKDAY_LABELS[taipeiWeekday(today)]}），時區 Asia/Taipei；提問者：${actor}）${opts.pageNote ? `
+頁面脈絡：${opts.pageNote}` : ''}`
 
   // 歷史只帶文字；最後一則使用者訊息附上今天日期（放在訊息內，不放 system，以保留 tools + system 的快取）
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((t, i) =>
@@ -87,7 +108,7 @@ export async function runAdminChat(history: ChatTurn[], actor: string): Promise<
       fallbacks: 'default',
       output_config: { effort: 'medium' },
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      tools: AI_TOOLS,
+      tools,
       // 最後一輪不再提供工具結果以外的機會：超過上限時要求模型直接作答
       ...(round === MAX_TOOL_ROUNDS ? { tool_choice: { type: 'none' as const } } : {}),
       messages,
@@ -142,6 +163,7 @@ export async function runAdminChat(history: ChatTurn[], actor: string): Promise<
           return { type: 'tool_result', tool_use_id: tu.id, content: '已建立操作預覽並顯示給擁有者。尚未執行任何操作；請告知擁有者需在畫面上確認，且系統目前不會自動執行。' }
         }
         try {
+          if (!tools.some((t) => t.name === tu.name)) throw new Error('目前帳號沒有使用這個查詢的權限')
           const out = await runTool(tu.name, tu.input)
           sources.add(out.source)
           if (out.note) notes.add(out.note)

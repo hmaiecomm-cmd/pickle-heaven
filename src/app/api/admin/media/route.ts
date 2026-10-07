@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 /** 上傳活動封面。multipart/form-data，欄位 file。回傳 { id, url, thumb, width, height, warning } */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('activities')
   if (!admin) return unauthorized()
 
   let form: FormData

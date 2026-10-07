@@ -114,6 +114,10 @@ CREATE TABLE "Invoice" (
     "amount" INTEGER NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "items" JSONB NOT NULL,
+    "provider" TEXT,
+    "providerStatus" TEXT,
+    "recipientEmail" TEXT,
+    "replacedById" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Invoice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
@@ -201,6 +205,8 @@ CREATE TABLE "Booking" (
     "contactPhone" TEXT NOT NULL,
     "note" TEXT,
     "voucherCode" TEXT,
+    "refundedAmount" INTEGER NOT NULL DEFAULT 0,
+    "refundStatus" TEXT NOT NULL DEFAULT 'NONE',
     "expiresAt" DATETIME,
     "paidAt" DATETIME,
     "cancelledAt" DATETIME,
@@ -220,6 +226,9 @@ CREATE TABLE "BookingItem" (
     "endsAt" DATETIME NOT NULL,
     "price" INTEGER NOT NULL,
     "rateName" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "refundedAmount" INTEGER NOT NULL DEFAULT 0,
+    "refundedPoints" INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT "BookingItem_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "BookingItem_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -477,6 +486,8 @@ CREATE TABLE "BookingActivityItem" (
     "amount" INTEGER NOT NULL,
     "priceUnit" TEXT NOT NULL DEFAULT 'PER_PERSON',
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "refundedAmount" INTEGER NOT NULL DEFAULT 0,
+    "refundedPoints" INTEGER NOT NULL DEFAULT 0,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "BookingActivityItem_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "BookingActivityItem_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -509,6 +520,145 @@ CREATE TABLE "MediaAsset" (
     "originalName" TEXT,
     "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "AdminAccount" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "username" TEXT NOT NULL,
+    "usernameKey" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "tenant" TEXT NOT NULL DEFAULT 'main',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastLoginAt" DATETIME,
+    "createdBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "AdminSession" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "accountId" TEXT NOT NULL,
+    "tenant" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME NOT NULL,
+    "revokedAt" DATETIME,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    CONSTRAINT "AdminSession_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "AdminAccount" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "AdminLoginAttempt" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "usernameKey" TEXT NOT NULL,
+    "ip" TEXT NOT NULL,
+    "success" BOOLEAN NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "Refund" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "bookingId" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "method" TEXT NOT NULL,
+    "cashAmount" INTEGER NOT NULL,
+    "pointsAmount" INTEGER NOT NULL,
+    "reason" TEXT NOT NULL,
+    "cancelItems" BOOLEAN NOT NULL,
+    "provider" TEXT,
+    "providerRef" TEXT,
+    "failReason" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" DATETIME,
+    "note" TEXT,
+    CONSTRAINT "Refund_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "RefundItem" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "refundId" TEXT NOT NULL,
+    "itemType" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "cashAmount" INTEGER NOT NULL,
+    "pointsAmount" INTEGER NOT NULL,
+    CONSTRAINT "RefundItem_refundId_fkey" FOREIGN KEY ("refundId") REFERENCES "Refund" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "InvoiceEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "invoiceId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "reason" TEXT,
+    "detail" JSONB,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "newInvoiceId" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" DATETIME,
+    "error" TEXT,
+    CONSTRAINT "InvoiceEvent_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DeviceCommand" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "deviceId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "reason" TEXT,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "requestedBy" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sentAt" DATETIME,
+    "ackAt" DATETIME,
+    "error" TEXT,
+    CONSTRAINT "DeviceCommand_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "Device" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Incident" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "dedupeKey" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "detail" TEXT,
+    "link" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "resolvedAt" DATETIME,
+    "resolvedBy" TEXT,
+    "note" TEXT
+);
+
+-- CreateTable
+CREATE TABLE "MemberRestriction" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME,
+    "revokedAt" DATETIME,
+    "revokedBy" TEXT,
+    "revokeReason" TEXT,
+    CONSTRAINT "MemberRestriction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateIndex
@@ -702,4 +852,52 @@ CREATE UNIQUE INDEX "SessionWatch_sessionId_userId_key" ON "SessionWatch"("sessi
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MediaAsset_sha256_key" ON "MediaAsset"("sha256");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminAccount_usernameKey_key" ON "AdminAccount"("usernameKey");
+
+-- CreateIndex
+CREATE INDEX "AdminSession_accountId_idx" ON "AdminSession"("accountId");
+
+-- CreateIndex
+CREATE INDEX "AdminLoginAttempt_usernameKey_createdAt_idx" ON "AdminLoginAttempt"("usernameKey", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminLoginAttempt_ip_createdAt_idx" ON "AdminLoginAttempt"("ip", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Refund_idempotencyKey_key" ON "Refund"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "Refund_bookingId_idx" ON "Refund"("bookingId");
+
+-- CreateIndex
+CREATE INDEX "Refund_status_createdAt_idx" ON "Refund"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RefundItem_refundId_idx" ON "RefundItem"("refundId");
+
+-- CreateIndex
+CREATE INDEX "RefundItem_itemId_idx" ON "RefundItem"("itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InvoiceEvent_idempotencyKey_key" ON "InvoiceEvent"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "InvoiceEvent_invoiceId_idx" ON "InvoiceEvent"("invoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DeviceCommand_idempotencyKey_key" ON "DeviceCommand"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "DeviceCommand_deviceId_createdAt_idx" ON "DeviceCommand"("deviceId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Incident_dedupeKey_key" ON "Incident"("dedupeKey");
+
+-- CreateIndex
+CREATE INDEX "Incident_status_createdAt_idx" ON "Incident"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MemberRestriction_userId_revokedAt_idx" ON "MemberRestriction"("userId", "revokedAt");
 

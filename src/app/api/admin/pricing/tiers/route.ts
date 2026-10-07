@@ -10,7 +10,7 @@ const LABEL: Record<(typeof LEVELS)[number], string> = { BASIC: '一般', PREMIU
 
 /** 更新會員折扣。body: { tiers: [{ level, discountPct }] }，折扣 0–100。 */
 export async function PUT(req: NextRequest) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('settings')
   if (!admin) return unauthorized()
   const body = await readJson<{ tiers?: { level?: string; discountPct?: unknown }[] }>(req)
   if (!body?.tiers?.length) return badRequest('缺少內容')

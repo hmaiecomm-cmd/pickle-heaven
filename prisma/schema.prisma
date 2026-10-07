@@ -151,6 +151,7 @@ model User {
   registrations  SessionRegistration[]
   notifications  NotificationLog[]
   sessionWatches SessionWatch[]
+  restrictions   MemberRestriction[]
 
   @@index([createdAt])
 }
@@ -233,7 +234,8 @@ model Device {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
-  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  court    Court           @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  commands DeviceCommand[]
 
   @@index([courtId])
 }
@@ -284,21 +286,30 @@ model Receipt {
 
 /// 開立給會員的發票
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
-  userId        String?
-  bookingId     String?
-  issueDate     DateTime      @default(now())
-  dueDate       DateTime
-  amount        Int
-  status        InvoiceStatus @default(DRAFT)
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  userId         String?
+  bookingId      String?
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime
+  amount         Int
+  status         InvoiceStatus @default(DRAFT)
   /// [{ description, quantity, unitPrice, amount }]
-  items         Json
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  items          Json
+  /// 電子發票服務商代號；null 表示尚未串接，僅為內部紀錄
+  provider       String?
+  /// 服務商端狀態：ISSUING / ISSUED / MODIFYING / MODIFY_FAILED / VOIDED
+  providerStatus String?
+  /// 收件 Email（補寄用）
+  recipientEmail String?
+  /// 作廢重開時，新發票的 id
+  replacedById   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  user    User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  events  InvoiceEvent[]
 
   @@index([status, dueDate])
   @@index([userId])
@@ -412,10 +423,14 @@ model Booking {
   pointsUsed Int @default(0)
   total      Int
 
-  contactName  String
-  contactPhone String
-  note         String?
-  voucherCode  String?
+  contactName    String
+  contactPhone   String
+  note           String?
+  voucherCode    String?
+  /// 已退款的實付金額合計（由退款流程維護）
+  refundedAmount Int     @default(0)
+  /// 退款狀態：NONE / PROCESSING / PARTIAL / FULL / FAILED / MANUAL
+  refundStatus   String  @default("NONE")
 
   /// 待付款訂單的付款期限
   expiresAt   DateTime?
@@ -428,6 +443,7 @@ model Booking {
   venue         Venue                 @relation(fields: [venueId], references: [id])
   items         BookingItem[]
   activityItems BookingActivityItem[]
+  refunds       Refund[]
   payments      Payment[]
   reservations  Reservation[]
   voucher       Voucher?
@@ -440,14 +456,20 @@ model Booking {
 
 /// 訂單明細（下單當下的快照）
 model BookingItem {
-  id        String   @id @default(cuid())
-  bookingId String
-  courtId   String
-  courtName String
-  startsAt  DateTime
-  endsAt    DateTime
-  price     Int
-  rateName  String
+  id             String   @id @default(cuid())
+  bookingId      String
+  courtId        String
+  courtName      String
+  startsAt       DateTime
+  endsAt         DateTime
+  price          Int
+  rateName       String
+  /// ACTIVE / CANCELLED（已取消並釋放時段）
+  status         String   @default("ACTIVE")
+  /// 已退款的實付金額（不含點數）
+  refundedAmount Int      @default(0)
+  /// 已退回的點數
+  refundedPoints Int      @default(0)
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   court   Court   @relation(fields: [courtId], references: [id])
@@ -937,6 +959,8 @@ model BookingActivityItem {
   priceUnit      PriceUnit @default(PER_PERSON)
   /// ACTIVE / CANCELLED / REFUNDED
   status         String    @default("ACTIVE")
+  refundedAmount Int       @default(0)
+  refundedPoints Int       @default(0)
   createdAt      DateTime  @default(now())
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -983,4 +1007,209 @@ model MediaAsset {
 
   activities Activity[] @relation("ActivityCover")
   sessions   Session[]  @relation("SessionCover")
+}
+
+/**
+ * ─────────────────────────── 後台帳號與權限 ───────────────────────────
+ */
+
+/// 後台帳號（僅存在主資料庫）。role：OWNER / MANAGER / STAFF / DEMO
+model AdminAccount {
+  id           String    @id @default(cuid())
+  /// 顯示用帳號（保留大小寫，例如 DEMO）
+  username     String
+  /// 比對用（小寫）
+  usernameKey  String    @unique
+  displayName  String
+  passwordHash String
+  role         String
+  /// 資料範圍：main（正式）或 demo（展示資料庫）
+  tenant       String    @default("main")
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions AdminSession[]
+}
+
+/// 後台登入 session；登出或停用帳號時撤銷，伺服器每次請求都會核對
+model AdminSession {
+  id         String    @id @default(cuid())
+  accountId  String
+  tenant     String
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+
+  account AdminAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+/// 登入嘗試紀錄（限制暴力嘗試）
+model AdminLoginAttempt {
+  id          String   @id @default(cuid())
+  usernameKey String
+  ip          String
+  success     Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([usernameKey, createdAt])
+  @@index([ip, createdAt])
+}
+
+/**
+ * ─────────────────────────── 退款 ───────────────────────────
+ */
+
+/// 一次退款申請。金額由後端計算；idempotencyKey 防止連點與重送造成重複退款
+model Refund {
+  id             String    @id @default(cuid())
+  bookingId      String
+  idempotencyKey String    @unique
+  /// PROCESSING 處理中 / SUCCEEDED 成功 / FAILED 失敗 / MANUAL_PENDING 待人工處理 / MANUAL_DONE 人工已完成
+  status         String
+  /// ORIGINAL 原付款方式 / POINTS 點數 / MANUAL 人工（金流不支援時）
+  method         String
+  cashAmount     Int
+  pointsAmount   Int
+  reason         String
+  /// 是否同時取消預約並釋放場地／名額
+  cancelItems    Boolean
+  /// 付款與退款使用的金流；mock 表示模擬金流（非真實款項）
+  provider       String?
+  providerRef    String?
+  failReason     String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+  note           String?
+
+  booking Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  items   RefundItem[]
+
+  @@index([bookingId])
+  @@index([status, createdAt])
+}
+
+model RefundItem {
+  id           String @id @default(cuid())
+  refundId     String
+  /// COURT / ACTIVITY
+  itemType     String
+  itemId       String
+  label        String
+  cashAmount   Int
+  pointsAmount Int
+
+  refund Refund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  @@index([refundId])
+  @@index([itemId])
+}
+
+/**
+ * ─────────────────────────── 發票異動 ───────────────────────────
+ */
+
+/// 發票操作：補寄、作廢重開。idempotencyKey 防止重複寄送或重複開立
+model InvoiceEvent {
+  id             String    @id @default(cuid())
+  invoiceId      String
+  /// RESEND / VOID_REISSUE
+  type           String
+  idempotencyKey String    @unique
+  /// PROCESSING / SUCCEEDED / FAILED / BLOCKED
+  status         String
+  reason         String?
+  detail         Json?
+  /// 是否為模擬服務的結果（展示環境）
+  simulated      Boolean   @default(false)
+  newInvoiceId   String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+  error          String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+/**
+ * ─────────────────────────── 設備指令與異常 ───────────────────────────
+ */
+
+/// 設備指令。API 接受不等於設備已動作：SENT 之後要收到設備回報才是 ACKED
+model DeviceCommand {
+  id             String    @id @default(cuid())
+  deviceId       String
+  /// ON / OFF / UNLOCK / LOCK
+  action         String
+  /// SENT 已送出 / ACKED 設備已確認 / FAILED 失敗 / TIMEOUT 逾時
+  status         String
+  idempotencyKey String    @unique
+  reason         String?
+  /// 是否為模擬設備
+  simulated      Boolean   @default(false)
+  requestedBy    String
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+  ackAt          DateTime?
+  error          String?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+}
+
+/// 營運異常事件與處理紀錄（dedupeKey 避免同一事件重複建立）
+model Incident {
+  id         String    @id @default(cuid())
+  dedupeKey  String    @unique
+  /// DEVICE_OFFLINE / DEVICE_STALE / PAYMENT_AFTER_EXPIRY / REFUND_FAILED / REFUND_MANUAL / OCCUPANCY_CONFLICT / PAYMENT_FAILED
+  type       String
+  /// HIGH / MEDIUM / LOW
+  severity   String
+  title      String
+  detail     String?
+  /// 連到相關紀錄，例如 /admin/bookings?order=xxx
+  link       String?
+  /// OPEN / ACKED / RESOLVED
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+  resolvedBy String?
+  note       String?
+
+  @@index([status, createdAt])
+}
+
+/**
+ * ─────────────────────────── 會員限制 ───────────────────────────
+ */
+
+/// 會員限制與黑名單。需權限與原因；撤銷保留紀錄
+model MemberRestriction {
+  id           String    @id @default(cuid())
+  userId       String
+  /// BLACKLIST 黑名單（禁止所有線上預約）/ NO_ACTIVITY 禁止報名活動
+  type         String
+  reason       String
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }

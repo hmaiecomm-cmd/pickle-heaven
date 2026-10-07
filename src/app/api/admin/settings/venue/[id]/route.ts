@@ -37,7 +37,7 @@ const LABEL: Record<string, string> = {
  * 營業時間必須是時段長度的整數倍；修改後前台與後台排程頁立即生效。
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminApi()
+  const admin = await requireAdminApi('settings')
   if (!admin) return unauthorized()
   const { id } = await params
   const body = await readJson<Body>(req)

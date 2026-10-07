@@ -234,6 +234,7 @@ export function MembersClient() {
                 <Info label="累計消費" value={`${fmtMoney(selected.totalSpent)}${selected.bookingCount !== undefined ? `　${selected.bookingCount} 筆` : ''}`} />
                 {selected.points !== undefined && <Info label="點數餘額" value={`${selected.points.toLocaleString()} 點`} />}
               </section>
+              <a href={`/admin/members/${selected.id}`} className="inline-block text-sm font-semibold text-brand-700 hover:underline">查看完整會員紀錄（預約、活動、點數、限制）→</a>
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">預約紀錄</h3>
                 {history.length === 0 ? (

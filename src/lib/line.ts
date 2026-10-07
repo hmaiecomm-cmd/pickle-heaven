@@ -1,6 +1,7 @@
 import 'server-only'
 import { formatMinute, formatDateFull } from './time'
 import { ntd } from './utils'
+import { isDemoTenant } from './db'
 import { brand } from '@/config/site'
 
 const LINE_VERIFY_URL = 'https://api.line.me/oauth2/v2.1/verify'
@@ -60,6 +61,11 @@ export function canPush(): boolean {
  * 需使用者已加入官方帳號好友；失敗僅記錄，不中斷訂單流程。
  */
 export async function pushMessages(lineUserId: string, messages: unknown[]): Promise<boolean> {
+  // 展示資料庫的會員都是虛構的：絕不呼叫真實的 LINE 推播
+  if (await isDemoTenant()) {
+    console.info('[line] 展示環境：推播僅模擬，未送出', { to: lineUserId.slice(0, 6) })
+    return false
+  }
   const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
   if (!token) {
     console.warn('[line] 未設定 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN，略過推播')
@@ -99,6 +105,7 @@ export async function sendServiceMessage(
 ): Promise<boolean> {
   const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
   if (!notificationToken || !token) return false
+  if (await isDemoTenant()) return false
 
   try {
     const res = await fetch(LINE_SERVICE_MESSAGE_URL, {

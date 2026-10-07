@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { CancellationMode, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin-auth'
+import { requirePermission } from '@/lib/admin-auth'
+const requireAdmin = async () => (await requirePermission('activities')).username
 import { computeSessionTimes } from '@/lib/session-schedule'
 import type { TemplateInput } from './template-admin-actions'
 import { joinSession } from './session-service'

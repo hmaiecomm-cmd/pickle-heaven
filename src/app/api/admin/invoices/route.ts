@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 
 /** 發票清單。查詢參數 status。 */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('invoice'))) return unauthorized()
   const status = req.nextUrl.searchParams.get('status')
   const rows = await prisma.invoice.findMany({
     where: status ? { status: status as 'DRAFT' | 'ISSUED' | 'PAID' | 'OVERDUE' | 'CANCELLED' } : {},

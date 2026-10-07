@@ -15,6 +15,7 @@ import {
   type SignupState,
 } from '@/lib/activity-shared'
 import { addDays, formatMinute, now, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc } from '@/lib/time'
+import { activeRestrictions } from './member-restrictions'
 
 /**
  * 前台活動：查詢場次、即時名額、加入購物車（暫留名額）、有名額通知。
@@ -296,6 +297,10 @@ export async function holdSeats(params: {
 }): Promise<{ registrationId: string; expiresAt: Date }> {
   const quantity = Math.floor(params.quantity)
   if (!Number.isFinite(quantity) || quantity < 1) throw new SignupError('請選擇報名人數')
+  const restricted = await activeRestrictions(params.userId)
+  if (restricted.some((r) => r.type === 'BLACKLIST' || r.type === 'NO_ACTIVITY')) {
+    throw new SignupError('您的帳號目前無法報名活動，請聯絡場館', 'UNAUTHORIZED')
+  }
 
   return prisma.$transaction(async (tx) => {
     const locked = await tx.session.updateMany({ where: { id: params.sessionId }, data: { updatedAt: new Date() } })

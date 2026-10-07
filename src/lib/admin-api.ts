@@ -1,7 +1,8 @@
 import 'server-only'
 import { NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
-import { getAdminUser } from './admin-auth'
+import { getAdminContext } from './admin-auth'
+import { can, type Permission } from './admin-permissions'
 import { prisma } from './db'
 
 /** 後台 API 共用：統一的錯誤回應與登入檢查。 */
@@ -10,13 +11,19 @@ export function apiError(status: number, code: string, message: string) {
   return NextResponse.json({ success: false, error: { code, message } }, { status })
 }
 
-export const unauthorized = () => apiError(401, 'UNAUTHORIZED', '請先登入')
+export const unauthorized = () => apiError(401, 'UNAUTHORIZED', '請先登入，或目前帳號沒有這項權限')
 export const badRequest = (message: string) => apiError(400, 'BAD_REQUEST', message)
 export const notFound = (message = '找不到資料') => apiError(404, 'NOT_FOUND', message)
 
-/** 回傳登入的管理者帳號；未登入回 null，呼叫端自行回 unauthorized()。 */
-export async function requireAdminApi(): Promise<string | null> {
-  return getAdminUser()
+/**
+ * 回傳登入的管理者帳號；未登入、session 失效或沒有指定權限時回 null，呼叫端回 unauthorized()。
+ * 權限一律在後端檢查，不依前端是否顯示按鈕。
+ */
+export async function requireAdminApi(permission?: Permission): Promise<string | null> {
+  const ctx = await getAdminContext()
+  if (!ctx) return null
+  if (permission && !can(ctx.role, permission)) return null
+  return ctx.username
 }
 
 export async function readJson<T>(req: Request): Promise<T | null> {

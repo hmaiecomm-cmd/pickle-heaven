@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
  * scope：upcoming（預設，尚未結束）、past（已結束）、all。已軟刪除的場次不列出。
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireAdminApi())) return unauthorized()
+  if (!(await requireAdminApi('activities'))) return unauthorized()
   const scope = req.nextUrl.searchParams.get('scope') ?? 'upcoming'
   const now = new Date()
 
