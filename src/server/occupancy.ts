@@ -7,9 +7,10 @@ import { formatMinute, now, taipeiToUtc } from '@/lib/time'
  * 場地佔用：一般訂場、付款中的暫留、活動場次、維護封場，全部記在 Reservation，
  * 以 (courtId, startsAt) 唯一索引作為最後一道防線——同一場地同一時段只會有一筆。
  *
- * 時間重疊規則：佔用以場館的時段格（slotMinutes）為單位。
- * 活動的開始、結束時間必須落在時段格線上，因此「前一場結束 = 下一場開始」不會共用任何一格，可以銜接。
- * 場館目前沒有清場時間設定；日後新增時，於 rangeSlots 前後各多佔幾格即可。
+ * 時間重疊規則：佔用以場館的時段格（slotMinutes）為單位，依活動「完整起訖時間」展開——
+ * 非整點的活動（例如 19:30–20:30）會占用所有與它重疊的格（19:00–21:00），任何重疊的租借都會被擋下。
+ * 對齊格線的活動「前一場結束 = 下一場開始」不共用任何一格，可以銜接。
+ * 場館目前沒有清場緩衝設定；日後新增時，於 rangeSlots 前後各多佔幾格即可。
  */
 
 export type OccupancyKind = 'BOOKED' | 'PENDING_ORDER' | 'HELD' | 'BLOCKED' | 'EVENT' | 'EVENT_DRAFT'
@@ -55,17 +56,16 @@ export function validateRange(venue: VenueGrid, startMinute: number, endMinute: 
   if (startMinute < venue.openMinute || endMinute > venue.closeMinute) {
     return `活動時間需在營業時間 ${formatMinute(venue.openMinute)}–${venue.closeMinute >= 1440 ? '24:00' : formatMinute(venue.closeMinute)} 內`
   }
-  const off = (m: number) => (m - venue.openMinute) % venue.slotMinutes
-  if (off(startMinute) !== 0 || off(endMinute) !== 0) {
-    return `活動時間需對齊每 ${venue.slotMinutes} 分鐘的時段格（例如 ${formatMinute(venue.openMinute)}、${formatMinute(venue.openMinute + venue.slotMinutes)}）`
-  }
+  if (startMinute % 5 !== 0 || endMinute % 5 !== 0) return '活動時間請以 5 分鐘為單位'
   return null
 }
 
-/** 某日某時間區間涵蓋的時段格 */
+/** 某日某時間區間涵蓋（重疊）的所有時段格：起點向前、終點向後對齊格線 */
 export function rangeSlots(venue: VenueGrid, date: string, startMinute: number, endMinute: number) {
   const out: { startMinute: number; startsAt: Date; endsAt: Date }[] = []
-  for (let m = startMinute; m < endMinute; m += venue.slotMinutes) {
+  const first = venue.openMinute + Math.floor((startMinute - venue.openMinute) / venue.slotMinutes) * venue.slotMinutes
+  const lastEnd = venue.openMinute + Math.ceil((endMinute - venue.openMinute) / venue.slotMinutes) * venue.slotMinutes
+  for (let m = first; m < lastEnd; m += venue.slotMinutes) {
     out.push({ startMinute: m, startsAt: taipeiToUtc(date, m), endsAt: taipeiToUtc(date, m + venue.slotMinutes) })
   }
   return out

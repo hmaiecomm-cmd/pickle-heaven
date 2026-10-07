@@ -180,7 +180,8 @@ export function ActivityEditor({
 
   const slotOptions = React.useMemo(() => {
     const out: number[] = []
-    for (let m = venue.openMinute; m <= venue.closeMinute; m += venue.slotMinutes) out.push(m)
+    const step = Math.min(30, venue.slotMinutes)
+    for (let m = venue.openMinute; m <= venue.closeMinute; m += step) out.push(m)
     return out
   }, [venue])
 
@@ -314,7 +315,7 @@ export function ActivityEditor({
                 ))}
               </select>
             </Field>
-            <Field label="結束時間" htmlFor="a-et" hint={`時間對齊每 ${venue.slotMinutes} 分鐘的時段格`}>
+            <Field label="結束時間" htmlFor="a-et" hint={`可以 30 分鐘為單位；非整點的活動會占用所有重疊的 ${venue.slotMinutes} 分鐘時段格`}>
               <select id="a-et" className={sel} value={form.endMinute} disabled={lockSchedule} onChange={(e) => set('endMinute', Number(e.target.value))}>
                 {slotOptions.filter((m) => m > form.startMinute).map((m) => (
                   <option key={m} value={m}>

@@ -227,7 +227,7 @@ function EditSheet({
   }, [f, scope])
 
   const slotOptions: number[] = []
-  for (let m = venue.openMinute; m <= venue.closeMinute; m += venue.slotMinutes) slotOptions.push(m)
+  for (let m = venue.openMinute; m <= venue.closeMinute; m += Math.min(30, venue.slotMinutes)) slotOptions.push(m)
 
   const input = { sessionId: session.id, scope, changes }
   const affectedTotal = impact?.reduce((n, r) => n + (r.ok ? r.affected.length : 0), 0) ?? 0
