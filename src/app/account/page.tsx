@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CalendarPlus, ChevronRight, Coins, Ticket } from 'lucide-react'
 import { prisma } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { listUserBookings } from '@/server/booking-service'
 import { formatRange, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc } from '@/lib/time'
 import { shortDateLabel } from '@/lib/activity-shared'
@@ -40,7 +40,13 @@ const REG_LABEL: Record<string, { label: string; variant: 'success' | 'warn' | '
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const sp = await searchParams
   const tab: AccountTab = isAccountTab(sp.tab) ? sp.tab : 'bookings'
-  const user = await getSessionUser()
+  let user: Awaited<ReturnType<typeof getSessionUser>>
+  try {
+    user = await getSessionUser()
+  } catch (err) {
+    if (err instanceof SessionUnavailableError) return <Unavailable />
+    throw err
+  }
 
   if (!user) {
     return (
@@ -251,6 +257,17 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <p className="pb-4 text-center text-[11px] text-muted">
         {brand.name} · {brand.englishName}
       </p>
+    </div>
+  )
+}
+
+/** 登入狀態暫時無法確認：顯示重試，不清除登入、不導向 Google */
+function Unavailable() {
+  return (
+    <div className="mx-auto max-w-md py-16 text-center">
+      <p className="text-base font-semibold">暫時無法確認登入狀態</p>
+      <p className="mt-1 text-sm text-muted">連線或伺服器暫時異常，您的登入沒有被登出。</p>
+      <a href="/account" className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white">重試</a>
     </div>
   )
 }

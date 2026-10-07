@@ -15,6 +15,8 @@ interface AuthState {
   user: SessionUser | null
   /** Google 授權是否已設定；未設定時按鈕改為說明文字，不假裝可登入 */
   googleConfigured: boolean
+  /** 伺服器暫時無法確認登入狀態（資料庫故障）：不顯示登入入口，提示重試 */
+  unavailable: boolean
   loggingIn: boolean
   /** 導向 Google 登入；next 為登入完成後要回到的站內路徑，預設為目前頁面 */
   login: (next?: string) => void
@@ -49,12 +51,14 @@ export function AuthProvider({
   initialUser,
   googleConfigured,
   devLoginEnabled = false,
+  unavailable = false,
 }: {
   children: React.ReactNode
   initialUser: SessionUser | null
   googleConfigured: boolean
   /** 僅本機開發：以測試會員登入，不經 Google */
   devLoginEnabled?: boolean
+  unavailable?: boolean
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -107,8 +111,8 @@ export function AuthProvider({
   }, [router])
 
   const value = React.useMemo<AuthState>(
-    () => ({ user, googleConfigured: googleConfigured || devLoginEnabled, loggingIn, login, logout }),
-    [user, googleConfigured, devLoginEnabled, loggingIn, login, logout],
+    () => ({ user, googleConfigured: googleConfigured || devLoginEnabled, unavailable, loggingIn, login, logout }),
+    [user, googleConfigured, devLoginEnabled, unavailable, loggingIn, login, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

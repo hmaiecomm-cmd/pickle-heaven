@@ -225,7 +225,7 @@ export async function getCart(cartToken: string | null): Promise<CartDTO> {
       rateName: rate.name,
       price: rate.price,
       expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
-      invalid: slotInvalidReason(r.startsAt.getTime(), r.court.venue.bookingCutoffMinutes, nowMs),
+      invalid: !r.court.active ? '此場地已不可預約，請重新選擇' : slotInvalidReason(r.startsAt.getTime(), r.court.venue.bookingCutoffMinutes, nowMs),
     }
   })
 

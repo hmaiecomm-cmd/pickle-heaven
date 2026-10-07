@@ -259,6 +259,12 @@ export async function createPendingBooking(
   const venueId = [...venueIds][0]
   const venue = held[0]?.court.venue ?? (await prisma.venue.findUniqueOrThrow({ where: { id: venueId }, include: { priceRules: true } }))
 
+  // 場地必須仍屬於本場館且啟用（例如場地已停用或下架）；不靜默換場
+  for (const r of held) {
+    if (!r.court.active || r.court.venueId !== venueId) {
+      throw new BookingError(`「${r.court.name}」此場地已不可預約，請重新選擇`, 'BOOKING_CLOSED')
+    }
+  }
   // 場地時段在結帳當下不能已開始或已超過預約截止時間；購物車頁會先提示，這裡是最後防線
   for (const r of held) {
     if (r.startsAt.getTime() - venue.bookingCutoffMinutes * 60_000 <= at.getTime()) {

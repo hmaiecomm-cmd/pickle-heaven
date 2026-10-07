@@ -5,7 +5,7 @@ import { AuthProvider } from '@/components/auth-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { CartStoreProvider } from '@/store/cart'
 import { AppShell } from '@/components/app-shell'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { getCartToken } from '@/lib/session'
 import { getCart } from '@/lib/availability'
 import { getAdminUser } from '@/lib/admin-auth'
@@ -45,8 +45,20 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [user, cartToken, h, admin] = await Promise.all([getSessionUser(), getCartToken(), headers(), getAdminUser().catch(() => null)])
-  const cart = await getCart(cartToken)
+  let authUnavailable = false
+  const [user, cartToken, h, admin] = await Promise.all([
+    getSessionUser().catch((err) => {
+      if (err instanceof SessionUnavailableError) {
+        authUnavailable = true
+        return null
+      }
+      throw err
+    }),
+    getCartToken(),
+    headers(),
+    getAdminUser().catch(() => null),
+  ])
+  const cart = await getCart(cartToken).catch(() => ({ items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }))
   const area = h.get('x-ph-area') === 'admin' ? 'admin' : 'public'
   // 開發登入只在本機且明確開啟時可用，正式環境一律關閉
   const devLoginEnabled = process.env.NODE_ENV !== 'production' && process.env.DEV_LOGIN === '1'
@@ -55,7 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="zh-Hant-TW" data-area={area} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         <ToastProvider>
-          <AuthProvider initialUser={user} googleConfigured={googleConfigured()} devLoginEnabled={devLoginEnabled}>
+          <AuthProvider initialUser={user} googleConfigured={googleConfigured()} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
             <CartStoreProvider initialCart={cart}>
               <AppShell user={user} isAdmin={Boolean(admin)}>
                 {children}

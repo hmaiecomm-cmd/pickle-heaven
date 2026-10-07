@@ -86,7 +86,7 @@ async function main() {
       prisma.court.create({
         data: {
           venueId: venue.id,
-          name: `${n}號場地`,
+          name: n === 1 ? 'A 場' : n === 2 ? 'B 場' : `${n}號場地`,
           sortOrder: n,
           indoor: false,
           covered: true,
@@ -133,10 +133,10 @@ async function main() {
 
   // 已預約（他人已成立訂單）
   const bookedSpots: [number, number][] = [
-    [0, 1140], // 1號場地 19:00
-    [0, 1200], // 1號場地 20:00
-    [1, 1140], // 2號場地 19:00
-    [1, 1260], // 2號場地 21:00
+    [0, 1140], // A 場 19:00
+    [0, 1200], // A 場 20:00
+    [1, 1140], // B 場 19:00
+    [1, 1260], // B 場 21:00
   ]
   for (const [courtIdx, minute] of bookedSpots) {
     await prisma.reservation.create({

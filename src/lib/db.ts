@@ -98,7 +98,10 @@ export function tenantFromToken(token: string): Tenant | null {
 export async function currentTenant(): Promise<Tenant> {
   let token: string | undefined
   try {
-    const { cookies } = await import('next/headers')
+    const { cookies, headers } = await import('next/headers')
+    // 只有後台區域（/admin、/api/admin，由 middleware 標記）才依 DEMO 登入切換到展示資料庫；
+    // 前台頁面與前台 server action 即使瀏覽器同時登入後台 DEMO，也一律讀寫正式資料庫
+    if ((await headers()).get('x-ph-area') !== 'admin') return 'main'
     token = (await cookies()).get(ADMIN_COOKIE)?.value
   } catch (err) {
     // 預先產生靜態頁時，cookies() 會丟出讓 Next 判斷為動態頁的錯誤，必須往外拋

@@ -84,7 +84,7 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
     },
   })
   const courts = await Promise.all(
-    ['A 場', 'B 場', 'C 場'].map((name, i) =>
+    ['A 場', 'B 場'].map((name, i) =>
       db.court.create({ data: { venueId: venue.id, name, sortOrder: i, indoor: false, covered: true, capacity: 4 } }),
     ),
   )
@@ -105,11 +105,11 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
   })
 
   const now = new Date()
-  // 模擬設備：C 場門禁離線、B 場人流感測偵測到有人（用來展示「預約與感測不一致」）
+  // 模擬設備：A 場門禁離線、B 場人流感測偵測到有人（用來展示「預約與感測不一致」）
   for (const [i, c] of courts.entries()) {
     await db.device.createMany({
       data: [
-        { courtId: c.id, type: 'DOOR', name: '門禁', status: i === 2 ? 'OFFLINE' : 'ONLINE', lastSeen: i === 2 ? new Date(now.getTime() - 47 * 60_000) : now, lastAction: 'LOCKED' },
+        { courtId: c.id, type: 'DOOR', name: '門禁', status: i === 0 ? 'OFFLINE' : 'ONLINE', lastSeen: i === 0 ? new Date(now.getTime() - 47 * 60_000) : now, lastAction: 'LOCKED' },
         { courtId: c.id, type: 'LIGHTS', name: '照明', status: 'ONLINE', lastSeen: now, lastAction: 'OFF' },
         { courtId: c.id, type: 'FANS', name: '風扇', status: 'ONLINE', lastSeen: now, lastAction: 'OFF' },
         { courtId: c.id, type: 'CAMERA', name: '人流感測（模擬）', status: 'ONLINE', lastSeen: now, lastAction: i === 1 ? 'OCCUPIED' : 'EMPTY' },
@@ -144,7 +144,7 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
   log('建立活動與場次')
   const activities = [
     { title: '新手友善 Open Play', type: 'BEGINNER' as const, weekdays: [4, 6], start: 1140, end: 1260, courts: [0, 1], price: 350, cap: 12, level: '新手友善', summary: '第一次打匹克球也沒問題，現場分組輪流上場。' },
-    { title: '週末進階雙打', type: 'OPEN_PLAY' as const, weekdays: [0], start: 600, end: 720, courts: [2], price: 450, cap: 8, level: '3.0 以上', summary: '固定隊友輪換，適合有比賽經驗的球友。' },
+    { title: '週末進階雙打', type: 'OPEN_PLAY' as const, weekdays: [0], start: 600, end: 720, courts: [1], price: 450, cap: 8, level: '3.0 以上', summary: '固定隊友輪換，適合有比賽經驗的球友。' },
   ]
   const sessionsCreated: { id: string; price: number; startAt: Date; endAt: Date; title: string; courts: string }[] = []
   for (const a of activities) {

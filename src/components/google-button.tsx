@@ -32,7 +32,15 @@ export function GoogleLoginButton({
   className?: string
   size?: 'md' | 'lg'
 }) {
-  const { login, loggingIn, googleConfigured } = useAuth()
+  const { login, loggingIn, googleConfigured, unavailable } = useAuth()
+
+  if (unavailable) {
+    return (
+      <button type="button" onClick={() => window.location.reload()} className={cn('rounded-xl border border-dashed border-[rgb(var(--border))] px-3 py-2.5 text-center text-xs text-muted hover:surface-2', className)}>
+        暫時無法確認登入狀態，點此重試
+      </button>
+    )
+  }
 
   if (!googleConfigured) {
     return (
