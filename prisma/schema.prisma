@@ -899,12 +899,14 @@ model Activity {
   coverFocusY  Int     @default(50)
 
   /// 預設每單位價格（新台幣整數元），各場可覆寫
-  price       Int       @default(0)
-  priceUnit   PriceUnit @default(PER_PERSON)
+  price            Int       @default(0)
+  priceUnit        PriceUnit @default(PER_PERSON)
   /// 預設名額上限（人），各場可覆寫
-  capacity    Int       @default(8)
+  capacity         Int       @default(8)
+  /// 保留給內部安排的名額（總名額 − 保留 = 對外開放名額）
+  reservedCapacity Int       @default(0)
   /// 單筆報名最多幾個單位
-  maxPerOrder Int       @default(4)
+  maxPerOrder      Int       @default(4)
 
   /// ONCE 單次 / WEEKLY 每週
   repeatKind      String  @default("ONCE")

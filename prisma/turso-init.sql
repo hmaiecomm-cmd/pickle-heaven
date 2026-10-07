@@ -444,6 +444,7 @@ CREATE TABLE "Activity" (
     "price" INTEGER NOT NULL DEFAULT 0,
     "priceUnit" TEXT NOT NULL DEFAULT 'PER_PERSON',
     "capacity" INTEGER NOT NULL DEFAULT 8,
+    "reservedCapacity" INTEGER NOT NULL DEFAULT 0,
     "maxPerOrder" INTEGER NOT NULL DEFAULT 4,
     "repeatKind" TEXT NOT NULL DEFAULT 'ONCE',
     "weekdays" TEXT NOT NULL DEFAULT '',

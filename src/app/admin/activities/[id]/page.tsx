@@ -26,6 +26,7 @@ export default async function EditActivityPage({ params }: { params: Promise<{ i
   const initial: EditorForm = {
     title: a.title,
     type: a.type as ActivityTypeKey,
+    customTypeLabel: a.customTypeLabel ?? '',
     summary: a.summary ?? '',
     description: a.description ?? '',
     levelLabel: a.levelLabel ?? '',
@@ -35,15 +36,21 @@ export default async function EditActivityPage({ params }: { params: Promise<{ i
     coverAssetId: a.coverAssetId,
     coverFocusX: a.coverFocusX,
     coverFocusY: a.coverFocusY,
+    hostId: a.hostId,
+    visibility: (a.visibility as 'PUBLIC' | 'UNLISTED' | 'PRIVATE') ?? 'PUBLIC',
+    locationNote: a.locationNote ?? '',
     price: a.price,
     priceUnit: a.priceUnit as PriceUnitKey,
     capacity: a.capacity,
+    reservedCapacity: a.reservedCapacity,
     maxPerOrder: a.maxPerOrder,
     repeatKind: a.repeatKind as 'ONCE' | 'WEEKLY',
     weekdays: a.weekdays,
     intervalWeeks: a.intervalWeeks,
     startMinute: a.startMinute,
     endMinute: a.endMinute,
+    bufferBeforeMinutes: a.bufferBeforeMinutes,
+    bufferAfterMinutes: a.bufferAfterMinutes,
     seriesStartDate: a.seriesStartDate,
     endMode: a.occurrenceCount && !a.seriesEndDate ? 'COUNT' : 'DATE',
     seriesEndDate: a.seriesEndDate ?? a.seriesStartDate,
@@ -73,7 +80,7 @@ export default async function EditActivityPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      {data.sessions.length > 0 && (
+      {(data.sessions.length > 0 || a.status === 'PUBLISHED') && (
         <SessionsTable
           activityId={a.id}
           repeat={a.repeatKind === 'WEEKLY' || data.sessions.length > 1}

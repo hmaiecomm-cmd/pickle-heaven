@@ -196,7 +196,25 @@ function PanelBody({ dto, qty, setQty }: { dto: ActivitySessionDTO; qty: number;
       <dl className="grid gap-3 rounded-2xl bg-white p-4 text-sm ring-1 ring-[#191D1A]/10">
         <Row icon={CalendarDays} label="日期">{dto.dateLabel}</Row>
         <Row icon={Clock} label="時間">{dto.timeLabel}</Row>
-        <Row icon={MapPin} label="使用場地">{dto.courtNames.length > 0 ? dto.courtNames.join('、') : '依現場安排'}</Row>
+        <Row icon={MapPin} label="使用場地">
+          {dto.courtNames.length > 0 ? dto.courtNames.join('、') : '依現場安排'}
+          {dto.locationNote && <span className="block text-xs text-[#191D1A]/60">{dto.locationNote}</span>}
+        </Row>
+        {dto.host && (
+          <Row icon={Users} label="主持人">
+            <span className="flex items-center gap-2">
+              {dto.host.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={dto.host.photo} alt="" className="h-8 w-8 rounded-full object-cover" />
+              ) : null}
+              <span>
+                {dto.host.name}
+                {dto.host.bio && <span className="block text-xs text-[#191D1A]/60">{dto.host.bio}</span>}
+                {dto.host.publicContact && <span className="block text-xs text-[#191D1A]/60">{dto.host.publicContact}</span>}
+              </span>
+            </span>
+          </Row>
+        )}
         <Row icon={Users} label="名額">
           總名額 {dto.capacity} 人・
           <strong className={cn(dto.remaining === 0 && 'text-rose-700')}>剩餘 {dto.remaining} 位</strong>

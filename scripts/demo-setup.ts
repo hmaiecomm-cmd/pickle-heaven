@@ -52,7 +52,7 @@ async function main() {
     }
     await raw.execute('CREATE UNIQUE INDEX IF NOT EXISTS "User_googleSub_key" ON "User"("googleSub")')
     // 之後的手動遷移逐句套用：欄位或資料表已存在的語句略過（可重複執行）
-    for (const file of ['prisma/migrations-manual/2026-10-08b_hosts-maintenance.sql']) {
+    for (const file of ['prisma/migrations-manual/2026-10-08b_hosts-maintenance.sql', 'prisma/migrations-manual/2026-10-08d_activity-reserved.sql']) {
       const stmts = readFileSync(file, 'utf8')
         .split(/\r?\n/)
         .filter((l) => !/^\s*--/.test(l))

@@ -54,6 +54,7 @@ export const activityInputSchema = z
     price: z.number().int().min(0, '費用不能是負數').max(100_000),
     priceUnit: z.enum(['PER_PERSON', 'PER_PAIR']),
     capacity: z.number().int().min(1, '名額至少 1 人').max(500),
+    reservedCapacity: z.number().int().min(0).max(500).default(0),
     maxPerOrder: z.number().int().min(1).max(20),
     repeatKind: z.enum(['ONCE', 'WEEKLY']),
     weekdays: z.array(z.number().int().min(0).max(6)),
@@ -77,6 +78,7 @@ export const activityInputSchema = z
     hostId: z.string().nullable().default(null),
   })
   .refine((v) => v.endMinute > v.startMinute, { message: '結束時間必須晚於開始時間', path: ['endMinute'] })
+  .refine((v) => v.reservedCapacity < v.capacity, { message: '內部保留名額必須小於總名額', path: ['reservedCapacity'] })
 
 export type ActivityInput = z.infer<typeof activityInputSchema>
 
@@ -252,6 +254,7 @@ function activityData(v: ActivityInput) {
     price: v.price,
     priceUnit: v.priceUnit,
     capacity: v.capacity,
+    reservedCapacity: v.reservedCapacity,
     maxPerOrder: v.maxPerOrder,
     repeatKind: v.repeatKind,
     weekdays: v.weekdays.join(','),
@@ -389,7 +392,7 @@ export async function saveActivity(params: {
             cancelDeadline: t.bookingCloseAt,
             finalizeAt: t.bookingCloseAt,
             capacity: v.capacity,
-            reservedCapacity: 0,
+            reservedCapacity: v.reservedCapacity,
             price: v.price,
             waitlistEnabled: false,
             autoPromote: false,
@@ -1132,7 +1135,7 @@ export async function addSession(raw: unknown, actor: string): Promise<{ session
           cancelDeadline: t.bookingCloseAt,
           finalizeAt: t.bookingCloseAt,
           capacity: v.capacity ?? a.capacity,
-          reservedCapacity: 0,
+          reservedCapacity: Math.min(a.reservedCapacity, (v.capacity ?? a.capacity) - 1),
           price: v.price ?? a.price,
           waitlistEnabled: false,
           autoPromote: false,

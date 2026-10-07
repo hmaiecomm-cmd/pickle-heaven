@@ -41,6 +41,17 @@ export function ActivityCard({
         <div>
           <h3 className="text-lg font-extrabold leading-snug text-[#191D1A]">{card.title}</h3>
           {card.summary && <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-[#191D1A]/70">{card.summary}</p>}
+          {card.host && (
+            <p className="mt-2 flex items-center gap-2 text-xs text-[#191D1A]/70">
+              {card.host.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={card.host.photo} alt="" className="h-6 w-6 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-[#EEE6FA] text-[10px] font-bold text-[#30223D]">{card.host.name.slice(0, 1)}</span>
+              )}
+              主持：{card.host.name}
+            </p>
+          )}
         </div>
 
         {showDates && multiple && (

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Ban, Pencil, Users } from 'lucide-react'
+import { Ban, Copy, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
@@ -11,7 +11,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { EditImpactRow } from '@/server/activity-admin'
-import { applySessionEditAction, cancelSessionAction, previewSessionEditAction } from '@/server/activity-admin-actions'
+import { addSessionAction, applySessionEditAction, cancelSessionAction, previewAddSessionAction, previewSessionEditAction, removeDraftSessionAction } from '@/server/activity-admin-actions'
 import { CoverUploader } from './cover-uploader'
 
 export interface AdminSessionRow {
@@ -38,6 +38,10 @@ export interface AdminSessionRow {
   coverFocusY: number | null
   opensAt: string
   cancelReason: string | null
+  note: string | null
+  bufferBeforeMinutes: number
+  bufferAfterMinutes: number
+  registrations: number
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -68,8 +72,12 @@ export function SessionsTable({
   venue: { openMinute: number; closeMinute: number; slotMinutes: number }
   typeLabel: string
 }) {
+  const router = useRouter()
+  const { toast } = useToast()
   const [editing, setEditing] = React.useState<AdminSessionRow | null>(null)
   const [cancelling, setCancelling] = React.useState<AdminSessionRow | null>(null)
+  const [adding, setAdding] = React.useState<Partial<AdminSessionRow> | null>(null)
+  const [removing, setRemoving] = React.useState<string | null>(null)
   const [showPast, setShowPast] = React.useState(false)
   const rows = sessions.filter((s) => showPast || !s.ended)
 
@@ -81,10 +89,16 @@ export function SessionsTable({
             <h2 className="text-sm font-semibold">場次（每個日期獨立名額與訂單）</h2>
             <p className="text-xs text-muted">已結束、已取消的場次保留歷史，不能修改</p>
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted">
-            <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} />
-            顯示已結束場次
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-muted">
+              <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} />
+              顯示已結束場次
+            </label>
+            <Button size="sm" variant="secondary" onClick={() => setAdding({})}>
+              <Plus className="h-4 w-4" aria-hidden />
+              新增場次
+            </Button>
+          </div>
         </div>
         {rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">尚未建立場次。預覽後發布即可建立。</p>
@@ -112,6 +126,8 @@ export function SessionsTable({
                       {!s.occupied && s.status !== 'CANCELLED' && !s.ended && (
                         <span className="ml-1 rounded bg-amber-50 px-1 text-[11px] text-amber-800">未佔用場地</span>
                       )}
+                      {(s.bufferBeforeMinutes > 0 || s.bufferAfterMinutes > 0) && <span className="block text-[11px] text-muted">緩衝 前 {s.bufferBeforeMinutes}／後 {s.bufferAfterMinutes} 分</span>}
+                      {s.note && <span className="block text-[11px] text-muted">備註：{s.note}</span>}
                     </td>
                     <td className="px-3 py-2 text-right tabular">NT${s.price.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right tabular">
@@ -133,10 +149,36 @@ export function SessionsTable({
                               <Pencil className="h-3.5 w-3.5" aria-hidden />
                               修改
                             </button>
-                            <button type="button" onClick={() => setCancelling(s)} className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-red-700 hover:bg-red-50">
-                              <Ban className="h-3.5 w-3.5" aria-hidden />
-                              取消
+                            <button type="button" onClick={() => setAdding(s)} className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs hover:bg-zinc-100" title="以這場的時間、場地為範本新增一場">
+                              <Copy className="h-3.5 w-3.5" aria-hidden />
+                              複製
                             </button>
+                            {s.status === 'DRAFT' && s.registrations === 0 ? (
+                              <button
+                                type="button"
+                                disabled={removing === s.id}
+                                onClick={async () => {
+                                  if (!window.confirm(`移除 ${s.dateLabel} 這場未發布場次？`)) return
+                                  setRemoving(s.id)
+                                  try {
+                                    const res = await removeDraftSessionAction(s.id, activityId)
+                                    toast(res.message ?? '', res.ok ? 'success' : 'error')
+                                    if (res.ok) router.refresh()
+                                  } finally {
+                                    setRemoving(null)
+                                  }
+                                }}
+                                className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                移除
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => setCancelling(s)} className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-red-700 hover:bg-red-50">
+                                <Ban className="h-3.5 w-3.5" aria-hidden />
+                                取消
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -162,6 +204,7 @@ export function SessionsTable({
         />
       )}
       {cancelling && <CancelSheet session={cancelling} activityId={activityId} onClose={() => setCancelling(null)} />}
+      {adding && <AddSheet template={adding} activityId={activityId} courts={courts} venue={venue} onClose={() => setAdding(null)} />}
     </Card>
   )
 }
@@ -193,6 +236,9 @@ function EditSheet({
     startMinute: session.startMinute,
     endMinute: session.endMinute,
     courtIds: [...session.courtIds].sort(),
+    bufferBeforeMinutes: session.bufferBeforeMinutes,
+    bufferAfterMinutes: session.bufferAfterMinutes,
+    note: session.note ?? '',
     cover: { assetId: session.coverAssetId, focusX: session.coverFocusX ?? 50, focusY: session.coverFocusY ?? 50 },
   }
   const [f, setF] = React.useState(initial)
@@ -210,6 +256,9 @@ function EditSheet({
     if (f.startMinute !== initial.startMinute) c.startMinute = f.startMinute
     if (f.endMinute !== initial.endMinute) c.endMinute = f.endMinute
     if ([...f.courtIds].sort().join(',') !== initial.courtIds.join(',')) c.courtIds = f.courtIds
+    if (f.bufferBeforeMinutes !== initial.bufferBeforeMinutes) c.bufferBeforeMinutes = f.bufferBeforeMinutes
+    if (f.bufferAfterMinutes !== initial.bufferAfterMinutes) c.bufferAfterMinutes = f.bufferAfterMinutes
+    if (f.note !== initial.note) c.note = f.note || null
     if (f.cover.assetId !== initial.cover.assetId || f.cover.focusX !== initial.cover.focusX || f.cover.focusY !== initial.cover.focusY) {
       c.coverAssetId = f.cover.assetId
       c.coverFocusX = f.cover.assetId ? f.cover.focusX : null
@@ -326,6 +375,17 @@ function EditSheet({
               ))}
             </div>
           </fieldset>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="準備緩衝（分）" htmlFor="e-bb">
+              <Input id="e-bb" type="number" min={0} max={120} step={5} value={f.bufferBeforeMinutes} onChange={(e) => setF({ ...f, bufferBeforeMinutes: Number(e.target.value) })} />
+            </Field>
+            <Field label="清場緩衝（分）" htmlFor="e-ba">
+              <Input id="e-ba" type="number" min={0} max={120} step={5} value={f.bufferAfterMinutes} onChange={(e) => setF({ ...f, bufferAfterMinutes: Number(e.target.value) })} />
+            </Field>
+            <Field label="個別場次備註（後台）" htmlFor="e-note">
+              <Input id="e-note" value={f.note} maxLength={500} onChange={(e) => setF({ ...f, note: e.target.value })} />
+            </Field>
+          </div>
           <Field label="本場介紹（留空沿用活動介紹）" htmlFor="e-desc">
             <Textarea id="e-desc" rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
           </Field>
@@ -429,6 +489,89 @@ function CancelSheet({ session, activityId, onClose }: { session: AdminSessionRo
             <Button size="sm" variant="ghost" onClick={onClose}>
               返回
             </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+/** 新增一場（或以既有場次為範本複製）：先檢查衝突，確認後才建立並占用 */
+function AddSheet({ template, activityId, courts, venue, onClose }: { template: Partial<AdminSessionRow>; activityId: string; courts: { id: string; name: string; active: boolean }[]; venue: { openMinute: number; closeMinute: number; slotMinutes: number }; onClose: () => void }) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const tomorrow = new Date(Date.now() + 32 * 3600_000).toISOString().slice(0, 10)
+  const [f, setF] = React.useState({
+    date: template.date && template.date > tomorrow ? template.date : tomorrow,
+    startMinute: template.startMinute ?? venue.openMinute,
+    endMinute: template.endMinute ?? venue.openMinute + venue.slotMinutes,
+    courtIds: template.courtIds ?? [],
+    bufferBeforeMinutes: template.bufferBeforeMinutes ?? 0,
+    bufferAfterMinutes: template.bufferAfterMinutes ?? 0,
+    note: '',
+    price: template.price ?? null,
+    capacity: template.capacity ?? null,
+  })
+  const [pv, setPv] = React.useState<{ ok: boolean; problems: string[]; conflicts: { courtName: string; startMinute: number; endMinute: number; reason: string }[]; occupyLabel: string } | null>(null)
+  const [busy, setBusy] = React.useState(false)
+  React.useEffect(() => setPv(null), [f])
+  const slotOptions: number[] = []
+  for (let m = venue.openMinute; m <= venue.closeMinute; m += Math.min(30, venue.slotMinutes)) slotOptions.push(m)
+  const sel = 'h-10 w-full rounded-xl border border-[rgb(var(--border))] surface px-3 text-sm'
+  const input = { activityId, ...f, price: f.price, capacity: f.capacity, note: f.note || null }
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent title={template.id ? `複製場次・以 ${template.dateLabel} 為範本` : '新增場次'} description="草稿活動建立草稿場次（不占用）；已發布活動會立即占用場地">
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="日期" htmlFor="n-date"><Input id="n-date" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
+            <Field label="開始" htmlFor="n-st">
+              <select id="n-st" className={sel} value={f.startMinute} onChange={(e) => setF({ ...f, startMinute: Number(e.target.value) })}>
+                {slotOptions.slice(0, -1).map((m) => <option key={m} value={m}>{fmt(m)}</option>)}
+              </select>
+            </Field>
+            <Field label="結束" htmlFor="n-et">
+              <select id="n-et" className={sel} value={f.endMinute} onChange={(e) => setF({ ...f, endMinute: Number(e.target.value) })}>
+                {slotOptions.filter((m) => m > f.startMinute).map((m) => <option key={m} value={m}>{fmt(m)}</option>)}
+              </select>
+            </Field>
+          </div>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium">使用場地</legend>
+            <div className="flex flex-wrap gap-2">
+              {courts.map((c) => (
+                <label key={c.id} className={cn('flex h-10 items-center gap-1.5 rounded-xl border px-3 text-sm', f.courtIds.includes(c.id) ? 'border-brand-600 bg-brand-50' : 'border-[rgb(var(--border))]', !c.active && 'opacity-50')}>
+                  <input type="checkbox" disabled={!c.active} checked={f.courtIds.includes(c.id)} onChange={(e) => setF({ ...f, courtIds: e.target.checked ? [...f.courtIds, c.id] : f.courtIds.filter((x) => x !== c.id) })} />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Field label="準備緩衝" htmlFor="n-bb"><Input id="n-bb" type="number" min={0} max={120} step={5} value={f.bufferBeforeMinutes} onChange={(e) => setF({ ...f, bufferBeforeMinutes: Number(e.target.value) })} /></Field>
+            <Field label="清場緩衝" htmlFor="n-ba"><Input id="n-ba" type="number" min={0} max={120} step={5} value={f.bufferAfterMinutes} onChange={(e) => setF({ ...f, bufferAfterMinutes: Number(e.target.value) })} /></Field>
+            <Field label="價格（留空沿用活動）" htmlFor="n-price"><Input id="n-price" type="number" min={0} value={f.price ?? ''} onChange={(e) => setF({ ...f, price: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
+            <Field label="名額（留空沿用活動）" htmlFor="n-cap"><Input id="n-cap" type="number" min={1} value={f.capacity ?? ''} onChange={(e) => setF({ ...f, capacity: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
+          </div>
+          <Field label="個別場次備註" htmlFor="n-note"><Input id="n-note" value={f.note} maxLength={500} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
+          {pv && (
+            <div className={cn('rounded-xl px-3 py-2 text-sm', pv.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-800')}>
+              {pv.ok ? <p>沒有衝突，實際占用 {pv.occupyLabel}。</p> : (
+                <ul className="list-disc pl-5 text-xs">
+                  {pv.problems.map((p) => <li key={p}>{p}</li>)}
+                  {pv.conflicts.map((c, i) => <li key={i}>{c.courtName} {fmt(c.startMinute)}–{fmt(c.endMinute)}：{c.reason}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 border-t border-[rgb(var(--border))] pt-4">
+            <Button size="sm" variant="secondary" loading={busy && !pv} disabled={f.courtIds.length === 0} onClick={async () => { setBusy(true); try { const r = await previewAddSessionAction(input); if (!r.ok) return toast(r.message, 'error'); setPv(r.preview) } finally { setBusy(false) } }}>
+              檢查衝突
+            </Button>
+            <Button size="sm" loading={busy && Boolean(pv)} disabled={!pv?.ok} onClick={async () => { setBusy(true); try { const r = await addSessionAction(input, activityId); toast(r.message ?? '', r.ok ? 'success' : 'error'); if (r.ok) { router.refresh(); onClose() } } finally { setBusy(false) } }}>
+              確認新增
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
           </div>
         </div>
       </SheetContent>
