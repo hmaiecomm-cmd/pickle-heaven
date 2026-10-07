@@ -31,6 +31,7 @@ export default async function AdminActivitiesPage() {
           <h1 className="text-base font-semibold">活動</h1>
           <p className="mt-0.5 text-xs text-muted">活動會出現在前台的預約表、活動列表與首頁；活動時段不會再被一般訂場買走</p>
         </div>
+        <Link href="/admin/maintenance" className="inline-flex h-9 items-center rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">清潔／維護排程</Link>
         <Link href="/admin/activities/new" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
           <Plus className="h-4 w-4" aria-hidden />
           新增活動

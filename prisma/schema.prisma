@@ -160,29 +160,29 @@ model User {
 
 /// 場館
 model Venue {
-  id             String  @id @default(cuid())
-  organizationId String
-  slug           String  @unique
-  name           String
-  address        String
-  phone          String
-  description    String?
-  coverUrl       String?
+  id                   String  @id @default(cuid())
+  organizationId       String
+  slug                 String  @unique
+  name                 String
+  address              String
+  phone                String
+  description          String?
+  coverUrl             String?
   /// 營業起始（自午夜起算分鐘）600 = 10:00
-  openMinute     Int     @default(600)
+  openMinute           Int     @default(600)
   /// 營業結束，可跨日。1440 = 隔日 00:00
-  closeMinute    Int     @default(1440)
+  closeMinute          Int     @default(1440)
   /// 每時段長度（分鐘）
-  slotMinutes    Int     @default(60)
+  slotMinutes          Int     @default(60)
   /// 開放預約未來天數
-  bookAheadDays  Int     @default(14)
+  bookAheadDays        Int     @default(14)
   /// 購物車暫扣保留時間（分鐘）
-  holdMinutes    Int     @default(10)
+  holdMinutes          Int     @default(10)
   /// 預約截止：開打前幾分鐘停止線上預約（0 = 可預約到開打前一刻）
-  bookingCutoffMinutes Int @default(0)
-  active         Boolean @default(true)
-  notice         String?
-  policy         String?
+  bookingCutoffMinutes Int     @default(0)
+  active               Boolean @default(true)
+  notice               String?
+  policy               String?
 
   /// IANA 時區名稱。取消截止等業務規則一律以此計算。
   timezone String @default("Asia/Taipei")
@@ -194,6 +194,8 @@ model Venue {
   sessionTemplates SessionTemplate[]
   sessions         Session[]
   activities       Activity[]
+  hosts            Host[]
+  maintenancePlans MaintenancePlan[]
 }
 
 /// 場地（球場）
@@ -385,29 +387,33 @@ model PriceRule {
 /// (courtId, startsAt) 唯一鍵即為防止超賣的併發鎖。
 /// 取消訂單時刪除本列以釋放時段，歷史快照保留於 BookingItem。
 model Reservation {
-  id            String            @id @default(cuid())
-  courtId       String
-  startsAt      DateTime
-  endsAt        DateTime
-  status        ReservationStatus
+  id                 String            @id @default(cuid())
+  courtId            String
+  startsAt           DateTime
+  endsAt             DateTime
+  status             ReservationStatus
   /// HELD 專用：暫扣到期時間
-  holdExpiresAt DateTime?
+  holdExpiresAt      DateTime?
   /// HELD 專用：購物車識別碼（用以區分「已選取」與「他人暫扣」）
-  cartToken     String?
-  bookingId     String?
+  cartToken          String?
+  bookingId          String?
   /// EVENT 專用：佔用此時段的活動場次
-  sessionId     String?
-  note          String?
-  createdAt     DateTime          @default(now())
+  sessionId          String?
+  /// BLOCKED 且來自清潔／維護排程時指向該次事件
+  maintenanceEventId String?
+  note               String?
+  createdAt          DateTime          @default(now())
 
-  court   Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  court            Court             @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  booking          Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  session          Session?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  maintenanceEvent MaintenanceEvent? @relation(fields: [maintenanceEventId], references: [id], onDelete: Cascade)
 
   @@unique([courtId, startsAt])
   @@index([startsAt])
   @@index([bookingId])
   @@index([sessionId])
+  @@index([maintenanceEventId])
   @@index([holdExpiresAt])
   @@index([cartToken])
 }
@@ -741,13 +747,18 @@ model Session {
   deletedAt    DateTime?
 
   /// 所屬活動；活動的基本資料（類型、介紹、封面）由此帶入
-  activityId   String?
+  activityId          String?
   /// 本場覆寫的封面（null 時沿用活動封面）
-  coverAssetId String?
-  coverFocusX  Int?
-  coverFocusY  Int?
+  coverAssetId        String?
+  /// 本場的準備／清場緩衝（分鐘）
+  bufferBeforeMinutes Int     @default(0)
+  bufferAfterMinutes  Int     @default(0)
+  /// 個別場次備註（後台）
+  note                String?
+  coverFocusX         Int?
+  coverFocusY         Int?
   /// 系列中的順序（1 起算），單次活動為 1
-  seriesIndex  Int?
+  seriesIndex         Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -922,6 +933,17 @@ model Activity {
   /// 草稿的「保留場地」到期時間；null 代表草稿不佔場地
   holdUntil DateTime?
 
+  /// 公開方式：PUBLIC 公開列表／UNLISTED 僅連結／PRIVATE 不公開（仍占用場地）
+  visibility          String  @default("PUBLIC")
+  /// type = OTHER 時的自訂分類名稱
+  customTypeLabel     String?
+  /// 場館與地點補充說明（例如集合地點）
+  locationNote        String?
+  /// 準備／清場緩衝（分鐘），占用時段會往前後延伸
+  bufferBeforeMinutes Int     @default(0)
+  bufferAfterMinutes  Int     @default(0)
+  hostId              String?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -929,6 +951,7 @@ model Activity {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   venue        Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
   coverAsset   MediaAsset?  @relation("ActivityCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  host         Host?        @relation(fields: [hostId], references: [id], onDelete: SetNull)
   sessions     Session[]
 
   @@index([venueId, status])
@@ -1010,6 +1033,7 @@ model MediaAsset {
   createdAt    DateTime @default(now())
 
   activities Activity[] @relation("ActivityCover")
+  hosts      Host[]     @relation("HostPhoto")
   sessions   Session[]  @relation("SessionCover")
 }
 
@@ -1216,4 +1240,90 @@ model MemberRestriction {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+}
+
+/// 活動主持人／負責人。前台只公開 name、photo、bio、publicContact；內部聯絡資料僅後台可見。
+/// 綁定會員（userId）只用來對應人員，不授予任何後台權限。
+model Host {
+  id            String   @id @default(cuid())
+  venueId       String
+  name          String
+  photoAssetId  String?
+  /// 前台公開的簡介
+  bio           String?
+  /// 前台公開的聯絡方式（例如 IG 帳號），可留空
+  publicContact String?
+  internalPhone String?
+  internalEmail String?
+  internalNote  String?
+  userId        String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  venue      Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  photoAsset MediaAsset? @relation("HostPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  activities Activity[]
+
+  @@index([venueId, active])
+}
+
+/// 清潔／維護排程（系列規則）。內部排程：不開放報名、不進購物車、不顯示價格。
+model MaintenancePlan {
+  id              String   @id @default(cuid())
+  venueId         String
+  name            String
+  /// CLEANING 清潔 / DISINFECT 消毒 / EQUIPMENT 設備保養 / REPAIR 場地維修
+  type            String   @default("CLEANING")
+  /// 使用場地 id，逗號分隔（實際占用以每次事件為準）
+  courtIds        String
+  startMinute     Int
+  endMinute       Int
+  repeatKind      String   @default("ONCE")
+  weekdays        String   @default("")
+  intervalWeeks   Int      @default(1)
+  seriesStartDate String
+  seriesEndDate   String?
+  occurrenceCount Int?
+  skipDates       String   @default("")
+  assignee        String?
+  description     String?
+  checklist       String?
+  /// ACTIVE / CANCELLED
+  status          String   @default("ACTIVE")
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  venue  Venue              @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  events MaintenanceEvent[]
+
+  @@index([venueId, status])
+}
+
+/// 清潔／維護的單次事件；占用寫在 Reservation（status = BLOCKED，maintenanceEventId 指向本筆）。
+/// 標記完成不會釋放封場；提前開放需另行「提前解除封場」（releasedAt）。
+model MaintenanceEvent {
+  id           String    @id @default(cuid())
+  planId       String
+  venueId      String
+  date         String
+  startAt      DateTime
+  endAt        DateTime
+  courtIds     String
+  /// SCHEDULED / IN_PROGRESS / DONE / CANCELLED
+  status       String    @default("SCHEDULED")
+  note         String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  releasedAt   DateTime?
+  cancelReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  plan      MaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  occupancy Reservation[]
+
+  @@index([planId, startAt])
+  @@index([venueId, startAt])
 }

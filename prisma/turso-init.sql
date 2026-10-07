@@ -184,11 +184,13 @@ CREATE TABLE "Reservation" (
     "cartToken" TEXT,
     "bookingId" TEXT,
     "sessionId" TEXT,
+    "maintenanceEventId" TEXT,
     "note" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Reservation_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Reservation_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Reservation_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "Reservation_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Reservation_maintenanceEventId_fkey" FOREIGN KEY ("maintenanceEventId") REFERENCES "MaintenanceEvent" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -352,6 +354,9 @@ CREATE TABLE "Session" (
     "deletedAt" DATETIME,
     "activityId" TEXT,
     "coverAssetId" TEXT,
+    "bufferBeforeMinutes" INTEGER NOT NULL DEFAULT 0,
+    "bufferAfterMinutes" INTEGER NOT NULL DEFAULT 0,
+    "note" TEXT,
     "coverFocusX" INTEGER,
     "coverFocusY" INTEGER,
     "seriesIndex" INTEGER,
@@ -454,12 +459,19 @@ CREATE TABLE "Activity" (
     "openMinute" INTEGER,
     "closeMinutesBefore" INTEGER NOT NULL DEFAULT 60,
     "holdUntil" DATETIME,
+    "visibility" TEXT NOT NULL DEFAULT 'PUBLIC',
+    "customTypeLabel" TEXT,
+    "locationNote" TEXT,
+    "bufferBeforeMinutes" INTEGER NOT NULL DEFAULT 0,
+    "bufferAfterMinutes" INTEGER NOT NULL DEFAULT 0,
+    "hostId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "deletedAt" DATETIME,
     CONSTRAINT "Activity_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Activity_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Activity_coverAssetId_fkey" FOREIGN KEY ("coverAssetId") REFERENCES "MediaAsset" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "Activity_coverAssetId_fkey" FOREIGN KEY ("coverAssetId") REFERENCES "MediaAsset" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Activity_hostId_fkey" FOREIGN KEY ("hostId") REFERENCES "Host" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -663,6 +675,71 @@ CREATE TABLE "MemberRestriction" (
     CONSTRAINT "MemberRestriction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "Host" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "photoAssetId" TEXT,
+    "bio" TEXT,
+    "publicContact" TEXT,
+    "internalPhone" TEXT,
+    "internalEmail" TEXT,
+    "internalNote" TEXT,
+    "userId" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Host_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Host_photoAssetId_fkey" FOREIGN KEY ("photoAssetId") REFERENCES "MediaAsset" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MaintenancePlan" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'CLEANING',
+    "courtIds" TEXT NOT NULL,
+    "startMinute" INTEGER NOT NULL,
+    "endMinute" INTEGER NOT NULL,
+    "repeatKind" TEXT NOT NULL DEFAULT 'ONCE',
+    "weekdays" TEXT NOT NULL DEFAULT '',
+    "intervalWeeks" INTEGER NOT NULL DEFAULT 1,
+    "seriesStartDate" TEXT NOT NULL,
+    "seriesEndDate" TEXT,
+    "occurrenceCount" INTEGER,
+    "skipDates" TEXT NOT NULL DEFAULT '',
+    "assignee" TEXT,
+    "description" TEXT,
+    "checklist" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "MaintenancePlan_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MaintenanceEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "planId" TEXT NOT NULL,
+    "venueId" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "startAt" DATETIME NOT NULL,
+    "endAt" DATETIME NOT NULL,
+    "courtIds" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'SCHEDULED',
+    "note" TEXT,
+    "startedAt" DATETIME,
+    "completedAt" DATETIME,
+    "releasedAt" DATETIME,
+    "cancelReason" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "MaintenanceEvent_planId_fkey" FOREIGN KEY ("planId") REFERENCES "MaintenancePlan" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_lineUserId_key" ON "User"("lineUserId");
 
@@ -725,6 +802,9 @@ CREATE INDEX "Reservation_bookingId_idx" ON "Reservation"("bookingId");
 
 -- CreateIndex
 CREATE INDEX "Reservation_sessionId_idx" ON "Reservation"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "Reservation_maintenanceEventId_idx" ON "Reservation"("maintenanceEventId");
 
 -- CreateIndex
 CREATE INDEX "Reservation_holdExpiresAt_idx" ON "Reservation"("holdExpiresAt");
@@ -905,4 +985,16 @@ CREATE INDEX "Incident_status_createdAt_idx" ON "Incident"("status", "createdAt"
 
 -- CreateIndex
 CREATE INDEX "MemberRestriction_userId_revokedAt_idx" ON "MemberRestriction"("userId", "revokedAt");
+
+-- CreateIndex
+CREATE INDEX "Host_venueId_active_idx" ON "Host"("venueId", "active");
+
+-- CreateIndex
+CREATE INDEX "MaintenancePlan_venueId_status_idx" ON "MaintenancePlan"("venueId", "status");
+
+-- CreateIndex
+CREATE INDEX "MaintenanceEvent_planId_startAt_idx" ON "MaintenanceEvent"("planId", "startAt");
+
+-- CreateIndex
+CREATE INDEX "MaintenanceEvent_venueId_startAt_idx" ON "MaintenanceEvent"("venueId", "startAt");
 

@@ -6,7 +6,11 @@ import { requirePermission } from '@/lib/admin-auth'
 const requireAdmin = async () => (await requirePermission('activities')).username
 import {
   ActivityAdminError,
+  addSession,
   applySessionEdit,
+  courtAvailabilityForForm,
+  previewAddSession,
+  removeDraftSession,
   archiveActivity,
   cancelActivitySession,
   previewActivity,
@@ -127,6 +131,46 @@ export async function syncOccupancyAction(): Promise<R<Awaited<ReturnType<typeof
     const res = await syncLegacyOccupancy()
     refreshAll()
     return { ok: true, ...res }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+export async function previewAddSessionAction(input: unknown): Promise<R<{ preview: Awaited<ReturnType<typeof previewAddSession>> }>> {
+  try {
+    await requireAdmin()
+    return { ok: true, preview: await previewAddSession(input) }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+export async function addSessionAction(input: unknown, activityId: string): Promise<R<{ sessionId: string }>> {
+  try {
+    const admin = await requireAdmin()
+    const res = await addSession(input, `admin:${admin}`)
+    refreshAll(activityId)
+    return { ok: true, sessionId: res.sessionId, message: '已新增場次' }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+export async function removeDraftSessionAction(sessionId: string, activityId: string): Promise<R<object>> {
+  try {
+    const admin = await requireAdmin()
+    await removeDraftSession(sessionId, `admin:${admin}`)
+    refreshAll(activityId)
+    return { ok: true, message: '已移除未發布場次' }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+export async function courtAvailabilityAction(params: { date: string; startMinute: number; endMinute: number; bufferBeforeMinutes?: number; bufferAfterMinutes?: number; excludeSessionId?: string | null }): Promise<R<{ availability: Awaited<ReturnType<typeof courtAvailabilityForForm>> }>> {
+  try {
+    await requireAdmin()
+    return { ok: true, availability: await courtAvailabilityForForm(params) }
   } catch (err) {
     return fail(err)
   }

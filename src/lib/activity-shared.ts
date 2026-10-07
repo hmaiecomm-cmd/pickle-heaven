@@ -11,11 +11,11 @@ export type ActivityTypeKey = 'OPEN_PLAY' | 'BEGINNER' | 'LESSON' | 'SOCIAL' | '
 export type PriceUnitKey = 'PER_PERSON' | 'PER_PAIR'
 
 export const ACTIVITY_TYPE_LABEL: Record<ActivityTypeKey, string> = {
+  SOCIAL: '球敘',
   OPEN_PLAY: 'Open Play',
-  BEGINNER: '新手體驗',
-  LESSON: '課程',
-  SOCIAL: '交流活動',
-  OTHER: '活動',
+  BEGINNER: '體驗課',
+  LESSON: '教練課程',
+  OTHER: '自訂分類',
 }
 
 export const ACTIVITY_TYPE_OPTIONS = (Object.keys(ACTIVITY_TYPE_LABEL) as ActivityTypeKey[]).map((k) => ({
@@ -68,6 +68,14 @@ export interface ActivityCover {
   focusY: number
 }
 
+/** 前台公開的主持人資料（不含內部聯絡方式） */
+export interface ActivityHostDTO {
+  name: string
+  photo: string | null
+  bio: string | null
+  publicContact: string | null
+}
+
 /** 前台顯示一個場次所需的資料 */
 export interface ActivitySessionDTO {
   id: string
@@ -75,6 +83,10 @@ export interface ActivitySessionDTO {
   title: string
   type: ActivityTypeKey
   typeLabel: string
+  /** PUBLIC 公開／UNLISTED 僅連結 */
+  visibility: 'PUBLIC' | 'UNLISTED'
+  host: ActivityHostDTO | null
+  locationNote: string | null
   levelLabel: string | null
   summary: string | null
   description: string | null
@@ -121,6 +133,7 @@ export interface ActivityCardDTO {
   levelLabel: string | null
   summary: string | null
   cover: ActivityCover
+  host: ActivityHostDTO | null
   sessions: ActivitySessionDTO[]
 }
 
@@ -143,6 +156,7 @@ function groupIntoCards(sessions: ActivitySessionDTO[], perCard = 8): ActivityCa
       levelLabel: s.levelLabel,
       summary: s.summary ?? s.description,
       cover: s.cover,
+      host: s.host,
       sessions: [s],
     })
   }

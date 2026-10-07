@@ -43,7 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地與時段', href: '/admin/courts', permission: 'courts' },
-      { label: '封場與維護', href: '/admin/maintenance', permission: 'courts.manage' },
+      { label: '封場與維護', href: '/admin/maintenance?tab=manual', permission: 'courts' },
     ],
   },
   {
@@ -63,6 +63,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '活動列表', href: '/admin/activities', permission: 'activities' },
       { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities' },
       { label: '報名與候補／通知名單', href: '/admin/registrations', permission: 'activities' },
+      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts' },
       { label: '教練', href: '/admin/events', permission: 'activities' },
     ],
   },

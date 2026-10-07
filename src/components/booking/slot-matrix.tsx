@@ -22,6 +22,7 @@ const CELL_STYLE: Record<SlotState, string> = {
   BOOKED: 'border-transparent bg-zinc-100 text-zinc-600 cursor-not-allowed',
   BLOCKED: 'border-transparent bg-zinc-100 text-zinc-600 cursor-not-allowed',
   RESERVED: 'border-transparent bg-zinc-100 text-zinc-600 cursor-not-allowed',
+  MAINTENANCE: 'border-transparent bg-zinc-100 text-zinc-600 cursor-not-allowed',
   EVENT: 'border-brand-600/40 bg-brand-100 text-brand-900',
   STARTED: 'border-transparent bg-zinc-50 text-zinc-500 cursor-not-allowed',
   CUTOFF: 'border-transparent bg-zinc-50 text-zinc-500 cursor-not-allowed',
@@ -32,8 +33,9 @@ const CELL_STYLE: Record<SlotState, string> = {
 const CELL_TEXT: Partial<Record<SlotState, string>> = {
   HELD: '保留中',
   BOOKED: '已預約',
-  BLOCKED: '維護中',
-  RESERVED: '未開放',
+  BLOCKED: '封場',
+  MAINTENANCE: '清潔維護・暫不開放',
+  RESERVED: '活動占用・不開放租借',
   STARTED: '已開始',
   CUTOFF: '已截止',
   PAST: '已結束',
@@ -43,8 +45,9 @@ const CELL_TEXT: Partial<Record<SlotState, string>> = {
 const CELL_ICON: Partial<Record<SlotState, typeof Lock>> = {
   HELD: Clock,
   BOOKED: Lock,
-  BLOCKED: Wrench,
-  RESERVED: ShieldBan,
+  BLOCKED: ShieldBan,
+  MAINTENANCE: Wrench,
+  RESERVED: CalendarHeart,
   STARTED: PlayCircle,
   CUTOFF: Hourglass,
 }
@@ -192,7 +195,7 @@ export function SlotMatrix({
                   ) : (
                     <>
                       {Icon && <Icon className="h-3.5 w-3.5" aria-hidden />}
-                      <span className="text-[11px]">{CELL_TEXT[state]}</span>
+                      <span className="px-1 text-center text-[11px] leading-tight">{CELL_TEXT[state]}</span>
                     </>
                   )}
                 </button>
@@ -245,8 +248,9 @@ const LEGEND: { state: SlotState; label: string; Icon?: typeof Lock }[] = [
   { state: 'EVENT', label: '活動使用中（可報名，不可租場）', Icon: CalendarHeart },
   { state: 'BOOKED', label: '已預約', Icon: Lock },
   { state: 'HELD', label: '他人保留中', Icon: Clock },
-  { state: 'BLOCKED', label: '維護中', Icon: Wrench },
-  { state: 'RESERVED', label: '未開放', Icon: ShieldBan },
+  { state: 'MAINTENANCE', label: '清潔維護・暫不開放', Icon: Wrench },
+  { state: 'BLOCKED', label: '封場', Icon: ShieldBan },
+  { state: 'RESERVED', label: '活動占用・不開放租借', Icon: CalendarHeart },
   { state: 'STARTED', label: '已開始', Icon: PlayCircle },
   { state: 'CUTOFF', label: '已截止', Icon: Hourglass },
 ]

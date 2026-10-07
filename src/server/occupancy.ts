@@ -4,16 +4,16 @@ import { prisma } from '@/lib/db'
 import { formatMinute, now, taipeiToUtc } from '@/lib/time'
 
 /**
- * 場地佔用：一般訂場、付款中的暫留、活動場次、維護封場，全部記在 Reservation，
- * 以 (courtId, startsAt) 唯一索引作為最後一道防線——同一場地同一時段只會有一筆。
+ * 場地佔用：一般訂場、付款中的暫留、活動場次（含明確保留）、清潔維護、人工封場，
+ * 全部記在 Reservation，以 (courtId, startsAt) 唯一索引作為最後一道防線——同一場地同一時段只會有一筆。
  *
- * 時間重疊規則：佔用以場館的時段格（slotMinutes）為單位，依活動「完整起訖時間」展開——
+ * 時間重疊規則：佔用以場館的時段格（slotMinutes）為單位，依「完整起訖時間」展開——
  * 非整點的活動（例如 19:30–20:30）會占用所有與它重疊的格（19:00–21:00），任何重疊的租借都會被擋下。
- * 對齊格線的活動「前一場結束 = 下一場開始」不共用任何一格，可以銜接。
- * 場館目前沒有清場緩衝設定；日後新增時，於 rangeSlots 前後各多佔幾格即可。
+ * 準備／清場緩衝（bufferBefore / bufferAfter）會先把起訖時間往前後延伸，再展開成時段格。
+ * 對齊格線且沒有緩衝的活動「前一場結束 = 下一場開始」不共用任何一格，可以銜接。
  */
 
-export type OccupancyKind = 'BOOKED' | 'PENDING_ORDER' | 'HELD' | 'BLOCKED' | 'EVENT' | 'EVENT_DRAFT'
+export type OccupancyKind = 'BOOKED' | 'PENDING_ORDER' | 'HELD' | 'BLOCKED' | 'MAINTENANCE' | 'EVENT' | 'EVENT_DRAFT'
 
 export interface Conflict {
   date: string
@@ -24,6 +24,7 @@ export interface Conflict {
   kind: OccupancyKind
   reason: string
   sessionId: string | null
+  maintenanceEventId: string | null
 }
 
 export class OccupancyConflictError extends Error {
@@ -49,15 +50,23 @@ interface VenueGrid {
   slotMinutes: number
 }
 
-/** 活動時間是否落在營業時段格線內；不合法時回傳說明 */
+/** 活動時間是否落在營業時間內；不合法時回傳說明 */
 export function validateRange(venue: VenueGrid, startMinute: number, endMinute: number): string | null {
   if (!Number.isInteger(startMinute) || !Number.isInteger(endMinute)) return '請填寫開始與結束時間'
   if (endMinute <= startMinute) return '結束時間必須晚於開始時間'
   if (startMinute < venue.openMinute || endMinute > venue.closeMinute) {
-    return `活動時間需在營業時間 ${formatMinute(venue.openMinute)}–${venue.closeMinute >= 1440 ? '24:00' : formatMinute(venue.closeMinute)} 內`
+    return `時間需在營業時間 ${formatMinute(venue.openMinute)}–${venue.closeMinute >= 1440 ? '24:00' : formatMinute(venue.closeMinute)} 內`
   }
-  if (startMinute % 5 !== 0 || endMinute % 5 !== 0) return '活動時間請以 5 分鐘為單位'
+  if (startMinute % 5 !== 0 || endMinute % 5 !== 0) return '時間請以 5 分鐘為單位'
   return null
+}
+
+/** 含緩衝後的實際占用區間（限制在營業時間內） */
+export function withBuffer(venue: VenueGrid, startMinute: number, endMinute: number, bufferBefore = 0, bufferAfter = 0) {
+  return {
+    startMinute: Math.max(venue.openMinute, startMinute - Math.max(0, bufferBefore)),
+    endMinute: Math.min(venue.closeMinute, endMinute + Math.max(0, bufferAfter)),
+  }
 }
 
 /** 某日某時間區間涵蓋（重疊）的所有時段格：起點向前、終點向後對齊格線 */
@@ -87,8 +96,11 @@ export async function findConflicts(params: {
   courts: { id: string; name: string }[]
   ranges: RangeQuery[]
   excludeSessionIds?: string[]
+  excludeMaintenanceEventIds?: string[]
+  db?: Prisma.TransactionClient
 }): Promise<Map<string, Conflict[]>> {
   const { venue, courts, ranges } = params
+  const db = params.db ?? prisma
   const result = new Map<string, Conflict[]>()
   if (courts.length === 0 || ranges.length === 0) return result
 
@@ -100,8 +112,9 @@ export async function findConflicts(params: {
   }
 
   const exclude = new Set(params.excludeSessionIds ?? [])
+  const excludeMaint = new Set(params.excludeMaintenanceEventIds ?? [])
   const current = now()
-  const rows = await prisma.reservation.findMany({
+  const rows = await db.reservation.findMany({
     where: {
       courtId: { in: courts.map((c) => c.id) },
       startsAt: { in: [...slotIndex.keys()].map((t) => new Date(t)) },
@@ -113,8 +126,10 @@ export async function findConflicts(params: {
       holdExpiresAt: true,
       bookingId: true,
       sessionId: true,
+      maintenanceEventId: true,
       note: true,
       session: { select: { title: true } },
+      maintenanceEvent: { select: { plan: { select: { name: true } } } },
     },
     orderBy: { startsAt: 'asc' },
   })
@@ -122,6 +137,7 @@ export async function findConflicts(params: {
   const courtName = new Map(courts.map((c) => [c.id, c.name]))
   for (const r of rows) {
     if (r.sessionId && exclude.has(r.sessionId)) continue
+    if (r.maintenanceEventId && excludeMaint.has(r.maintenanceEventId)) continue
     if ((r.status === 'HELD' || r.status === 'EVENT') && r.holdExpiresAt && r.holdExpiresAt <= current) continue
     const at = slotIndex.get(r.startsAt.getTime())
     if (!at) continue
@@ -138,20 +154,30 @@ export async function findConflicts(params: {
         reason = r.bookingId ? '已有待付款的場地訂單' : '客人購物車暫留中'
         break
       case 'BLOCKED':
-        kind = 'BLOCKED'
-        reason = `維護封場${r.note ? `（${r.note}）` : ''}`
+        if (r.maintenanceEventId) {
+          kind = 'MAINTENANCE'
+          reason = `清潔維護排程「${r.maintenanceEvent?.plan.name ?? r.note ?? ''}」`
+        } else {
+          kind = 'BLOCKED'
+          reason = `人工封場${r.note ? `（${r.note}）` : ''}`
+        }
         break
       default:
         kind = r.holdExpiresAt ? 'EVENT_DRAFT' : 'EVENT'
-        reason = r.holdExpiresAt
-          ? `活動草稿「${r.session?.title ?? ''}」保留中`
-          : `已被活動「${r.session?.title ?? ''}」使用`
+        reason = r.holdExpiresAt ? `活動草稿「${r.session?.title ?? ''}」保留中` : `已被活動「${r.session?.title ?? ''}」使用`
     }
 
     const list = result.get(at.date) ?? []
     const last = list[list.length - 1]
     // 同場地、同原因、時間相連的格子合併成一段
-    if (last && last.courtId === r.courtId && last.kind === kind && last.sessionId === r.sessionId && last.endMinute === at.startMinute) {
+    if (
+      last &&
+      last.courtId === r.courtId &&
+      last.kind === kind &&
+      last.sessionId === r.sessionId &&
+      last.maintenanceEventId === r.maintenanceEventId &&
+      last.endMinute === at.startMinute
+    ) {
       last.endMinute = at.startMinute + venue.slotMinutes
     } else {
       list.push({
@@ -163,6 +189,7 @@ export async function findConflicts(params: {
         kind,
         reason,
         sessionId: r.sessionId,
+        maintenanceEventId: r.maintenanceEventId,
       })
     }
     result.set(at.date, list)
@@ -170,32 +197,41 @@ export async function findConflicts(params: {
   return result
 }
 
+/** 每面場地在指定區間是否可用（表單選場地時用） */
+export async function courtAvailability(params: {
+  venue: VenueGrid
+  courts: { id: string; name: string }[]
+  date: string
+  startMinute: number
+  endMinute: number
+  excludeSessionIds?: string[]
+  excludeMaintenanceEventIds?: string[]
+}): Promise<{ courtId: string; ok: boolean; conflicts: Conflict[] }[]> {
+  const m = await findConflicts({
+    venue: params.venue,
+    courts: params.courts,
+    ranges: [{ date: params.date, startMinute: params.startMinute, endMinute: params.endMinute }],
+    excludeSessionIds: params.excludeSessionIds,
+    excludeMaintenanceEventIds: params.excludeMaintenanceEventIds,
+  })
+  const list = m.get(params.date) ?? []
+  return params.courts.map((c) => {
+    const conflicts = list.filter((x) => x.courtId === c.id)
+    return { courtId: c.id, ok: conflicts.length === 0, conflicts }
+  })
+}
+
 /**
  * 在交易中寫入活動佔用。任何一格已被佔用時整筆失敗（唯一索引），
- * 交易回滾，不會覆蓋任何既有訂單。
+ * 交易回滾，不會覆蓋任何既有訂單；跨多面場地必須全部成功才算完成。
  */
 export async function occupyCourts(
   tx: Prisma.TransactionClient,
-  params: {
-    sessionId: string
-    venue: VenueGrid
-    courtIds: string[]
-    date: string
-    startMinute: number
-    endMinute: number
-    holdExpiresAt?: Date | null
-  },
+  params: { sessionId: string; venue: VenueGrid; courtIds: string[]; date: string; startMinute: number; endMinute: number; holdExpiresAt?: Date | null },
 ): Promise<void> {
   const slots = rangeSlots(params.venue, params.date, params.startMinute, params.endMinute)
   const data = params.courtIds.flatMap((courtId) =>
-    slots.map((s) => ({
-      courtId,
-      startsAt: s.startsAt,
-      endsAt: s.endsAt,
-      status: 'EVENT' as const,
-      sessionId: params.sessionId,
-      holdExpiresAt: params.holdExpiresAt ?? null,
-    })),
+    slots.map((s) => ({ courtId, startsAt: s.startsAt, endsAt: s.endsAt, status: 'EVENT' as const, sessionId: params.sessionId, holdExpiresAt: params.holdExpiresAt ?? null })),
   )
   if (data.length === 0) return
   try {
@@ -206,8 +242,33 @@ export async function occupyCourts(
   }
 }
 
-/** 釋放場次的所有場地佔用（取消、改時段、改場地時使用） */
+/** 釋放場次的所有場地佔用（取消、改時段、改場地時使用）；只動本場次的 EVENT 列 */
 export async function releaseOccupancy(tx: Prisma.TransactionClient, sessionId: string): Promise<number> {
   const res = await tx.reservation.deleteMany({ where: { sessionId, status: 'EVENT' } })
+  return res.count
+}
+
+/** 清潔／維護事件的封場：BLOCKED 列並指向事件，全部成功才算完成 */
+export async function occupyMaintenance(
+  tx: Prisma.TransactionClient,
+  params: { eventId: string; venue: VenueGrid; courtIds: string[]; date: string; startMinute: number; endMinute: number; note: string },
+): Promise<number> {
+  const slots = rangeSlots(params.venue, params.date, params.startMinute, params.endMinute)
+  const data = params.courtIds.flatMap((courtId) =>
+    slots.map((s) => ({ courtId, startsAt: s.startsAt, endsAt: s.endsAt, status: 'BLOCKED' as const, maintenanceEventId: params.eventId, note: params.note })),
+  )
+  if (data.length === 0) return 0
+  try {
+    await tx.reservation.createMany({ data })
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new OccupancyConflictError('場地時段已被其他預約、活動或封場使用')
+    throw err
+  }
+  return data.length
+}
+
+/** 釋放清潔／維護事件的封場；fromTime 有值時只釋放該時間之後的格（提前解除） */
+export async function releaseMaintenance(tx: Prisma.TransactionClient, eventId: string, fromTime?: Date): Promise<number> {
+  const res = await tx.reservation.deleteMany({ where: { maintenanceEventId: eventId, status: 'BLOCKED', ...(fromTime ? { startsAt: { gte: fromTime } } : {}) } })
   return res.count
 }

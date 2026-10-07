@@ -14,7 +14,7 @@ import {
   type RecurrenceRule,
 } from '@/lib/activity-shared'
 import { addDays, formatDateTime, now, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc } from '@/lib/time'
-import { findConflicts, occupyCourts, OccupancyConflictError, releaseOccupancy, validateRange, type Conflict } from './occupancy'
+import { findConflicts, occupyCourts, OccupancyConflictError, releaseOccupancy, validateRange, withBuffer, type Conflict } from './occupancy'
 import { notifySeatWatchers, publicCapacity, seatsUsed } from './activity-service'
 import { cancelBooking } from './booking-service'
 import { deleteAssetIfUnused } from './media'
@@ -68,6 +68,13 @@ export const activityInputSchema = z
     openDaysBefore: z.number().int().min(0).max(60),
     openMinute: z.number().int().min(0).max(1439).nullable(),
     closeMinutesBefore: z.number().int().min(0).max(10_080),
+    /** 公開方式：公開列表／僅連結／不公開（都會占用場地） */
+    visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).default('PUBLIC'),
+    customTypeLabel: z.string().trim().max(30).nullable().default(null),
+    locationNote: z.string().trim().max(300).nullable().default(null),
+    bufferBeforeMinutes: z.number().int().min(0).max(120).default(0),
+    bufferAfterMinutes: z.number().int().min(0).max(120).default(0),
+    hostId: z.string().nullable().default(null),
   })
   .refine((v) => v.endMinute > v.startMinute, { message: '結束時間必須晚於開始時間', path: ['endMinute'] })
 
@@ -116,6 +123,8 @@ export interface PreviewRow {
   dateLabel: string
   timeLabel: string
   courtNames: string[]
+  /** 含準備／清場緩衝的實際占用時段 */
+  occupyLabel: string
   opensAt: string
   closesAt: string
   status: PreviewRowStatus
@@ -152,6 +161,11 @@ export async function previewActivity(raw: unknown, activityId?: string | null):
   if (courts.length !== v.courtIds.length) return empty('場地資料有誤，請重新選擇')
   const inactive = courts.filter((c) => !c.active)
   if (inactive.length > 0) return empty(`${inactive.map((c) => c.name).join('、')} 目前停用或維護中`)
+  if (v.hostId) {
+    const host = await prisma.host.findFirst({ where: { id: v.hostId, venueId: venue.id, active: true }, select: { id: true } })
+    if (!host) return empty('主持人資料有誤，請重新選擇')
+  }
+  const occ = withBuffer(venue, v.startMinute, v.endMinute, v.bufferBeforeMinutes, v.bufferAfterMinutes)
 
   const plan = planOccurrences(ruleOf(v))
   if (plan.error) return empty(plan.error)
@@ -167,7 +181,7 @@ export async function previewActivity(raw: unknown, activityId?: string | null):
   const conflicts = await findConflicts({
     venue,
     courts,
-    ranges: plan.dates.map((d) => ({ date: d, startMinute: v.startMinute, endMinute: v.endMinute })),
+    ranges: plan.dates.map((d) => ({ date: d, startMinute: occ.startMinute, endMinute: occ.endMinute })),
     excludeSessionIds: existing.map((s) => s.id),
   })
 
@@ -195,6 +209,7 @@ export async function previewActivity(raw: unknown, activityId?: string | null):
       dateLabel: shortDateLabel(d),
       timeLabel: activityTimeLabel(v.startMinute, v.endMinute),
       courtNames: courts.map((x) => x.name),
+      occupyLabel: activityTimeLabel(occ.startMinute, occ.endMinute),
       opensAt: formatDateTime(t.bookingOpenAt),
       closesAt: formatDateTime(t.bookingCloseAt),
       status,
@@ -251,6 +266,12 @@ function activityData(v: ActivityInput) {
     openDaysBefore: v.openDaysBefore,
     openMinute: v.openMinute,
     closeMinutesBefore: v.closeMinutesBefore,
+    visibility: v.visibility,
+    customTypeLabel: v.type === 'OTHER' ? v.customTypeLabel || null : null,
+    locationNote: v.locationNote || null,
+    bufferBeforeMinutes: v.bufferBeforeMinutes,
+    bufferAfterMinutes: v.bufferAfterMinutes,
+    hostId: v.hostId,
   }
 }
 
@@ -374,6 +395,8 @@ export async function saveActivity(params: {
             autoPromote: false,
             status,
             courtId: courts[0]?.id ?? null,
+            bufferBeforeMinutes: v.bufferBeforeMinutes,
+            bufferAfterMinutes: v.bufferAfterMinutes,
           }
           let sessionId: string
           if (draft) {
@@ -395,13 +418,14 @@ export async function saveActivity(params: {
             sessionId = s.id
           }
           await tx.sessionCourt.createMany({ data: courts.map((c) => ({ sessionId, courtId: c.id })) })
+          const occ = withBuffer(venue, v.startMinute, v.endMinute, v.bufferBeforeMinutes, v.bufferAfterMinutes)
           await occupyCourts(tx, {
             sessionId,
             venue,
             courtIds: courts.map((c) => c.id),
             date: row.date,
-            startMinute: v.startMinute,
-            endMinute: v.endMinute,
+            startMinute: occ.startMinute,
+            endMinute: occ.endMinute,
             holdExpiresAt: holdUntil,
           })
           return sessionId
@@ -468,6 +492,9 @@ export const sessionEditSchema = z.object({
     startMinute: z.number().int().min(0).max(2880).optional(),
     endMinute: z.number().int().min(0).max(2880).optional(),
     courtIds: z.array(z.string()).min(1).optional(),
+    bufferBeforeMinutes: z.number().int().min(0).max(120).optional(),
+    bufferAfterMinutes: z.number().int().min(0).max(120).optional(),
+    note: z.string().trim().max(500).nullable().optional(),
     coverAssetId: z.string().nullable().optional(),
     coverFocusX: z.number().int().min(0).max(100).nullable().optional(),
     coverFocusY: z.number().int().min(0).max(100).nullable().optional(),
@@ -532,7 +559,9 @@ export async function previewSessionEdit(raw: unknown): Promise<EditImpactRow[]>
     const newEnd = c.endMinute ?? curEnd
     const curCourts = t.courts.map((x) => x.courtId).sort()
     const newCourts = (c.courtIds ?? curCourts).slice().sort()
-    const timeChanged = newStart !== curStart || newEnd !== curEnd
+    const bufB = c.bufferBeforeMinutes ?? t.bufferBeforeMinutes
+    const bufA = c.bufferAfterMinutes ?? t.bufferAfterMinutes
+    const timeChanged = newStart !== curStart || newEnd !== curEnd || bufB !== t.bufferBeforeMinutes || bufA !== t.bufferAfterMinutes
     const courtsChanged = newCourts.join(',') !== curCourts.join(',')
     // 舊場次第一次補填場地：報名者的時間與場館都沒變，不視為異動
     const firstAssign = courtsChanged && curCourts.length === 0 && !timeChanged
@@ -549,10 +578,11 @@ export async function previewSessionEdit(raw: unknown): Promise<EditImpactRow[]>
     let conflicts: Conflict[] = []
     if ((timeChanged || courtsChanged) && problems.length === 0) {
       const courts = venue.courts.filter((x) => newCourts.includes(x.id))
+      const occ = withBuffer(venue, newStart, newEnd, bufB, bufA)
       const m = await findConflicts({
         venue,
         courts,
-        ranges: [{ date, startMinute: newStart, endMinute: newEnd }],
+        ranges: [{ date, startMinute: occ.startMinute, endMinute: occ.endMinute }],
         excludeSessionIds: [t.id],
       })
       conflicts = m.get(date) ?? []
@@ -609,7 +639,9 @@ export async function applySessionEdit(raw: unknown, opts: { confirmAffected: bo
     const newStart = c.startMinute ?? curStart
     const newEnd = c.endMinute ?? curEnd
     const newCourts = c.courtIds ?? t.courts.map((x) => x.courtId)
-    const timeChanged = newStart !== curStart || newEnd !== curEnd
+    const bufB = c.bufferBeforeMinutes ?? t.bufferBeforeMinutes
+    const bufA = c.bufferAfterMinutes ?? t.bufferAfterMinutes
+    const timeChanged = newStart !== curStart || newEnd !== curEnd || bufB !== t.bufferBeforeMinutes || bufA !== t.bufferAfterMinutes
     const courtsChanged = newCourts.slice().sort().join(',') !== t.courts.map((x) => x.courtId).sort().join(',')
 
     try {
@@ -622,6 +654,9 @@ export async function applySessionEdit(raw: unknown, opts: { confirmAffected: bo
         if (c.coverAssetId !== undefined) data.coverAsset = c.coverAssetId ? { connect: { id: c.coverAssetId } } : { disconnect: true }
         if (c.coverFocusX !== undefined) data.coverFocusX = c.coverFocusX
         if (c.coverFocusY !== undefined) data.coverFocusY = c.coverFocusY
+        if (c.note !== undefined) data.note = c.note || null
+        if (c.bufferBeforeMinutes !== undefined) data.bufferBeforeMinutes = c.bufferBeforeMinutes
+        if (c.bufferAfterMinutes !== undefined) data.bufferAfterMinutes = c.bufferAfterMinutes
 
         if (timeChanged) {
           const a = t.activity
@@ -650,7 +685,8 @@ export async function applySessionEdit(raw: unknown, opts: { confirmAffected: bo
             await tx.sessionCourt.createMany({ data: newCourts.map((courtId) => ({ sessionId: t.id, courtId })) })
           }
           if (t.status !== SessionStatus.DRAFT || (await tx.reservation.count({ where: { sessionId: t.id } })) === 0) {
-            await occupyCourts(tx, { sessionId: t.id, venue, courtIds: newCourts, date, startMinute: newStart, endMinute: newEnd })
+            const occ = withBuffer(venue, newStart, newEnd, bufB, bufA)
+            await occupyCourts(tx, { sessionId: t.id, venue, courtIds: newCourts, date, startMinute: occ.startMinute, endMinute: occ.endMinute })
           }
           const names = venue.courts.filter((x) => newCourts.includes(x.id)).map((x) => x.name).join('、')
           await tx.bookingActivityItem.updateMany({
@@ -869,9 +905,10 @@ export async function syncLegacyOccupancy(): Promise<{ fixed: number; conflicts:
       continue
     }
     try {
+      const occ = withBuffer(venue, start, end, s.bufferBeforeMinutes, s.bufferAfterMinutes)
       await prisma.$transaction(
         (tx) =>
-          occupyCourts(tx, { sessionId: s.id, venue, courtIds: s.courts.map((c) => c.courtId), date, startMinute: start, endMinute: end }),
+          occupyCourts(tx, { sessionId: s.id, venue, courtIds: s.courts.map((c) => c.courtId), date, startMinute: occ.startMinute, endMinute: occ.endMinute }),
         TX_OPTIONS,
       )
       fixed++
@@ -901,6 +938,7 @@ export async function listActivitiesAdmin() {
     where: { venueId: venue.id, deletedAt: null },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
     include: {
+      host: { select: { id: true, name: true } },
       sessions: {
         where: { deletedAt: null },
         select: { id: true, startAt: true, endAt: true, status: true },
@@ -924,6 +962,12 @@ export async function listActivitiesAdmin() {
       priceUnit: a.priceUnit,
       capacity: a.capacity,
       coverAssetId: a.coverAssetId,
+      visibility: a.visibility,
+      customTypeLabel: a.customTypeLabel,
+      hostId: a.hostId,
+      hostName: a.host?.name ?? null,
+      courtIds: parseIdList(a.courtIds),
+      seriesStartDate: a.seriesStartDate,
       totalSessions: a.sessions.length,
       upcomingSessions: upcoming.length,
       nextDate: upcoming[0] ? shortDateLabel(taipeiDateString(upcoming[0].startAt)) : null,
@@ -990,6 +1034,10 @@ export async function getActivityAdmin(id: string) {
         coverFocusY: s.coverFocusY,
         opensAt: formatDateTime(s.bookingOpenAt),
         cancelReason: s.cancelReason,
+        note: s.note,
+        bufferBeforeMinutes: s.bufferBeforeMinutes,
+        bufferAfterMinutes: s.bufferAfterMinutes,
+        registrations: used.get(s.id) ?? 0,
       }
     }),
   }
@@ -1019,4 +1067,124 @@ export async function archiveActivity(id: string, actor: string) {
     await tx.auditLog.create({ data: { actor, action: 'ACTIVITY_ARCHIVE', target: a.title, detail: { activityId: id, cancelled: future.length } } })
   }, TX_OPTIONS)
   return { cancelled: future.length }
+}
+
+/* ─────────────────────────── 新增單場／複製場次／移除未發布場次 ─────────────────────────── */
+
+export const addSessionSchema = z.object({
+  activityId: z.string(),
+  date: dateStr,
+  startMinute: z.number().int().min(0).max(2880),
+  endMinute: z.number().int().min(0).max(2880),
+  courtIds: z.array(z.string()).min(1, '請至少選擇一面場地'),
+  bufferBeforeMinutes: z.number().int().min(0).max(120).default(0),
+  bufferAfterMinutes: z.number().int().min(0).max(120).default(0),
+  note: z.string().trim().max(500).nullable().default(null),
+  price: z.number().int().min(0).max(100_000).nullable().default(null),
+  capacity: z.number().int().min(1).max(500).nullable().default(null),
+})
+export type AddSessionInput = z.infer<typeof addSessionSchema>
+
+/** 預覽新增一場的衝突（不寫入） */
+export async function previewAddSession(raw: unknown): Promise<{ ok: boolean; problems: string[]; conflicts: Conflict[]; occupyLabel: string }> {
+  const v = addSessionSchema.parse(raw)
+  const venue = await primaryVenue()
+  const a = await prisma.activity.findFirst({ where: { id: v.activityId, deletedAt: null } })
+  if (!a) throw new ActivityAdminError('找不到這個活動')
+  const problems: string[] = []
+  const rangeError = validateRange(venue, v.startMinute, v.endMinute)
+  if (rangeError) problems.push(rangeError)
+  const courts = venue.courts.filter((c) => v.courtIds.includes(c.id))
+  if (courts.length !== v.courtIds.length) problems.push('場地資料有誤')
+  if (courts.some((c) => !c.active)) problems.push('有場地停用或維護中')
+  if (taipeiToUtc(v.date, v.startMinute) <= now()) problems.push('開始時間已過')
+  const occ = withBuffer(venue, v.startMinute, v.endMinute, v.bufferBeforeMinutes, v.bufferAfterMinutes)
+  const conflicts = problems.length === 0 ? ((await findConflicts({ venue, courts, ranges: [{ date: v.date, ...occ }] })).get(v.date) ?? []) : []
+  return { ok: problems.length === 0 && conflicts.length === 0, problems, conflicts, occupyLabel: activityTimeLabel(occ.startMinute, occ.endMinute) }
+}
+
+/** 在既有活動下新增一場（可用於複製場次）；草稿活動建立草稿場次（不占用），已發布活動直接占用 */
+export async function addSession(raw: unknown, actor: string): Promise<{ sessionId: string }> {
+  const v = addSessionSchema.parse(raw)
+  const pv = await previewAddSession(v)
+  if (!pv.ok) throw new ActivityAdminError([...pv.problems, ...pv.conflicts.map((c) => `${c.courtName} ${activityTimeLabel(c.startMinute, c.endMinute)} ${c.reason}`)].join('；'))
+  const venue = await primaryVenue()
+  const a = await prisma.activity.findFirstOrThrow({ where: { id: v.activityId, deletedAt: null } })
+  const t = sessionTimes(v.date, { startMinute: v.startMinute, endMinute: v.endMinute, openDaysBefore: a.openDaysBefore, openMinute: a.openMinute, closeMinutesBefore: a.closeMinutesBefore })
+  if (t.bookingOpenAt >= t.bookingCloseAt) throw new ActivityAdminError('報名開放時間晚於截止時間，請調整活動的開放設定')
+  const published = a.status === 'PUBLISHED'
+  const count = await prisma.session.count({ where: { activityId: a.id } })
+  const occ = withBuffer(venue, v.startMinute, v.endMinute, v.bufferBeforeMinutes, v.bufferAfterMinutes)
+  try {
+    const id = await prisma.$transaction(async (tx) => {
+      const s = await tx.session.create({
+        data: {
+          organizationId: venue.organizationId,
+          venueId: venue.id,
+          activityId: a.id,
+          seriesIndex: count + 1,
+          title: a.title,
+          description: null,
+          startAt: t.startAt,
+          endAt: t.endAt,
+          bookingOpenAt: t.bookingOpenAt,
+          bookingCloseAt: t.bookingCloseAt,
+          cancelDeadline: t.bookingCloseAt,
+          finalizeAt: t.bookingCloseAt,
+          capacity: v.capacity ?? a.capacity,
+          reservedCapacity: 0,
+          price: v.price ?? a.price,
+          waitlistEnabled: false,
+          autoPromote: false,
+          status: !published ? SessionStatus.DRAFT : t.bookingOpenAt <= now() ? SessionStatus.OPEN : SessionStatus.SCHEDULED,
+          courtId: v.courtIds[0],
+          bufferBeforeMinutes: v.bufferBeforeMinutes,
+          bufferAfterMinutes: v.bufferAfterMinutes,
+          note: v.note,
+        },
+      })
+      await tx.sessionCourt.createMany({ data: v.courtIds.map((courtId) => ({ sessionId: s.id, courtId })) })
+      if (published) await occupyCourts(tx, { sessionId: s.id, venue, courtIds: v.courtIds, date: v.date, startMinute: occ.startMinute, endMinute: occ.endMinute })
+      return s.id
+    }, TX_OPTIONS)
+    await prisma.auditLog.create({ data: { actor, action: 'ACTIVITY_SESSION_ADD', target: a.title, detail: { sessionId: id, date: v.date, courtIds: v.courtIds, published } } })
+    return { sessionId: id }
+  } catch (err) {
+    if (err instanceof OccupancyConflictError) throw new ActivityAdminError('預覽後場地被占用，未建立')
+    throw err
+  }
+}
+
+/** 移除未發布（草稿）且沒有報名的場次；已發布場次請用「取消」 */
+export async function removeDraftSession(sessionId: string, actor: string): Promise<void> {
+  const s = await prisma.session.findUnique({ where: { id: sessionId }, include: { activity: { select: { title: true, status: true } } } })
+  if (!s || s.deletedAt) throw new ActivityAdminError('找不到這場')
+  const unpublished = s.status === SessionStatus.DRAFT || s.activity?.status === 'DRAFT'
+  if (!unpublished) throw new ActivityAdminError('已發布的場次請用「取消場次」（會釋放場地並通知報名者）')
+  const used = await seatsUsed([sessionId])
+  if ((used.get(sessionId) ?? 0) > 0) throw new ActivityAdminError('這場已有報名或暫留，不能直接移除')
+  await prisma.$transaction(async (tx) => {
+    await releaseOccupancy(tx, sessionId)
+    await tx.sessionCourt.deleteMany({ where: { sessionId } })
+    await tx.session.delete({ where: { id: sessionId } })
+  }, TX_OPTIONS)
+  await prisma.auditLog.create({ data: { actor, action: 'ACTIVITY_SESSION_REMOVE', target: s.activity?.title ?? s.title, detail: { sessionId } } })
+}
+
+/** 表單選時間後查每面場地是否可用（含緩衝）；excludeSessionId 用於修改既有場次 */
+export async function courtAvailabilityForForm(params: { date: string; startMinute: number; endMinute: number; bufferBeforeMinutes?: number; bufferAfterMinutes?: number; excludeSessionId?: string | null }) {
+  const venue = await primaryVenue()
+  const rangeError = validateRange(venue, params.startMinute, params.endMinute)
+  if (rangeError) return { error: rangeError, courts: [] as { courtId: string; name: string; ok: boolean; reasons: string[] }[] }
+  const occ = withBuffer(venue, params.startMinute, params.endMinute, params.bufferBeforeMinutes ?? 0, params.bufferAfterMinutes ?? 0)
+  const m = await findConflicts({ venue, courts: venue.courts, ranges: [{ date: params.date, ...occ }], excludeSessionIds: params.excludeSessionId ? [params.excludeSessionId] : [] })
+  const list = m.get(params.date) ?? []
+  return {
+    error: null,
+    occupyLabel: activityTimeLabel(occ.startMinute, occ.endMinute),
+    courts: venue.courts.map((c) => {
+      const cs = list.filter((x) => x.courtId === c.id)
+      return { courtId: c.id, name: c.name, ok: c.active && cs.length === 0, reasons: !c.active ? ['停用或維護中'] : cs.map((x) => `${activityTimeLabel(x.startMinute, x.endMinute)} ${x.reason}`) }
+    }),
+  }
 }

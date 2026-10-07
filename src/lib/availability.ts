@@ -108,20 +108,21 @@ export async function getAvailability(
       courtId: { in: venue.courts.map((c) => c.id) },
       startsAt: { gte: dayStart, lt: dayEnd },
     },
-    select: { courtId: true, startsAt: true, status: true, cartToken: true, sessionId: true, holdExpiresAt: true },
+    select: { courtId: true, startsAt: true, status: true, cartToken: true, sessionId: true, holdExpiresAt: true, maintenanceEventId: true },
   })
 
   const events = await getSessionsForDate(venue.id, dateStr, userId)
   const visibleEventIds = new Set(events.map((e) => e.id))
 
   // 以 "courtId@startMs" 建索引，供矩陣查表
-  const taken = new Map<string, { status: string; cartToken: string | null; sessionId: string | null; draft: boolean }>()
+  const taken = new Map<string, { status: string; cartToken: string | null; sessionId: string | null; draft: boolean; maintenance: boolean }>()
   for (const r of reservations) {
     taken.set(`${r.courtId}@${r.startsAt.getTime()}`, {
       status: r.status,
       cartToken: r.cartToken,
       sessionId: r.sessionId,
       draft: r.status === 'EVENT' && r.holdExpiresAt !== null,
+      maintenance: r.status === 'BLOCKED' && r.maintenanceEventId !== null,
     })
   }
 
@@ -135,7 +136,7 @@ export async function getAvailability(
       const hit = taken.get(`${court.id}@${taipeiToUtc(dateStr, t.start).getTime()}`)
       if (hit) {
         if (hit.status === 'EVENT') {
-          // 已發布活動顯示活動區塊；草稿保留或未公開的場次只顯示「場館保留」
+          // 公開活動顯示活動區塊；草稿保留、僅連結或不公開的活動只顯示「活動占用・不開放租借」，不洩漏名稱
           if (!hit.draft && hit.sessionId && visibleEventIds.has(hit.sessionId)) {
             cellSessions[rowIdx][colIdx] = hit.sessionId
             return 'EVENT'
@@ -143,7 +144,7 @@ export async function getAvailability(
           return 'RESERVED'
         }
         if (hit.status === 'BOOKED') return 'BOOKED'
-        if (hit.status === 'BLOCKED') return 'BLOCKED'
+        if (hit.status === 'BLOCKED') return hit.maintenance ? 'MAINTENANCE' : 'BLOCKED'
         // HELD：自己的購物車顯示為已選取，其餘為他人暫扣
         return cartToken && hit.cartToken === cartToken ? 'SELECTED' : 'HELD'
       }

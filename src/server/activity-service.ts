@@ -47,17 +47,26 @@ export class SignupError extends Error {
   }
 }
 
-/** 前台可見的場次：未刪除、非草稿、所屬活動已發布 */
+/** 前台「列表」可見的場次：未刪除、非草稿、所屬活動已發布且公開 */
 export function visibleSessionWhere(): Prisma.SessionWhereInput {
   return {
     deletedAt: null,
     status: { not: SessionStatus.DRAFT },
-    OR: [{ activityId: null }, { activity: { status: 'PUBLISHED', deletedAt: null } }],
+    OR: [{ activityId: null }, { activity: { status: 'PUBLISHED', deletedAt: null, visibility: 'PUBLIC' } }],
+  }
+}
+
+/** 持連結可查看的場次：公開或僅連結（不公開的活動只有後台看得到） */
+export function accessibleSessionWhere(): Prisma.SessionWhereInput {
+  return {
+    deletedAt: null,
+    status: { not: SessionStatus.DRAFT },
+    OR: [{ activityId: null }, { activity: { status: 'PUBLISHED', deletedAt: null, visibility: { in: ['PUBLIC', 'UNLISTED'] } } }],
   }
 }
 
 const SESSION_INCLUDE = {
-  activity: true,
+  activity: { include: { host: { select: { name: true, photoAssetId: true, bio: true, publicContact: true, active: true } } } },
   courts: { include: { court: { select: { id: true, name: true, sortOrder: true } } } },
 } satisfies Prisma.SessionInclude
 
@@ -193,7 +202,11 @@ async function toDTOs(rows: SessionRow[], userId: string | null): Promise<Activi
       activityId: s.activityId,
       title: s.title,
       type,
-      typeLabel: ACTIVITY_TYPE_LABEL[type],
+      typeLabel: type === 'OTHER' && a?.customTypeLabel ? a.customTypeLabel : ACTIVITY_TYPE_LABEL[type],
+      visibility: a?.visibility === 'UNLISTED' ? ('UNLISTED' as const) : ('PUBLIC' as const),
+      // 只公開主持人的前台資料；內部聯絡方式不會進 DTO
+      host: a?.host && a.host.active ? { name: a.host.name, photo: a.host.photoAssetId ? `/media/${a.host.photoAssetId}?size=thumb` : null, bio: a.host.bio ?? null, publicContact: a.host.publicContact ?? null } : null,
+      locationNote: a?.locationNote ?? null,
       levelLabel: a?.levelLabel ?? null,
       summary: a?.summary ?? null,
       description: s.description ?? a?.description ?? null,
@@ -272,7 +285,7 @@ export async function getUpcomingSessions(
 
 export async function getSessionDTO(sessionId: string, userId: string | null) {
   const row = await prisma.session.findFirst({
-    where: { ...visibleSessionWhere(), id: sessionId },
+    where: { ...accessibleSessionWhere(), id: sessionId },
     include: SESSION_INCLUDE,
   })
   if (!row) return null

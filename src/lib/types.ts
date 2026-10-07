@@ -7,7 +7,8 @@ export type SlotState =
   | 'SELECTED'      // 已選取（自己的購物車）
   | 'HELD'          // 他人暫扣
   | 'BOOKED'        // 已預約
-  | 'BLOCKED'       // 維護中
+  | 'BLOCKED'       // 人工封場
+  | 'MAINTENANCE'   // 清潔／維護排程封場
   | 'PAST'          // 已結束（今日已結束的時段整列隱藏，此狀態只在保險情況出現）
   | 'STARTED'       // 已開始、尚未結束：依預約截止規則不開放線上預約
   | 'CUTOFF'        // 尚未開始但已超過預約截止時間
@@ -20,13 +21,14 @@ export const SLOT_STATE_LABEL: Record<SlotState, string> = {
   SELECTED: '已選取',
   HELD: '他人暫扣',
   BOOKED: '已預約',
-  BLOCKED: '維護中',
+  BLOCKED: '封場',
+  MAINTENANCE: '清潔維護・暫不開放',
   PAST: '已結束',
   STARTED: '已開始',
   CUTOFF: '已截止',
   CLOSED: '未開放',
   EVENT: '活動場次',
-  RESERVED: '場館保留',
+  RESERVED: '活動占用・不開放租借',
 }
 
 export interface CourtDTO {
