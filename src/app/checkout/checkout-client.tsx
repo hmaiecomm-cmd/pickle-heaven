@@ -18,6 +18,7 @@ import { formatDateFull } from '@/lib/time'
 import { cn, ntd } from '@/lib/utils'
 import type { CartDTO, SessionUser } from '@/lib/types'
 import type { ChargeInstruction } from '@/lib/payments'
+import { CartActivityItems } from '@/components/activities/cart-activity-items'
 
 interface ProviderOption {
   id: string
@@ -161,7 +162,7 @@ export function CheckoutClient({
         return
       }
 
-      setCartStore({ items: [], subtotal: 0, expiresAt: null })
+      setCartStore({ items: [], activityItems: [], subtotal: 0, expiresAt: null })
 
       // 全額折抵，無須付款
       if (booking.total === 0) {
@@ -206,8 +207,10 @@ export function CheckoutClient({
       {/* 預約明細 */}
       <Card>
         <CardContent className="space-y-3">
-          <h2 className="text-sm font-semibold">預約明細</h2>
+          <h2 className="text-sm font-semibold">訂單明細</h2>
           <Separator />
+          <CartActivityItems items={cart.activityItems ?? []} />
+          {cart.items.length > 0 && <p className="text-xs font-bold text-muted">場地租借（每場地每時段計價）</p>}
           {Object.entries(groups).map(([date, items]) => (
             <div key={date} className="space-y-1.5">
               <p className="text-xs font-medium text-muted">{formatDateFull(date)}</p>

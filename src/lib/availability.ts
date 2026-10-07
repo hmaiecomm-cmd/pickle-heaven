@@ -11,17 +11,36 @@ import {
   taipeiMinuteOfDay,
   taipeiToUtc,
 } from './time'
-import type { AvailabilityDTO, CartDTO, CartItemDTO, SlotState, TimeRowDTO } from './types'
+import type { AvailabilityDTO, CartActivityItemDTO, CartDTO, CartItemDTO, SlotState, TimeRowDTO } from './types'
+import { ACTIVITY_TYPE_LABEL, activityTimeLabel, PRICE_UNIT_LABEL, shortDateLabel } from './activity-shared'
+import type { ActivityTypeKey, PriceUnitKey } from './activity-shared'
+import { getSessionsForDate, notifySeatWatchers } from '@/server/activity-service'
 
 /**
  * 清除逾時的購物車暫扣。
  * 於每次讀取可用性與建立暫扣前呼叫，確保「他人暫扣」不會永久卡位。
  */
 export async function releaseExpiredHolds(): Promise<number> {
+  const at = now()
   const res = await prisma.reservation.deleteMany({
-    where: { status: 'HELD', holdExpiresAt: { lt: now() } },
+    // HELD：購物車暫扣；EVENT 且有到期時間：活動草稿的「保留場地」
+    where: { status: { in: ['HELD', 'EVENT'] }, holdExpiresAt: { lt: at } },
   })
-  return res.count
+
+  // 活動的購物車暫留逾時（尚未成立訂單者）。已成立待付款訂單的由 expireStaleBookings 處理。
+  const expired = await prisma.sessionRegistration.findMany({
+    where: { status: 'PENDING', bookingId: null, holdExpiresAt: { lt: at } },
+    select: { id: true, sessionId: true },
+    take: 500,
+  })
+  if (expired.length > 0) {
+    await prisma.sessionRegistration.updateMany({
+      where: { id: { in: expired.map((r) => r.id) }, status: 'PENDING', bookingId: null },
+      data: { status: 'EXPIRED', cartToken: null },
+    })
+    await notifySeatWatchers(expired.map((r) => r.sessionId)).catch((err) => console.error('[seat-alert]', err))
+  }
+  return res.count + expired.length
 }
 
 export class BookingWindowError extends Error {
@@ -44,6 +63,7 @@ export async function getAvailability(
   slug: string,
   dateStr: string,
   cartToken: string | null,
+  userId: string | null = null,
 ): Promise<AvailabilityDTO> {
   await releaseExpiredHolds()
 
@@ -79,13 +99,21 @@ export async function getAvailability(
       courtId: { in: venue.courts.map((c) => c.id) },
       startsAt: { gte: dayStart, lt: dayEnd },
     },
-    select: { courtId: true, startsAt: true, status: true, cartToken: true },
+    select: { courtId: true, startsAt: true, status: true, cartToken: true, sessionId: true, holdExpiresAt: true },
   })
 
+  const events = await getSessionsForDate(venue.id, dateStr, userId)
+  const visibleEventIds = new Set(events.map((e) => e.id))
+
   // 以 "courtId@startMs" 建索引，供矩陣查表
-  const taken = new Map<string, { status: string; cartToken: string | null }>()
+  const taken = new Map<string, { status: string; cartToken: string | null; sessionId: string | null; draft: boolean }>()
   for (const r of reservations) {
-    taken.set(`${r.courtId}@${r.startsAt.getTime()}`, { status: r.status, cartToken: r.cartToken })
+    taken.set(`${r.courtId}@${r.startsAt.getTime()}`, {
+      status: r.status,
+      cartToken: r.cartToken,
+      sessionId: r.sessionId,
+      draft: r.status === 'EVENT' && r.holdExpiresAt !== null,
+    })
   }
 
   const today = taipeiDateString()
@@ -95,10 +123,19 @@ export async function getAvailability(
   const maxDate = addDays(today, venue.bookAheadDays)
   const beyondWindow = diffDays(dateStr, maxDate) < 0
 
-  const cells: SlotState[][] = times.map((t) =>
-    venue.courts.map((court): SlotState => {
+  const cellSessions: (string | null)[][] = times.map(() => venue.courts.map(() => null))
+  const cells: SlotState[][] = times.map((t, rowIdx) =>
+    venue.courts.map((court, colIdx): SlotState => {
       const hit = taken.get(`${court.id}@${taipeiToUtc(dateStr, t.start).getTime()}`)
       if (hit) {
+        if (hit.status === 'EVENT') {
+          // 已發布活動顯示活動區塊；草稿保留或未公開的場次只顯示「場館保留」
+          if (!hit.draft && hit.sessionId && visibleEventIds.has(hit.sessionId)) {
+            cellSessions[rowIdx][colIdx] = hit.sessionId
+            return 'EVENT'
+          }
+          return 'RESERVED'
+        }
         if (hit.status === 'BOOKED') return 'BOOKED'
         if (hit.status === 'BLOCKED') return 'BLOCKED'
         // HELD：自己的購物車顯示為已選取，其餘為他人暫扣
@@ -134,13 +171,15 @@ export async function getAvailability(
     })),
     times,
     cells,
+    cellSessions,
+    events,
     generatedAt: new Date().toISOString(),
   }
 }
 
 /** 讀取目前購物車（尚未逾時的暫扣） */
 export async function getCart(cartToken: string | null): Promise<CartDTO> {
-  if (!cartToken) return { items: [], subtotal: 0, expiresAt: null }
+  if (!cartToken) return { items: [], activityItems: [], subtotal: 0, expiresAt: null }
 
   await releaseExpiredHolds()
 
@@ -176,13 +215,48 @@ export async function getCart(cartToken: string | null): Promise<CartDTO> {
     }
   })
 
-  const subtotal = items.reduce((sum, i) => sum + i.price, 0)
-  const expiresAt =
-    items.length > 0
-      ? items.map((i) => i.expiresAt).sort()[0]
-      : null
+  const activityItems = await getCartActivityItems(cartToken)
 
-  return { items, subtotal, expiresAt }
+  const subtotal = items.reduce((sum, i) => sum + i.price, 0) + activityItems.reduce((sum, i) => sum + i.amount, 0)
+  const all = [...items.map((i) => i.expiresAt), ...activityItems.map((i) => i.expiresAt)]
+  const expiresAt = all.length > 0 ? all.sort()[0] : null
+
+  return { items, activityItems, subtotal, expiresAt }
+}
+
+/** 購物車中的活動報名；金額依場次目前價格計算，結帳時伺服器再算一次 */
+async function getCartActivityItems(cartToken: string): Promise<CartActivityItemDTO[]> {
+  const regs = await prisma.sessionRegistration.findMany({
+    where: { cartToken, status: 'PENDING', bookingId: null, holdExpiresAt: { gt: now() } },
+    include: {
+      session: {
+        include: { activity: true, courts: { include: { court: { select: { name: true, sortOrder: true } } } } },
+      },
+    },
+    orderBy: { session: { startAt: 'asc' } },
+  })
+  return regs.map((r) => {
+    const s = r.session
+    const date = taipeiDateString(s.startAt)
+    const start = taipeiMinuteOfDay(s.startAt)
+    const end = start + Math.round((s.endAt.getTime() - s.startAt.getTime()) / 60_000)
+    const unit = (s.activity?.priceUnit ?? 'PER_PERSON') as PriceUnitKey
+    return {
+      registrationId: r.id,
+      sessionId: s.id,
+      title: s.title,
+      typeLabel: ACTIVITY_TYPE_LABEL[(s.activity?.type ?? 'OPEN_PLAY') as ActivityTypeKey],
+      date,
+      dateLabel: shortDateLabel(date),
+      timeLabel: activityTimeLabel(start, end),
+      courtNames: [...s.courts].sort((a, b) => a.court.sortOrder - b.court.sortOrder).map((c) => c.court.name),
+      quantity: r.quantity,
+      unitLabel: PRICE_UNIT_LABEL[unit],
+      unitPrice: s.price,
+      amount: s.price * r.quantity,
+      expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
+    }
+  })
 }
 
 /**

@@ -5,6 +5,8 @@ import { MapPin, Phone, RefreshCw } from 'lucide-react'
 import { DateStrip } from './date-strip'
 import { MatrixLegend, SlotMatrix } from './slot-matrix'
 import { CartBar } from './cart-bar'
+import { SessionPanel } from '@/components/activities/session-panel'
+import { DayActivities } from '@/components/activities/day-activities'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { useToast } from '@/components/ui/toast'
 import { useSetCart } from '@/store/cart'
@@ -22,12 +24,17 @@ export function BookingBoard({
   initialDate,
   initialData,
   initialCart,
+  initialSessionId = null,
+  initialQuantity,
 }: {
   slug: string
   dates: string[]
   initialDate: string
   initialData: AvailabilityDTO
   initialCart: CartDTO
+  /** 由網址 ?session= 帶入（例如登入後返回），直接打開該活動 */
+  initialSessionId?: string | null
+  initialQuantity?: number
 }) {
   const { toast } = useToast()
   const setCartStore = useSetCart()
@@ -37,6 +44,19 @@ export function BookingBoard({
   const [cart, setCart] = React.useState<CartDTO>(initialCart)
   const [loading, setLoading] = React.useState(false)
   const [pendingKey, setPendingKey] = React.useState<string | null>(null)
+  const [openSession, setOpenSession] = React.useState<string | null>(initialSessionId)
+
+  // 日期與開啟中的活動寫回網址：重新整理或 LINE 登入返回時能回到同一個位置
+  const syncUrl = React.useCallback((nextDate: string, sessionId: string | null) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('date', nextDate)
+    if (sessionId) url.searchParams.set('session', sessionId)
+    else {
+      url.searchParams.delete('session')
+      url.searchParams.delete('qty')
+    }
+    window.history.replaceState(null, '', url.toString())
+  }, [])
 
   const applyCart = React.useCallback(
     (next: CartDTO) => {
@@ -67,10 +87,25 @@ export function BookingBoard({
   const handleDateChange = React.useCallback(
     (next: string) => {
       setDate(next)
+      syncUrl(next, null)
       void reload(next)
     },
-    [reload],
+    [reload, syncUrl],
   )
+
+  const openEvent = React.useCallback(
+    (sessionId: string) => {
+      setOpenSession(sessionId)
+      syncUrl(date, sessionId)
+    },
+    [date, syncUrl],
+  )
+  const closeEvent = React.useCallback(() => {
+    setOpenSession(null)
+    syncUrl(date, null)
+    // 關閉時更新名額與購物車
+    void reload(date, { silent: true })
+  }, [date, reload, syncUrl])
 
   const handleToggle = React.useCallback(
     async (courtId: string, start: number, state: SlotState) => {
@@ -199,9 +234,9 @@ export function BookingBoard({
           <span className="text-[11px] text-muted tabular">{formatDateFull(date)}</span>
         </div>
 
-        <p className="text-xs text-muted">選擇日期，點選可預約的時段加入購物車</p>
+        <p className="text-xs text-muted">點選可預約的時段加入購物車；紫色區塊是活動場次，點擊可查看活動並報名。</p>
 
-        <SlotMatrix data={data} pendingKey={pendingKey} onToggle={handleToggle} busy={loading} />
+        <SlotMatrix data={data} pendingKey={pendingKey} onToggle={handleToggle} onOpenEvent={openEvent} busy={loading} />
 
         <div className="pt-1">
           <MatrixLegend />
@@ -210,6 +245,8 @@ export function BookingBoard({
           加入購物車後系統會為您保留 {venue.holdMinutes} 分鐘，逾時將自動釋放給其他球友。
         </p>
       </section>
+
+      <DayActivities date={date} events={data.events} onOpen={openEvent} />
 
       {/* 場館規則 */}
       {venue.policy && (
@@ -223,6 +260,13 @@ export function BookingBoard({
       )}
 
       <CartBar cart={cart} onExpire={handleExpire} />
+
+      <SessionPanel
+        sessionId={openSession}
+        onClose={closeEvent}
+        onCartChange={applyCart}
+        initialQuantity={initialQuantity}
+      />
     </div>
   )
 }

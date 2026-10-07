@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import { getAvailability, getCart } from '@/lib/availability'
-import { getCartToken } from '@/lib/session'
+import { getCartToken, getSessionUser } from '@/lib/session'
 import { dateRange, isValidDateString, taipeiDateString } from '@/lib/time'
 import { BookingBoard } from '@/components/booking/booking-board'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export default async function BookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; venue?: string }>
+  searchParams: Promise<{ date?: string; venue?: string; session?: string; qty?: string }>
 }) {
   const sp = await searchParams
 
@@ -36,13 +36,22 @@ export default async function BookingPage({
   const date = sp.date && isValidDateString(sp.date) ? sp.date : today
   const dates = dateRange(venue.bookAheadDays + 1, today)
 
-  const cartToken = await getCartToken()
+  const [cartToken, user] = await Promise.all([getCartToken(), getSessionUser()])
   const [data, cart] = await Promise.all([
-    getAvailability(venue.slug, date, cartToken),
+    getAvailability(venue.slug, date, cartToken, user?.id ?? null),
     getCart(cartToken),
   ])
+  const qty = Number(sp.qty)
 
   return (
-    <BookingBoard slug={venue.slug} dates={dates} initialDate={date} initialData={data} initialCart={cart} />
+    <BookingBoard
+      slug={venue.slug}
+      dates={dates}
+      initialDate={date}
+      initialData={data}
+      initialCart={cart}
+      initialSessionId={sp.session ?? null}
+      initialQuantity={Number.isInteger(qty) && qty > 0 ? qty : undefined}
+    />
   )
 }

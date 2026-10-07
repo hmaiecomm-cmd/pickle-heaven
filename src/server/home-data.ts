@@ -1,5 +1,6 @@
 import { CoachStatus, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { getUpcomingSessions } from './activity-service'
 import { zonedParts } from '@/lib/timezone'
 
 /**
@@ -78,24 +79,7 @@ export async function getHomeData(): Promise<HomeData> {
           [],
         )
       : Promise.resolve([]),
-    safe(
-      '球敘',
-      () =>
-        prisma.session.findMany({
-          where: {
-            deletedAt: null,
-            startAt: { gt: now },
-            status: { in: [SessionStatus.SCHEDULED, SessionStatus.OPEN, SessionStatus.FULL] },
-          },
-          orderBy: { startAt: 'asc' },
-          take: 3,
-          include: {
-            venue: { select: { timezone: true } },
-            _count: { select: { registrations: { where: { status: RegistrationStatus.CONFIRMED } } } },
-          },
-        }),
-      [],
-    ),
+    venue ? safe('活動', () => getUpcomingSessions(venue.id, null, { limit: 3 }), []) : Promise.resolve([]),
     safe(
       '教練',
       () =>
@@ -126,33 +110,15 @@ export async function getHomeData(): Promise<HomeData> {
       : null,
     prices,
     minPrice: prices.length ? Math.min(...prices.map((p) => p.price)) : null,
-    sessions: sessions.map((s) => {
-      const tz = s.venue.timezone
-      const start = zonedParts(s.startAt, tz)
-      const end = zonedParts(s.endAt, tz)
-      const open = zonedParts(s.bookingOpenAt, tz)
-      const publicSpots = Math.max(0, s.capacity - s.reservedCapacity)
-      const left = Math.max(0, publicSpots - s._count.registrations)
-      const opened = s.status === SessionStatus.OPEN && s.bookingOpenAt <= now
-      return {
-        id: s.id,
-        title: s.title,
-        dateLabel: `${start.month}/${start.day}（${WEEKDAYS[start.weekday]}）`,
-        timeLabel: `${pad(start.hour)}:${pad(start.minute)}–${pad(end.hour)}:${pad(end.minute)}`,
-        price: s.price,
-        spotsLeft: opened ? left : null,
-        statusLabel:
-          s.status === SessionStatus.FULL
-            ? s.waitlistEnabled
-              ? '已額滿・可候補'
-              : '已額滿'
-            : opened
-              ? left > 0
-                ? `剩 ${left} 個名額`
-                : '已額滿'
-              : `${open.month}/${open.day} ${pad(open.hour)}:${pad(open.minute)} 開放報名`,
-      }
-    }),
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      title: s.title,
+      dateLabel: s.dateLabel,
+      timeLabel: s.timeLabel,
+      price: s.price,
+      spotsLeft: s.state === 'OPEN' ? s.remaining : null,
+      statusLabel: s.state === 'OPEN' ? `剩 ${s.remaining} 個名額` : s.state === 'NOT_OPEN' && s.opensAtLabel ? s.opensAtLabel : s.stateLabel,
+    })),
     coaches: coaches.map((c) => ({
       ...c,
       specialties: Array.isArray(c.specialties) ? c.specialties.filter((x): x is string => typeof x === 'string') : [],

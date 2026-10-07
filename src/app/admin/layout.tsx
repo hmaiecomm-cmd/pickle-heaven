@@ -25,9 +25,9 @@ const NAV: NavGroup[] = [
     items: [
       { label: '訂單管理', href: '/admin/bookings' },
       { label: '場地時段', href: '/admin/schedule' },
-      { label: '球敘', href: '/admin/sessions' },
-      { label: '球敘範本', href: '/admin/templates' },
-      { label: '活動與教練', href: '/admin/events' },
+      { label: '活動', href: '/admin/activities' },
+      { label: '場次名單', href: '/admin/sessions' },
+      { label: '教練', href: '/admin/events' },
       { label: '會員', href: '/admin/members' },
       { label: '球場', href: '/admin/courts' },
       { label: '定價', href: '/admin/pricing' },

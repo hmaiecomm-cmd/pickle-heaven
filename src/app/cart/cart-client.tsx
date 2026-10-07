@@ -13,7 +13,9 @@ import { useSetCart } from '@/store/cart'
 import { emptyCart, fetchCart, removeCartItem } from '@/server/actions'
 import { formatDateFull } from '@/lib/time'
 import { cn, ntd } from '@/lib/utils'
-import type { CartDTO, CartItemDTO } from '@/lib/types'
+import type { CartActivityItemDTO, CartDTO, CartItemDTO } from '@/lib/types'
+import { CartActivityItems } from '@/components/activities/cart-activity-items'
+import { removeActivityFromCart } from '@/server/activity-actions'
 
 export function CartClient({ initialCart }: { initialCart: CartDTO }) {
   const router = useRouter()
@@ -50,6 +52,17 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
     }
   }
 
+  const handleRemoveActivity = async (item: CartActivityItemDTO) => {
+    setBusyId(item.registrationId)
+    try {
+      const res = await removeActivityFromCart(item.registrationId)
+      if (res.ok) apply(res.cart)
+      else toast(res.error, 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const handleClear = async () => {
     const res = await emptyCart()
     if (res.ok) {
@@ -58,14 +71,15 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
     }
   }
 
-  if (cart.items.length === 0) {
+  const activityItems = cart.activityItems ?? []
+  if (cart.items.length === 0 && activityItems.length === 0) {
     return (
       <div className="mx-auto max-w-lg py-10 text-center">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl surface-2 text-[rgb(var(--fg-muted))]">
           <ShoppingCart className="h-7 w-7" aria-hidden />
         </span>
         <h1 className="mt-4 text-lg font-semibold">購物車是空的</h1>
-        <p className="mt-1 text-sm text-muted">先挑一個日期，選擇想打球的場地與時段吧！</p>
+        <p className="mt-1 text-sm text-muted">先挑一個日期，選擇想打球的場地與時段，或報名一場活動吧！</p>
         <Button asChild className="mt-6">
           <Link href="/booking">
             <CalendarPlus className="h-4 w-4" aria-hidden />
@@ -110,17 +124,19 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
         <Clock className="h-4 w-4 shrink-0" aria-hidden />
         {remaining > 0 ? (
           <span>
-            系統為您保留這些時段，請於 <strong className="tabular">{formatCountdown(remaining)}</strong> 內完成結帳
+            系統為您保留這些項目，請於 <strong className="tabular">{formatCountdown(remaining)}</strong> 內完成結帳
           </span>
         ) : (
           <span>保留已逾時，請重新選擇時段</span>
         )}
       </div>
 
+      <CartActivityItems items={activityItems} onRemove={handleRemoveActivity} busyId={busyId} />
+
       {Object.entries(groups).map(([date, items]) => (
         <Card key={date}>
           <CardContent className="space-y-3">
-            <h2 className="text-sm font-semibold">{formatDateFull(date)}</h2>
+            <h2 className="text-sm font-semibold">場地租借・{formatDateFull(date)}</h2>
             <Separator />
             <ul className="divide-y divide-[rgb(var(--border))]">
               {items.map((item) => (
@@ -151,7 +167,9 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
 
       <Card>
         <CardContent className="flex items-center justify-between">
-          <span className="text-sm text-muted">小計（{cart.items.length} 個時段）</span>
+          <span className="text-sm text-muted">
+            小計（{[cart.items.length > 0 && `場地 ${cart.items.length} 個時段`, activityItems.length > 0 && `活動 ${activityItems.length} 場`].filter(Boolean).join('、')}）
+          </span>
           <span className="text-xl font-semibold tabular">{ntd(cart.subtotal)}</span>
         </CardContent>
       </Card>

@@ -10,7 +10,7 @@ interface CartState {
   clear: () => void
 }
 
-const EMPTY: CartDTO = { items: [], subtotal: 0, expiresAt: null }
+const EMPTY: CartDTO = { items: [], activityItems: [], subtotal: 0, expiresAt: null }
 
 type CartStore = ReturnType<typeof createCartStore>
 
@@ -45,4 +45,4 @@ export function useCartStore<T>(selector: (state: CartState) => T): T {
 /** 常用選擇器 */
 export const useCart = () => useCartStore((s) => s.cart)
 export const useSetCart = () => useCartStore((s) => s.setCart)
-export const useCartCount = () => useCartStore((s) => s.cart.items.length)
+export const useCartCount = () => useCartStore((s) => s.cart.items.length + (s.cart.activityItems?.length ?? 0))

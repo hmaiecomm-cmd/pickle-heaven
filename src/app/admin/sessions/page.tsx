@@ -6,7 +6,6 @@ import { requireAdmin } from '@/lib/admin-auth'
 import { zonedParts } from '@/lib/timezone'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CreateSessionButton } from './create-session'
 
 export const metadata: Metadata = { title: '球敘管理' }
 export const dynamic = 'force-dynamic'
@@ -61,12 +60,10 @@ export default async function AdminSessionsPage({ searchParams }: { searchParams
     return (
       <Card>
         <CardContent className="space-y-4 py-12 text-center text-sm text-muted">
-          <p>尚未有任何球敘。可以新增一場單次球敘，或建立週期性範本讓排程自動產生場次。</p>
+          <p>尚未有任何場次。請到「活動」新增單次或每週固定活動，系統會先預覽衝突再建立場次。</p>
           <div className="flex justify-center gap-3">
-            <CreateSessionButton timezone={timezone} autoOpen={autoOpen} />
-            <Link href="/admin/templates" className="inline-flex h-9 items-center rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
-              週期性範本
-            </Link>
+            <Link href="/admin/activities/new" className="inline-flex h-9 items-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">新增活動</Link>
+            <Link href="/admin/activities" className="inline-flex h-9 items-center rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">活動管理</Link>
           </div>
         </CardContent>
       </Card>
@@ -81,10 +78,8 @@ export default async function AdminSessionsPage({ searchParams }: { searchParams
           <p className="mt-0.5 text-xs text-muted">共 {sessions.length} 場，點選可管理名單</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/admin/templates" className="text-xs text-brand-600 hover:underline">
-            週期性範本 →
-          </Link>
-          <CreateSessionButton timezone={timezone} autoOpen={autoOpen} />
+          <Link href="/admin/activities" className="text-xs text-brand-600 hover:underline">活動管理 →</Link>
+          <Link href="/admin/activities/new" className="inline-flex h-9 items-center rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">新增活動</Link>
         </div>
       </div>
 

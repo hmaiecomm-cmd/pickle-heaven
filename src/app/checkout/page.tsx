@@ -13,7 +13,7 @@ export default async function CheckoutPage() {
   const cartToken = await getCartToken()
   const cart = await getCart(cartToken)
 
-  if (cart.items.length === 0) redirect('/cart')
+  if (cart.items.length === 0 && cart.activityItems.length === 0) redirect('/cart')
 
   const user = await getSessionUser()
   const providers = availableProviders()

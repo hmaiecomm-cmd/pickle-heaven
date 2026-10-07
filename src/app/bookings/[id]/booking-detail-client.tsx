@@ -39,6 +39,16 @@ interface BookingView {
   expiresAt: string | null
   venue: { name: string; address: string; phone: string; notice: string | null; policy: string | null }
   items: { courtName: string; timeLabel: string; rateName: string; price: number }[]
+  activities: {
+    title: string
+    date: string
+    timeLabel: string
+    courtNames: string
+    quantity: number
+    unitPrice: number
+    amount: number
+    status: string
+  }[]
   payment: {
     provider: string
     method: string
@@ -118,6 +128,16 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
         </div>
       )}
 
+      {booking.status === 'REFUND_PENDING' && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-900">付款已收到，但時段或名額已失效</p>
+            <p className="mt-0.5 text-xs text-amber-800">這筆訂單未成立，場館將為您辦理退款。如有疑問請聯絡場館。</p>
+          </div>
+        </div>
+      )}
+
       {/* 待付款提醒 */}
       {booking.status === 'PENDING' && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/40">
@@ -145,8 +165,34 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
 
           <Separator />
 
+          {booking.activities.length > 0 && (
+            <div className="rounded-xl bg-brand-50 p-3">
+              <p className="text-sm font-semibold text-brand-900">活動報名</p>
+              <ul className="mt-2 space-y-2">
+                {booking.activities.map((it, i) => (
+                  <li key={i} className="text-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">
+                        {it.title}
+                        {it.status !== 'ACTIVE' && (
+                          <span className="ml-2 text-xs text-muted">{it.status === 'REFUNDED' ? '（場次取消，已退款）' : '（已取消）'}</span>
+                        )}
+                      </span>
+                      <span className="tabular">{ntd(it.amount)}</span>
+                    </div>
+                    <p className="text-xs text-muted tabular">
+                      {formatDateFull(it.date)} {it.timeLabel}
+                      {it.courtNames && `・${it.courtNames}`}・{it.quantity} × {ntd(it.unitPrice)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {booking.items.length > 0 && (
           <div>
-            <p className="text-sm font-semibold">{formatDateFull(booking.playDate)}</p>
+            <p className="text-sm font-semibold">場地租借・{formatDateFull(booking.playDate)}</p>
             <ul className="mt-2 space-y-1.5">
               {booking.items.map((it, i) => (
                 <li key={i} className="flex items-center justify-between text-sm">
@@ -160,6 +206,7 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
               ))}
             </ul>
           </div>
+          )}
         </CardContent>
       </Card>
 

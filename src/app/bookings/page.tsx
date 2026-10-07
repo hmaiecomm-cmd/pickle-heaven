@@ -32,13 +32,22 @@ export default async function BookingsPage() {
       playDate: b.playDate,
       venueName: b.venue.name,
       total: b.total,
-      slots: b.items.map((it) => ({
-        courtName: it.courtName,
-        label: formatRange(
-          Math.round((it.startsAt.getTime() - base) / 60_000),
-          Math.round((it.endsAt.getTime() - base) / 60_000),
-        ),
-      })),
+      slots: [
+        ...b.items.map((it) => ({
+          courtName: it.courtName,
+          label: formatRange(
+            Math.round((it.startsAt.getTime() - base) / 60_000),
+            Math.round((it.endsAt.getTime() - base) / 60_000),
+          ),
+        })),
+        ...b.activityItems.map((it) => ({
+          courtName: `活動・${it.title} ×${it.quantity}`,
+          label: formatRange(
+            Math.round((it.startsAt.getTime() - base) / 60_000),
+            Math.round((it.endsAt.getTime() - base) / 60_000),
+          ),
+        })),
+      ],
     }
   }
 

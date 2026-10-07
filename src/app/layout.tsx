@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import './globals.css'
 import { LiffProvider } from '@/components/liff-provider'
 import { ToastProvider } from '@/components/ui/toast'
@@ -43,11 +44,12 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [user, cartToken] = await Promise.all([getSessionUser(), getCartToken()])
+  const [user, cartToken, h] = await Promise.all([getSessionUser(), getCartToken(), headers()])
   const cart = await getCart(cartToken)
+  const area = h.get('x-ph-area') === 'admin' ? 'admin' : 'public'
 
   return (
-    <html lang="zh-Hant-TW" suppressHydrationWarning>
+    <html lang="zh-Hant-TW" data-area={area} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         <ToastProvider>
           <LiffProvider initialUser={user}>

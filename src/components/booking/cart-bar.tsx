@@ -46,7 +46,7 @@ export function formatCountdown(seconds: number): string {
 export function CartBar({ cart, onExpire }: { cart: CartDTO; onExpire?: () => void }) {
   const router = useRouter()
   const remaining = useHoldCountdown(cart.expiresAt, onExpire)
-  const count = cart.items.length
+  const count = cart.items.length + (cart.activityItems?.length ?? 0)
 
   if (count === 0) return null
 

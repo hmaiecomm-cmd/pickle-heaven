@@ -1,4 +1,5 @@
 /** 前後端共用型別 */
+import type { ActivitySessionDTO } from './activity-shared'
 
 /** 時段格狀態 */
 export type SlotState =
@@ -9,6 +10,8 @@ export type SlotState =
   | 'BLOCKED'       // 維護中
   | 'PAST'          // 已過時
   | 'CLOSED'        // 未開放
+  | 'EVENT'         // 活動場次使用中（cellSessions 指向場次）
+  | 'RESERVED'      // 場館保留（活動草稿保留等），不開放預約
 
 export const SLOT_STATE_LABEL: Record<SlotState, string> = {
   AVAILABLE: '可預約',
@@ -18,6 +21,8 @@ export const SLOT_STATE_LABEL: Record<SlotState, string> = {
   BLOCKED: '維護中',
   PAST: '已過時',
   CLOSED: '未開放',
+  EVENT: '活動場次',
+  RESERVED: '場館保留',
 }
 
 export interface CourtDTO {
@@ -65,6 +70,10 @@ export interface AvailabilityDTO {
   times: TimeRowDTO[]
   /** cells[timeIndex][courtIndex] */
   cells: SlotState[][]
+  /** EVENT 格對應的場次 id（其餘為 null），cellSessions[timeIndex][courtIndex] */
+  cellSessions: (string | null)[][]
+  /** 當日活動場次（含沒有佔用場地的場次） */
+  events: ActivitySessionDTO[]
   /** 產生時間（ISO），前端用以判斷資料新鮮度 */
   generatedAt: string
 }
@@ -84,8 +93,26 @@ export interface CartItemDTO {
   expiresAt: string
 }
 
+/** 購物車中的活動報名（已暫留名額） */
+export interface CartActivityItemDTO {
+  registrationId: string
+  sessionId: string
+  title: string
+  typeLabel: string
+  date: string
+  dateLabel: string
+  timeLabel: string
+  courtNames: string[]
+  quantity: number
+  unitLabel: string
+  unitPrice: number
+  amount: number
+  expiresAt: string
+}
+
 export interface CartDTO {
   items: CartItemDTO[]
+  activityItems: CartActivityItemDTO[]
   subtotal: number
   /** 最早到期的暫扣時間，前端倒數用 */
   expiresAt: string | null

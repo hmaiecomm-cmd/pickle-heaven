@@ -5,11 +5,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
-          400: '#34d399', 500: '#10b981', 600: '#0fa36b', 700: '#047857',
-          800: '#065f46', 900: '#064e3b',
-        },
+        // 前台（大新店森林匹克球）為紫色、後台（匹克精靈）為綠色，數值在 globals.css 依 html[data-area] 切換
+        brand: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((n) => [n, `rgb(var(--brand-${n}) / <alpha-value>)`]),
+        ),
         // 前台品牌色，數值集中在 globals.css 的 --hp-* token
         hp: {
           purple: 'rgb(var(--hp-purple) / <alpha-value>)',

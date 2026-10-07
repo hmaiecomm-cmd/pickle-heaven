@@ -235,6 +235,10 @@ export async function completeSessions(now = new Date()): Promise<JobResult> {
  * 重複執行時靠 @@unique([templateId, startAt]) 跳過已存在的場次。
  */
 export async function generateUpcomingSessions(now = new Date()): Promise<JobResult> {
+  // 週期範本已停用：活動場次改由後台「活動」預覽衝突後建立（有結束條件、不會無限延伸、會佔用場地）。
+  // 保留函式讓舊排程呼叫不出錯。
+  if (process.env.LEGACY_TEMPLATE_GENERATION !== '1') return { generated: 0 }
+
   const templates = await prisma.sessionTemplate.findMany({
     where: { active: true },
     include: { venue: { select: { timezone: true } } },

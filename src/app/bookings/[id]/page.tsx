@@ -56,6 +56,16 @@ export default async function BookingDetailPage({
           rateName: it.rateName,
           price: it.price,
         })),
+        activities: booking.activityViews.map((it) => ({
+          title: it.title,
+          date: it.date,
+          timeLabel: it.timeLabel,
+          courtNames: it.courtNames,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          amount: it.amount,
+          status: it.status,
+        })),
         payment: payment
           ? {
               provider: payment.provider,

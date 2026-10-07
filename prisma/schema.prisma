@@ -33,6 +33,7 @@ enum ReservationStatus {
   HELD // 購物車暫扣
   BOOKED // 已成立
   BLOCKED // 場館維護 / 課程鎖定
+  EVENT // 活動場次佔用（sessionId 指向場次；holdExpiresAt 有值時為草稿「保留場地」，到期自動釋放）
 }
 
 enum CourtStatus {
@@ -101,6 +102,7 @@ enum BookingStatus {
   CANCELLED // 已取消
   EXPIRED // 逾時未付款
   COMPLETED // 已完成（打完球）
+  REFUND_PENDING // 款項已收但時段／名額已失效（逾時後才付款成功、場次已取消），待退款
 }
 
 enum PaymentStatus {
@@ -122,19 +124,19 @@ enum VoucherType {
 
 /// 會員（以 LINE userId 為主要識別）
 model User {
-  id          String   @id @default(cuid())
-  lineUserId  String?  @unique
-  displayName String
-  pictureUrl  String?
-  phone       String?
-  email       String?
-  role        Role     @default(USER)
+  id              String          @id @default(cuid())
+  lineUserId      String?         @unique
+  displayName     String
+  pictureUrl      String?
+  phone           String?
+  email           String?
+  role            Role            @default(USER)
   /// 點數餘額（1 點 = NT$1，取消退款時回補）
-  points      Int      @default(0)
+  points          Int             @default(0)
   /// 會員等級，影響折扣（見 MembershipTier）
   membershipLevel MembershipLevel @default(BASIC)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   /// 出席信賴度統計（僅記錄，初期不做任何處罰）
   sessionsJoined    Int @default(0)
@@ -143,11 +145,12 @@ model User {
   lateCancelCount   Int @default(0)
   noShowCount       Int @default(0)
 
-  bookings      Booking[]
-  invoices      Invoice[]
-  vouchers      Voucher[]
-  registrations SessionRegistration[]
-  notifications NotificationLog[]
+  bookings       Booking[]
+  invoices       Invoice[]
+  vouchers       Voucher[]
+  registrations  SessionRegistration[]
+  notifications  NotificationLog[]
+  sessionWatches SessionWatch[]
 
   @@index([createdAt])
 }
@@ -185,20 +188,21 @@ model Venue {
   bookings         Booking[]
   sessionTemplates SessionTemplate[]
   sessions         Session[]
+  activities       Activity[]
 }
 
 /// 場地（球場）
 model Court {
-  id        String  @id @default(cuid())
+  id        String      @id @default(cuid())
   venueId   String
   name      String
-  sortOrder Int     @default(0)
+  sortOrder Int         @default(0)
   /// 室內球場
-  indoor    Boolean @default(true)
+  indoor    Boolean     @default(true)
   /// 室外球場是否有雨棚遮蔽
-  covered   Boolean @default(false)
+  covered   Boolean     @default(false)
   surface   String?
-  active    Boolean @default(true)
+  active    Boolean     @default(true)
   /// 營運狀態；MAINTENANCE / INACTIVE 時 active 同步為 false
   status    CourtStatus @default(ACTIVE)
   /// 建議同時上場人數
@@ -210,6 +214,7 @@ model Court {
   bookingItems     BookingItem[]
   sessionTemplates SessionTemplate[]
   sessions         Session[]
+  sessionCourts    SessionCourt[]
 
   @@index([venueId, sortOrder])
 }
@@ -375,15 +380,19 @@ model Reservation {
   /// HELD 專用：購物車識別碼（用以區分「已選取」與「他人暫扣」）
   cartToken     String?
   bookingId     String?
+  /// EVENT 專用：佔用此時段的活動場次
+  sessionId     String?
   note          String?
   createdAt     DateTime          @default(now())
 
   court   Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
   booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([courtId, startsAt])
   @@index([startsAt])
   @@index([bookingId])
+  @@index([sessionId])
   @@index([holdExpiresAt])
   @@index([cartToken])
 }
@@ -415,13 +424,14 @@ model Booking {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
-  venue        Venue         @relation(fields: [venueId], references: [id])
-  items        BookingItem[]
-  payments     Payment[]
-  reservations Reservation[]
-  voucher      Voucher?
-  invoices     Invoice[]
+  user          User                  @relation(fields: [userId], references: [id])
+  venue         Venue                 @relation(fields: [venueId], references: [id])
+  items         BookingItem[]
+  activityItems BookingActivityItem[]
+  payments      Payment[]
+  reservations  Reservation[]
+  voucher       Voucher?
+  invoices      Invoice[]
 
   @@index([userId, createdAt])
   @@index([venueId, playDate])
@@ -532,6 +542,8 @@ enum SessionStatus {
 }
 
 enum RegistrationStatus {
+  PENDING // 購物車暫留或待付款，holdExpiresAt 到期即失效
+  EXPIRED // 暫留逾時或訂單逾時未付款
   CONFIRMED // 正取
   WAITLISTED // 候補
   CANCELLED // 於截止前正常取消
@@ -559,6 +571,27 @@ enum NotificationType {
   FINAL_ROSTER // 最終名單
   REMINDER // 開打提醒
   SESSION_CANCELLED // 整場取消通知
+  SESSION_CHANGED // 場次時間、場地等異動通知
+  SEAT_AVAILABLE // 有名額通知
+}
+
+enum ActivityType {
+  OPEN_PLAY // 球友集合
+  BEGINNER // 新手體驗
+  LESSON // 課程
+  SOCIAL // 交流活動
+  OTHER
+}
+
+enum ActivityStatus {
+  DRAFT // 草稿：前台不顯示，預設不佔場地
+  PUBLISHED // 已發布
+  ARCHIVED // 已下架
+}
+
+enum PriceUnit {
+  PER_PERSON // 每人
+  PER_PAIR // 每組（2 人）
 }
 
 enum NotificationChannel {
@@ -584,6 +617,7 @@ model Organization {
   venues           Venue[]
   sessionTemplates SessionTemplate[]
   sessions         Session[]
+  activities       Activity[]
 
   @@index([active])
 }
@@ -680,9 +714,24 @@ model Session {
   /// 後台刪除的時間。範本產生的場次改為軟刪除，避免排程依 @@unique 又把它補回來
   deletedAt    DateTime?
 
+  /// 所屬活動；活動的基本資料（類型、介紹、封面）由此帶入
+  activityId   String?
+  /// 本場覆寫的封面（null 時沿用活動封面）
+  coverAssetId String?
+  coverFocusX  Int?
+  coverFocusY  Int?
+  /// 系列中的順序（1 起算），單次活動為 1
+  seriesIndex  Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  activity      Activity?               @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  coverAsset    MediaAsset?             @relation("SessionCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  courts        SessionCourt[]
+  occupancy     Reservation[]
+  activityItems BookingActivityItem[]
+  watches       SessionWatch[]
   organization  Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   template      SessionTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
   venue         Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
@@ -697,6 +746,7 @@ model Session {
   @@index([status, finalizeAt])
   @@index([status, startAt])
   @@index([venueId, startAt])
+  @@index([activityId, startAt])
 }
 
 /// 單一使用者對單一球敘的報名紀錄。
@@ -713,6 +763,17 @@ model SessionRegistration {
   addedByOrganizer Boolean @default(false)
   note             String?
 
+  /// 報名單位數（PER_PAIR 時一單位佔 2 個名額，見 seats）
+  quantity      Int       @default(1)
+  /// 實際佔用名額 = quantity × 每單位人數
+  seats         Int       @default(1)
+  /// 加入購物車時的單價（結帳時以伺服器重算為準）
+  unitPrice     Int?
+  /// PENDING 專用：暫留到期時間
+  holdExpiresAt DateTime?
+  cartToken     String?
+  bookingId     String?
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   registeredAt DateTime  @default(now())
@@ -726,6 +787,8 @@ model SessionRegistration {
 
   @@unique([sessionId, userId])
   @@index([sessionId, status])
+  @@index([cartToken])
+  @@index([bookingId])
   @@index([sessionId, status, waitlistPosition])
   @@index([userId, status])
 }
@@ -771,4 +834,153 @@ model NotificationLog {
 
   @@index([status, createdAt])
   @@index([sessionId, type])
+}
+
+/// 活動（系列）。基本資料與排程規則；每個日期各自是一筆 Session（獨立名額、狀態、訂單）。
+model Activity {
+  id             String         @id @default(cuid())
+  organizationId String
+  venueId        String
+  title          String
+  type           ActivityType   @default(OPEN_PLAY)
+  status         ActivityStatus @default(DRAFT)
+
+  /// 卡片上的一句簡介
+  summary      String?
+  description  String?
+  /// 適合程度，例如「新手友善」「3.0 以上」
+  levelLabel   String?
+  /// 參加條件，例如「請自備球拍」
+  requirements String?
+  /// 費用包含項目
+  includes     String?
+  /// 取消與退款補充說明（退款比例一律依系統規則計算）
+  refundNote   String?
+
+  coverAssetId String?
+  coverFocusX  Int     @default(50)
+  coverFocusY  Int     @default(50)
+
+  /// 預設每單位價格（新台幣整數元），各場可覆寫
+  price       Int       @default(0)
+  priceUnit   PriceUnit @default(PER_PERSON)
+  /// 預設名額上限（人），各場可覆寫
+  capacity    Int       @default(8)
+  /// 單筆報名最多幾個單位
+  maxPerOrder Int       @default(4)
+
+  /// ONCE 單次 / WEEKLY 每週
+  repeatKind      String  @default("ONCE")
+  /// 0=週日 … 6=週六，逗號分隔
+  weekdays        String  @default("")
+  intervalWeeks   Int     @default(1)
+  /// 自場館日期 00:00 起算的分鐘數；超過 1440 代表翌日
+  startMinute     Int
+  endMinute       Int
+  /// 系列開始日期 YYYY-MM-DD（Asia/Taipei）
+  seriesStartDate String
+  seriesEndDate   String?
+  occurrenceCount Int?
+  /// 跳過的日期，逗號分隔 YYYY-MM-DD
+  skipDates       String  @default("")
+  /// 使用場地 id，逗號分隔
+  courtIds        String  @default("")
+
+  /// 每場開始前幾天開放報名
+  openDaysBefore     Int  @default(7)
+  /// 固定開放時刻（分鐘）；null 時與開始時刻相同
+  openMinute         Int?
+  /// 開始前幾分鐘截止報名
+  closeMinutesBefore Int  @default(60)
+
+  /// 草稿的「保留場地」到期時間；null 代表草稿不佔場地
+  holdUntil DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue        Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  coverAsset   MediaAsset?  @relation("ActivityCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+
+  @@index([venueId, status])
+}
+
+/// 場次使用的場地（可多面）。佔用本身記在 Reservation（status = EVENT）。
+model SessionCourt {
+  sessionId String
+  courtId   String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, courtId])
+  @@index([courtId])
+}
+
+/// 訂單中的活動報名明細（下單當下的快照，之後場次異動不會回寫價格）
+model BookingActivityItem {
+  id             String    @id @default(cuid())
+  bookingId      String
+  sessionId      String
+  registrationId String
+  title          String
+  startsAt       DateTime
+  endsAt         DateTime
+  courtNames     String    @default("")
+  quantity       Int
+  seats          Int
+  unitPrice      Int
+  amount         Int
+  priceUnit      PriceUnit @default(PER_PERSON)
+  /// ACTIVE / CANCELLED / REFUNDED
+  status         String    @default("ACTIVE")
+  createdAt      DateTime  @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([sessionId])
+  /// 同一筆報名在前一張訂單逾時後可再下單，因此不設唯一
+  @@index([registrationId])
+}
+
+/// 「有名額通知我」訂閱。不保留名額。
+model SessionWatch {
+  id          String    @id @default(cuid())
+  sessionId   String
+  userId      String
+  createdAt   DateTime  @default(now())
+  notifiedAt  DateTime?
+  cancelledAt DateTime?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, cancelledAt])
+}
+
+/// 上傳的圖片（壓縮後的 WebP 與縮圖存在資料庫，經 /media/[id] 公開讀取）
+model MediaAsset {
+  id           String   @id @default(cuid())
+  mime         String
+  width        Int
+  height       Int
+  sizeBytes    Int
+  bytes        Bytes
+  thumbBytes   Bytes
+  thumbWidth   Int
+  thumbHeight  Int
+  /// 原圖內容雜湊，同一張圖重複上傳時沿用同一筆
+  sha256       String   @unique
+  originalName String?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
+  activities Activity[] @relation("ActivityCover")
+  sessions   Session[]  @relation("SessionCover")
 }

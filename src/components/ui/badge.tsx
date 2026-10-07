@@ -36,6 +36,7 @@ const BOOKING_STATUS: Record<string, { label: string; variant: BadgeProps['varia
   COMPLETED: { label: '已完成', variant: 'neutral' },
   CANCELLED: { label: '已取消', variant: 'danger' },
   EXPIRED: { label: '已逾時', variant: 'neutral' },
+  REFUND_PENDING: { label: '款項待退', variant: 'warn' },
 }
 
 export function BookingStatusBadge({ status }: { status: string }) {

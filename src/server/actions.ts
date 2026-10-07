@@ -16,6 +16,7 @@ import {
 } from '@/lib/session'
 import type { AvailabilityDTO, CartDTO, SessionUser } from '@/lib/types'
 import {
+  assertBookingPayable,
   BookingError,
   cancelBooking,
   clearCart,
@@ -122,8 +123,8 @@ export async function fetchAvailability(
   date: string,
 ): Promise<ActionResult<{ data: AvailabilityDTO; cart: CartDTO }>> {
   try {
-    const cartToken = await getCartToken()
-    const [data, cart] = await Promise.all([getAvailability(slug, date, cartToken), getCart(cartToken)])
+    const [cartToken, user] = await Promise.all([getCartToken(), getSessionUser()])
+    const [data, cart] = await Promise.all([getAvailability(slug, date, cartToken, user?.id ?? null), getCart(cartToken)])
     return { ok: true, data, cart }
   } catch (err) {
     return fail(err)
@@ -155,6 +156,7 @@ export async function toggleSlot(input: z.infer<typeof toggleSchema>): Promise<T
   try {
     const { slug, date, courtId, start, action } = toggleSchema.parse(input)
     const cartToken = await ensureCartToken()
+    const user = await getSessionUser()
 
     if (action === 'hold') {
       await holdSlot(cartToken, slug, date, courtId, start)
@@ -162,15 +164,15 @@ export async function toggleSlot(input: z.infer<typeof toggleSchema>): Promise<T
       await releaseSlot(cartToken, courtId, date, start)
     }
 
-    const [data, cart] = await Promise.all([getAvailability(slug, date, cartToken), getCart(cartToken)])
+    const [data, cart] = await Promise.all([getAvailability(slug, date, cartToken, user?.id ?? null), getCart(cartToken)])
     return { ok: true, data, cart }
   } catch (err) {
     // 搶單失敗時仍回傳最新狀態，讓該格立刻變成「他人暫扣」
     if (err instanceof BookingError && err.code === 'SLOT_TAKEN') {
       try {
-        const cartToken = await getCartToken()
+        const [cartToken, user] = await Promise.all([getCartToken(), getSessionUser()])
         const [data, cart] = await Promise.all([
-          getAvailability(input.slug, input.date, cartToken),
+          getAvailability(input.slug, input.date, cartToken, user?.id ?? null),
           getCart(cartToken),
         ])
         return { ok: false, error: err.message, code: err.code, data, cart }
@@ -185,7 +187,7 @@ export async function toggleSlot(input: z.infer<typeof toggleSchema>): Promise<T
 export async function removeCartItem(reservationId: string): Promise<ActionResult<{ cart: CartDTO }>> {
   try {
     const cartToken = await getCartToken()
-    if (!cartToken) return { ok: true, cart: { items: [], subtotal: 0, expiresAt: null } }
+    if (!cartToken) return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null } }
     await releaseReservation(cartToken, reservationId)
     revalidatePath('/cart')
     return { ok: true, cart: await getCart(cartToken) }
@@ -199,7 +201,7 @@ export async function emptyCart(): Promise<ActionResult<{ cart: CartDTO }>> {
     const cartToken = await getCartToken()
     if (cartToken) await clearCart(cartToken)
     revalidatePath('/cart')
-    return { ok: true, cart: { items: [], subtotal: 0, expiresAt: null } }
+    return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null } }
   } catch (err) {
     return fail(err)
   }
@@ -276,13 +278,15 @@ export async function startPayment(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { items: true, venue: true, user: true },
+      include: { items: true, activityItems: { where: { status: 'ACTIVE' } }, venue: true, user: true },
     })
     if (!booking || booking.userId !== user.id) throw new BookingError('找不到訂單', 'NOT_FOUND')
     if (booking.status !== 'PENDING') throw new BookingError('此訂單不需付款或已處理', 'PAYMENT_FAILED')
     if (booking.expiresAt && booking.expiresAt < new Date()) {
       throw new BookingError('付款時間已逾時，請重新預約', 'HOLD_EXPIRED')
     }
+    // 活動已取消或已開始的訂單不能繼續付款
+    await assertBookingPayable(booking.id)
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const provider = getPaymentProvider(providerId)
@@ -291,8 +295,17 @@ export async function startPayment(
       bookingId: booking.id,
       bookingCode: booking.code,
       amount: booking.total,
-      description: `${booking.venue.name} 場地預約 ${booking.items.length} 個時段`,
-      itemNames: booking.items.map((i) => `${i.courtName} ${i.rateName}`),
+      description: [
+        booking.items.length > 0 ? `場地租借 ${booking.items.length} 個時段` : '',
+        booking.activityItems.length > 0 ? `活動報名 ${booking.activityItems.length} 場` : '',
+      ]
+        .filter(Boolean)
+        .join('、')
+        .replace(/^/, `${booking.venue.name} `),
+      itemNames: [
+        ...booking.items.map((i) => `場地 ${i.courtName} ${i.rateName}`),
+        ...booking.activityItems.map((i) => `活動 ${i.title} ×${i.quantity}`),
+      ],
       customer: {
         name: booking.contactName,
         phone: booking.contactPhone,

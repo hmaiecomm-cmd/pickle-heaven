@@ -99,9 +99,9 @@ export function AdminScheduleClient({
             <h2 className="text-sm font-semibold">{formatDateFull(date)}</h2>
             <span className="text-xs text-muted">{data.venue.name}</span>
           </div>
-          <SlotMatrix data={adminData} pendingKey={pendingKey} onToggle={handleToggle} />
+          <SlotMatrix data={adminData} pendingKey={pendingKey} onToggle={handleToggle} onOpenEvent={(id) => router.push(`/admin/sessions/${id}`)} />
           <MatrixLegend />
-          <p className="text-[11px] text-muted">註：此頁的綠色格子代表「已鎖定的維護時段」，非客人的預約。</p>
+          <p className="text-[11px] text-muted">註：此頁的綠色格子代表「已鎖定的維護時段」，非客人的預約。紫色區塊是活動場次，點擊可查看名單；活動時段請到「活動」頁修改。</p>
         </CardContent>
       </Card>
 

@@ -177,10 +177,12 @@ CREATE TABLE "Reservation" (
     "holdExpiresAt" DATETIME,
     "cartToken" TEXT,
     "bookingId" TEXT,
+    "sessionId" TEXT,
     "note" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Reservation_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Reservation_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "Reservation_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Reservation_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -337,8 +339,15 @@ CREATE TABLE "Session" (
     "cancelReason" TEXT,
     "lockedAt" DATETIME,
     "deletedAt" DATETIME,
+    "activityId" TEXT,
+    "coverAssetId" TEXT,
+    "coverFocusX" INTEGER,
+    "coverFocusY" INTEGER,
+    "seriesIndex" INTEGER,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Session_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "Activity" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Session_coverAssetId_fkey" FOREIGN KEY ("coverAssetId") REFERENCES "MediaAsset" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "Session_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Session_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SessionTemplate" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "Session_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -354,6 +363,12 @@ CREATE TABLE "SessionRegistration" (
     "waitlistPosition" INTEGER,
     "addedByOrganizer" BOOLEAN NOT NULL DEFAULT false,
     "note" TEXT,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+    "seats" INTEGER NOT NULL DEFAULT 1,
+    "unitPrice" INTEGER,
+    "holdExpiresAt" DATETIME,
+    "cartToken" TEXT,
+    "bookingId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "registeredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -391,6 +406,109 @@ CREATE TABLE "NotificationLog" (
     CONSTRAINT "NotificationLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "NotificationLog_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "NotificationLog_registrationId_fkey" FOREIGN KEY ("registrationId") REFERENCES "SessionRegistration" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Activity" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "organizationId" TEXT NOT NULL,
+    "venueId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'OPEN_PLAY',
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "summary" TEXT,
+    "description" TEXT,
+    "levelLabel" TEXT,
+    "requirements" TEXT,
+    "includes" TEXT,
+    "refundNote" TEXT,
+    "coverAssetId" TEXT,
+    "coverFocusX" INTEGER NOT NULL DEFAULT 50,
+    "coverFocusY" INTEGER NOT NULL DEFAULT 50,
+    "price" INTEGER NOT NULL DEFAULT 0,
+    "priceUnit" TEXT NOT NULL DEFAULT 'PER_PERSON',
+    "capacity" INTEGER NOT NULL DEFAULT 8,
+    "maxPerOrder" INTEGER NOT NULL DEFAULT 4,
+    "repeatKind" TEXT NOT NULL DEFAULT 'ONCE',
+    "weekdays" TEXT NOT NULL DEFAULT '',
+    "intervalWeeks" INTEGER NOT NULL DEFAULT 1,
+    "startMinute" INTEGER NOT NULL,
+    "endMinute" INTEGER NOT NULL,
+    "seriesStartDate" TEXT NOT NULL,
+    "seriesEndDate" TEXT,
+    "occurrenceCount" INTEGER,
+    "skipDates" TEXT NOT NULL DEFAULT '',
+    "courtIds" TEXT NOT NULL DEFAULT '',
+    "openDaysBefore" INTEGER NOT NULL DEFAULT 7,
+    "openMinute" INTEGER,
+    "closeMinutesBefore" INTEGER NOT NULL DEFAULT 60,
+    "holdUntil" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "deletedAt" DATETIME,
+    CONSTRAINT "Activity_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Activity_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Activity_coverAssetId_fkey" FOREIGN KEY ("coverAssetId") REFERENCES "MediaAsset" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "SessionCourt" (
+    "sessionId" TEXT NOT NULL,
+    "courtId" TEXT NOT NULL,
+
+    PRIMARY KEY ("sessionId", "courtId"),
+    CONSTRAINT "SessionCourt_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "SessionCourt_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "BookingActivityItem" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "bookingId" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "registrationId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "startsAt" DATETIME NOT NULL,
+    "endsAt" DATETIME NOT NULL,
+    "courtNames" TEXT NOT NULL DEFAULT '',
+    "quantity" INTEGER NOT NULL,
+    "seats" INTEGER NOT NULL,
+    "unitPrice" INTEGER NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "priceUnit" TEXT NOT NULL DEFAULT 'PER_PERSON',
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "BookingActivityItem_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "BookingActivityItem_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "SessionWatch" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "sessionId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "notifiedAt" DATETIME,
+    "cancelledAt" DATETIME,
+    CONSTRAINT "SessionWatch_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "SessionWatch_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MediaAsset" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "mime" TEXT NOT NULL,
+    "width" INTEGER NOT NULL,
+    "height" INTEGER NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "bytes" BLOB NOT NULL,
+    "thumbBytes" BLOB NOT NULL,
+    "thumbWidth" INTEGER NOT NULL,
+    "thumbHeight" INTEGER NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "originalName" TEXT,
+    "createdBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateIndex
@@ -449,6 +567,9 @@ CREATE INDEX "Reservation_startsAt_idx" ON "Reservation"("startsAt");
 
 -- CreateIndex
 CREATE INDEX "Reservation_bookingId_idx" ON "Reservation"("bookingId");
+
+-- CreateIndex
+CREATE INDEX "Reservation_sessionId_idx" ON "Reservation"("sessionId");
 
 -- CreateIndex
 CREATE INDEX "Reservation_holdExpiresAt_idx" ON "Reservation"("holdExpiresAt");
@@ -523,10 +644,19 @@ CREATE INDEX "Session_status_startAt_idx" ON "Session"("status", "startAt");
 CREATE INDEX "Session_venueId_startAt_idx" ON "Session"("venueId", "startAt");
 
 -- CreateIndex
+CREATE INDEX "Session_activityId_startAt_idx" ON "Session"("activityId", "startAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Session_templateId_startAt_key" ON "Session"("templateId", "startAt");
 
 -- CreateIndex
 CREATE INDEX "SessionRegistration_sessionId_status_idx" ON "SessionRegistration"("sessionId", "status");
+
+-- CreateIndex
+CREATE INDEX "SessionRegistration_cartToken_idx" ON "SessionRegistration"("cartToken");
+
+-- CreateIndex
+CREATE INDEX "SessionRegistration_bookingId_idx" ON "SessionRegistration"("bookingId");
 
 -- CreateIndex
 CREATE INDEX "SessionRegistration_sessionId_status_waitlistPosition_idx" ON "SessionRegistration"("sessionId", "status", "waitlistPosition");
@@ -548,4 +678,28 @@ CREATE INDEX "NotificationLog_status_createdAt_idx" ON "NotificationLog"("status
 
 -- CreateIndex
 CREATE INDEX "NotificationLog_sessionId_type_idx" ON "NotificationLog"("sessionId", "type");
+
+-- CreateIndex
+CREATE INDEX "Activity_venueId_status_idx" ON "Activity"("venueId", "status");
+
+-- CreateIndex
+CREATE INDEX "SessionCourt_courtId_idx" ON "SessionCourt"("courtId");
+
+-- CreateIndex
+CREATE INDEX "BookingActivityItem_bookingId_idx" ON "BookingActivityItem"("bookingId");
+
+-- CreateIndex
+CREATE INDEX "BookingActivityItem_sessionId_idx" ON "BookingActivityItem"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "BookingActivityItem_registrationId_idx" ON "BookingActivityItem"("registrationId");
+
+-- CreateIndex
+CREATE INDEX "SessionWatch_sessionId_cancelledAt_idx" ON "SessionWatch"("sessionId", "cancelledAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SessionWatch_sessionId_userId_key" ON "SessionWatch"("sessionId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MediaAsset_sha256_key" ON "MediaAsset"("sha256");
 

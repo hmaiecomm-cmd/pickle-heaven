@@ -8,6 +8,9 @@ import { computeSessionTimes } from '@/lib/session-schedule'
 import type { TemplateInput } from './template-admin-actions'
 import { joinSession } from './session-service'
 import { createFinalRoster } from './session-scheduler'
+import { ActivityAdminError, cancelActivitySession } from './activity-admin'
+import { seatsUsed } from './activity-service'
+import { releaseOccupancy } from './occupancy'
 
 /**
  * 主辦者對球敘的管理操作（規格 §14）。
@@ -209,19 +212,16 @@ export async function adminCancelSession(
   sessionId: string,
   reason: string,
 ): Promise<AdminResult> {
-  await requireAdmin()
-
-  const session = await prisma.session.findUnique({ where: { id: sessionId } })
-  if (!session) return fail('找不到這場球敘')
-  if (session.status === SessionStatus.CANCELLED) return fail('這場已經取消了')
-
-  await prisma.session.update({
-    where: { id: sessionId },
-    data: { status: SessionStatus.CANCELLED, cancelReason: reason.trim() || null },
-  })
-
-  refresh(sessionId)
-  return ok('已取消這場球敘')
+  const admin = await requireAdmin()
+  // 與活動頁相同的取消流程：釋放場地、已付款全額退款、待付款訂單取消、通知報名者
+  try {
+    const summary = await cancelActivitySession(sessionId, reason, `admin:${admin}`)
+    refresh(sessionId)
+    return ok(`已取消這場球敘並釋放場地${summary.refunded > 0 ? `，退款 ${summary.refunded} 筆` : ''}`)
+  } catch (err) {
+    if (err instanceof ActivityAdminError) return fail(err.message)
+    throw err
+  }
 }
 
 /** 調整場次設定（容量、價格、候補規則等）。 */
@@ -244,6 +244,10 @@ export async function adminUpdateSession(
     return fail('保留名額必須小於總容量')
   }
   if (input.price < 0) return fail('價格不能是負數')
+  const used = (await seatsUsed([sessionId])).get(sessionId) ?? 0
+  if (input.capacity - input.reservedCapacity < used) {
+    return fail(`一般名額不能少於已報名＋暫留中的 ${used} 位`)
+  }
 
   await prisma.session.update({
     where: { id: sessionId },
@@ -262,94 +266,7 @@ export async function adminUpdateSession(
   return ok('設定已更新')
 }
 
-/** 不重複的單場球敘：沿用範本的欄位，但以指定日期取代重複星期。 */
-export type OneOffInput = Omit<TemplateInput, 'weekdays' | 'generateWeeksAhead' | 'active'> & {
-  /// 場館時區的日期 YYYY-MM-DD
-  date: string
-}
-
-/** 新增一場不重複的球敘。時間戳的算法與範本產生的場次完全相同。成功時回傳新場次 id。 */
-export async function adminCreateSession(input: OneOffInput): Promise<AdminResult & { sessionId?: string }> {
-  const admin = await requireAdmin()
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.date)
-  if (!match) return fail('請選擇日期')
-  if (!input.title.trim()) return fail('請輸入名稱')
-  if (input.endMinute <= input.startMinute) return fail('結束時間必須晚於開始時間')
-  if (input.capacity < 1) return fail('容量至少要 1 人')
-  if (input.reservedCapacity < 0 || input.reservedCapacity >= input.capacity) {
-    return fail('保留名額必須小於總容量')
-  }
-  if (input.price < 0) return fail('價格不能是負數')
-  if (input.bookingOpenDaysBefore < 0) return fail('報名開放天數不能是負數')
-  if (input.cancellationMode === CancellationMode.CUSTOM_TIMESTAMP) {
-    return fail('單場球敘請選「前一日 00:00」或「開打前 N 小時」')
-  }
-  if (
-    input.cancellationMode === CancellationMode.HOURS_BEFORE_START &&
-    (input.cancellationHoursBefore == null || input.cancellationHoursBefore < 0)
-  ) {
-    return fail('請填寫開打前幾小時截止')
-  }
-  if (input.skillLevelMin != null && input.skillLevelMax != null && input.skillLevelMin > input.skillLevelMax) {
-    return fail('程度下限不能高於上限')
-  }
-
-  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' } })
-  if (!venue) return fail('尚未建立任何場館')
-
-  const [, y, m, d] = match.map(Number)
-  const times = computeSessionTimes(
-    { year: y, month: m, day: d, hour: 0, minute: 0, second: 0, weekday: 0 },
-    {
-      timezone: venue.timezone,
-      startMinute: input.startMinute,
-      endMinute: input.endMinute,
-      bookingOpenDaysBefore: input.bookingOpenDaysBefore,
-      bookingOpenHourOffset: input.bookingOpenHourOffset,
-      cancellationMode: input.cancellationMode,
-      cancellationHoursBefore: input.cancellationHoursBefore,
-    },
-  )
-
-  const now = new Date()
-  if (times.startAt <= now) return fail('開打時間已經過了')
-
-  const session = await prisma.session.create({
-    data: {
-      organizationId: venue.organizationId,
-      venueId: venue.id,
-      title: input.title.trim(),
-      startAt: times.startAt,
-      endAt: times.endAt,
-      bookingOpenAt: times.bookingOpenAt,
-      bookingCloseAt: times.cancelDeadline,
-      cancelDeadline: times.cancelDeadline,
-      finalizeAt: times.finalizeAt,
-      capacity: input.capacity,
-      reservedCapacity: input.reservedCapacity,
-      skillLevelMin: input.skillLevelMin,
-      skillLevelMax: input.skillLevelMax,
-      price: input.price,
-      waitlistEnabled: input.waitlistEnabled,
-      autoPromote: input.autoPromote,
-      allowPostLockReplacement: input.allowPostLockReplacement,
-      status: times.bookingOpenAt <= now ? SessionStatus.OPEN : SessionStatus.SCHEDULED,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      actor: admin,
-      action: 'SESSION_CREATE',
-      target: session.id,
-      detail: { title: session.title, date: input.date, capacity: session.capacity, price: session.price },
-    },
-  })
-
-  refresh(session.id)
-  return { ...ok('已新增球敘'), sessionId: session.id }
-}
+// 單次活動改由「活動」頁建立（含場地佔用與衝突檢查），原本的 adminCreateSession 已移除。
 
 /**
  * 刪除一場球敘。
@@ -363,6 +280,21 @@ export async function adminDeleteSession(sessionId: string): Promise<AdminResult
   const session = await prisma.session.findUnique({ where: { id: sessionId } })
   if (!session || session.deletedAt) return fail('找不到這場球敘')
 
+  // 有訂單的場次不能直接刪除，必須走取消流程（退款、通知），歷史保留
+  const orders = await prisma.bookingActivityItem.count({ where: { sessionId } })
+  if (orders > 0) return fail('這場已有訂單紀錄，請改用「取消場次」（會辦理退款並保留歷史）')
+
+  if (session.templateId || session.activityId) {
+    await prisma.$transaction(async (tx) => {
+      await releaseOccupancy(tx, sessionId)
+      await tx.session.update({
+        where: { id: sessionId },
+        data: { deletedAt: new Date(), status: SessionStatus.CANCELLED, cancelReason: session.cancelReason ?? '主辦已刪除此場次' },
+      })
+    })
+    refresh(sessionId)
+    return ok('已刪除這場球敘並釋放場地')
+  }
   if (session.templateId) {
     await prisma.session.update({
       where: { id: sessionId },

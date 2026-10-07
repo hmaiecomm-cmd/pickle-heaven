@@ -13,7 +13,7 @@ import { brand } from '@/config/site'
 
 const NAV = [
   { href: '/booking', label: '場地預定', icon: CalendarDays },
-  { href: '/sessions', label: '球敘', icon: Users },
+  { href: '/sessions', label: '活動', icon: Users },
   { href: '/cart', label: '購物車', icon: ShoppingCart },
   { href: '/bookings', label: '我的預約', icon: Ticket },
   { href: '/account', label: '帳戶', icon: CircleUserRound },
