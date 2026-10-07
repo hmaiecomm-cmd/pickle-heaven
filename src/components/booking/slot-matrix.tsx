@@ -222,16 +222,15 @@ export function SlotMatrix({
                 活動
               </span>
               <span className="line-clamp-2 text-[12px] font-extrabold leading-tight">{b.event.title}</span>
-              {b.span > 1 && <span className="text-[11px] tabular">{b.event.timeLabel}</span>}
-              {b.span > 1 && (
-                <span className="text-[11px] font-semibold tabular">
-                  {b.event.price > 0 ? `NT$${b.event.price}／${b.event.unitLabel}` : '免費'}
-                </span>
-              )}
-              <span className={cn('text-[11px] font-semibold', b.event.state === 'FULL' && 'text-rose-700')}>
-                {b.event.state === 'OPEN' ? `剩餘 ${b.event.remaining} 位` : b.event.stateLabel}
+              <span className="text-[11px] tabular">{b.event.timeLabel}</span>
+              <span className="text-[11px] font-semibold tabular">
+                {b.event.price > 0 ? `NT$${b.event.price}／${b.event.unitLabel}` : '免費'}
               </span>
-              <span className="mt-auto text-[11px] font-bold underline underline-offset-2">查看活動</span>
+              <span className={cn('text-[11px] font-semibold', b.event.state === 'FULL' && 'text-rose-700')}>
+                {b.event.state === 'OPEN' ? `剩餘 ${b.event.remaining} 位` : b.event.state === 'FULL' ? '已額滿' : b.event.stateLabel}
+              </span>
+              <span className="text-[10px] text-brand-900/70">活動使用中・不可租場</span>
+              <span className="mt-auto text-[11px] font-bold underline underline-offset-2">{b.event.state === 'OPEN' ? '查看活動／報名' : '查看活動'}</span>
             </button>
           </div>
         ))}
@@ -243,7 +242,7 @@ export function SlotMatrix({
 const LEGEND: { state: SlotState; label: string; Icon?: typeof Lock }[] = [
   { state: 'AVAILABLE', label: '可預約（場地費每場地）' },
   { state: 'SELECTED', label: '已選取', Icon: Check },
-  { state: 'EVENT', label: '活動場次（每人計價）', Icon: CalendarHeart },
+  { state: 'EVENT', label: '活動使用中（可報名，不可租場）', Icon: CalendarHeart },
   { state: 'BOOKED', label: '已預約', Icon: Lock },
   { state: 'HELD', label: '他人保留中', Icon: Clock },
   { state: 'BLOCKED', label: '維護中', Icon: Wrench },

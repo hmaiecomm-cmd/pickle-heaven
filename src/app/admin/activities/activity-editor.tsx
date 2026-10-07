@@ -398,8 +398,19 @@ export function ActivityEditor({
           </div>
 
           <fieldset>
-            <legend className="mb-2 text-sm font-medium">使用場地（可多選，名額仍以整場計算）</legend>
+            <legend className="mb-2 text-sm font-medium">
+              使用場地 <span className="text-red-600">＊必填</span>
+              <span className="ml-1 text-xs font-normal text-muted">可選一面或多面；名額仍以整場計算。目前場館沒有棚區資料，直接選球場。</span>
+            </legend>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={lockSchedule}
+                onClick={() => set('courtIds', courts.filter((c) => c.active).map((c) => c.id))}
+                className="h-10 rounded-xl border border-dashed border-brand-600 px-3 text-sm text-brand-700 hover:bg-brand-50 disabled:opacity-50"
+              >
+                使用全部場地（{courts.filter((c) => c.active).length} 面）
+              </button>
               {courts.map((c) => {
                 const on = form.courtIds.includes(c.id)
                 return (
@@ -416,6 +427,13 @@ export function ActivityEditor({
                 )
               })}
             </div>
+            {form.courtIds.length === 0 && <p className="mt-2 text-xs text-red-700">請選擇使用場地；未選場地不能發布需占用場地的球敘。</p>}
+            {form.courtIds.length > 0 && (
+              <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-900">
+                此活動將占用 {form.repeatKind === 'WEEKLY' ? `自 ${form.seriesStartDate} 起每週${form.weekdays.map((d) => WEEKDAY_LABELS[d].replace('週', '')).join('、') || '—'}` : form.seriesStartDate}{' '}
+                {activityTimeLabel(form.startMinute, form.endMinute)} 的 {courts.filter((c) => form.courtIds.includes(c.id)).map((c) => c.name).join('、')}，期間不開放一般場地租借。
+              </p>
+            )}
           </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -569,9 +587,9 @@ export function ActivityEditor({
         <Button
           type="button"
           loading={busy === 'publish'}
-          disabled={!previewFresh || unresolved.length > 0 || (preview?.error ?? null) !== null}
+          disabled={!previewFresh || unresolved.length > 0 || (preview?.error ?? null) !== null || form.courtIds.length === 0}
           onClick={() => save('publish')}
-          title={!previewFresh ? '請先預覽場次' : unresolved.length > 0 ? '請先處理衝突日期' : undefined}
+          title={form.courtIds.length === 0 ? '請先選擇使用場地' : !previewFresh ? '請先預覽場次' : unresolved.length > 0 ? '請先處理衝突日期' : undefined}
         >
           {published ? <CalendarCheck2 className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
           {published ? '建立新增的場次' : `發布${preview ? `（${preview.counts.new} 場）` : ''}`}

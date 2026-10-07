@@ -534,6 +534,8 @@ export async function previewSessionEdit(raw: unknown): Promise<EditImpactRow[]>
     const newCourts = (c.courtIds ?? curCourts).slice().sort()
     const timeChanged = newStart !== curStart || newEnd !== curEnd
     const courtsChanged = newCourts.join(',') !== curCourts.join(',')
+    // 舊場次第一次補填場地：報名者的時間與場館都沒變，不視為異動
+    const firstAssign = courtsChanged && curCourts.length === 0 && !timeChanged
     const problems: string[] = []
 
     if (timeChanged) {
@@ -556,7 +558,7 @@ export async function previewSessionEdit(raw: unknown): Promise<EditImpactRow[]>
       conflicts = m.get(date) ?? []
     }
     const affected =
-      timeChanged || courtsChanged
+      (timeChanged || courtsChanged) && !firstAssign
         ? regs
             .filter((r) => r.sessionId === t.id)
             .map((r) => ({

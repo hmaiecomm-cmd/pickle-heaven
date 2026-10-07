@@ -182,12 +182,12 @@ function EventsTab() {
           />
         </label>
         <div className="flex gap-2">
-          <Link href="/admin/sessions?create=1" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
+          <Link href="/admin/activities/new" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
             <Plus className="h-4 w-4" aria-hidden />
-            新增單次
+            新增單次球敘
           </Link>
-          <Link href="/admin/templates" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
-            週期範本
+          <Link href="/admin/activities/new?repeat=WEEKLY" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
+            新增每週固定球敘
           </Link>
         </div>
       </div>
@@ -200,7 +200,7 @@ function EventsTab() {
         <div className={panelClass}>
           <EmptyState
             title={scope === 'upcoming' ? '目前沒有未來的活動' : '沒有已結束的活動'}
-            description="活動來自球敘場次：可新增單次球敘，或建立週期性範本由排程自動產生。"
+            description="活動來自球敘場次：新增單次或每週固定球敘時都必須選擇使用場地，發布後自動鎖定該時段的場地。"
             icon="🏆"
           />
         </div>
@@ -263,11 +263,6 @@ function EventsTab() {
                   <ExternalLink className="h-4 w-4" aria-hidden />
                   管理名單與場次
                 </Link>
-                {selected.templateTitle && (
-                  <Link href="/admin/templates" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] px-3 text-sm hover:surface-2">
-                    修改範本
-                  </Link>
-                )}
               </div>
               <p className="text-xs text-muted">加人、遞補、點名、鎖定名單與取消場次都在球敘詳情頁操作。</p>
             </div>

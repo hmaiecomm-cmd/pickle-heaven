@@ -173,43 +173,13 @@ export function BookingBoard({
 
   return (
     <div className="space-y-4">
-      {/* 場館資訊 */}
-      <Card>
-        <CardContent className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold tracking-tight">{venue.name}</h1>
-              {venue.address.trim() && (
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{venue.address}</span>
-                </p>
-              )}
-            </div>
-            {venue.phone.trim() && (
-            <a
-              href={`tel:${venue.phone}`}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl surface-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-brand-50 hover:text-brand-700"
-            >
-              <Phone className="h-3.5 w-3.5" aria-hidden />
-              致電
-            </a>
-            )}
-          </div>
-          {venue.notice && (
-            <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs leading-relaxed text-brand-800 dark:bg-brand-900/30 dark:text-brand-200">
-              {venue.notice}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* 步驟一：選日期 */}
       <section aria-labelledby="step-date" className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 id="step-date" className="flex items-center gap-2 text-sm font-semibold">
             <StepDot n={1} />
             選擇日期
+            <span className="text-xs font-normal text-muted">・{venue.name}</span>
           </h2>
           <button
             type="button"
@@ -275,16 +245,44 @@ export function BookingBoard({
 
       <DayActivities date={date} events={data.events} onOpen={openEvent} now={data.serverNow} />
 
-      {/* 場館規則 */}
-      {venue.policy && (
+      {/* 場館資訊與入場須知：放在主要內容最下方，進頁面先看到日期與時段 */}
+      <section aria-labelledby="venue-info-title">
         <Card>
-          <CardContent className="space-y-2">
-            <h3 className="text-sm font-semibold">取消與退款政策</h3>
-            <Separator />
-            <p className="text-xs leading-relaxed text-muted">{venue.policy}</p>
+          <CardContent className="space-y-3">
+            <h2 id="venue-info-title" className="text-sm font-semibold">場館資訊與入場須知</h2>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-semibold tracking-tight">{venue.name}</p>
+                {venue.address.trim() && (
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{venue.address}</span>
+                  </p>
+                )}
+              </div>
+              {venue.phone.trim() && (
+                <a
+                  href={`tel:${venue.phone}`}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl surface-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-brand-50 hover:text-brand-700"
+                >
+                  <Phone className="h-3.5 w-3.5" aria-hidden />
+                  致電
+                </a>
+              )}
+            </div>
+            {venue.notice && (
+              <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs leading-relaxed text-brand-800">{venue.notice}</p>
+            )}
+            {venue.policy && (
+              <>
+                <Separator />
+                <h3 className="text-sm font-semibold">取消與退款政策</h3>
+                <p className="text-xs leading-relaxed text-muted">{venue.policy}</p>
+              </>
+            )}
           </CardContent>
         </Card>
-      )}
+      </section>
 
       <CartBar cart={cart} onExpire={handleExpire} />
 

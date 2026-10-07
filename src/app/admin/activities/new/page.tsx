@@ -9,8 +9,10 @@ import { ActivityEditor, type EditorForm } from '../activity-editor'
 export const metadata: Metadata = { title: '新增活動' }
 export const dynamic = 'force-dynamic'
 
-export default async function NewActivityPage() {
+export default async function NewActivityPage({ searchParams }: { searchParams: Promise<{ repeat?: string }> }) {
   await requireAdmin()
+  const { repeat } = await searchParams
+  const weekly = repeat === 'WEEKLY'
   const venue = await prisma.venue.findFirst({
     where: { active: true },
     orderBy: { name: 'asc' },
@@ -36,8 +38,8 @@ export default async function NewActivityPage() {
     priceUnit: 'PER_PERSON',
     capacity: 8,
     maxPerOrder: 4,
-    repeatKind: 'ONCE',
-    weekdays: [],
+    repeatKind: weekly ? 'WEEKLY' : 'ONCE',
+    weekdays: weekly ? [new Date(`${start}T00:00:00+08:00`).getUTCDay()] : [],
     intervalWeeks: 1,
     startMinute,
     endMinute: startMinute + 2 * venue.slotMinutes,
@@ -46,7 +48,8 @@ export default async function NewActivityPage() {
     seriesEndDate: addDays(start, 56),
     occurrenceCount: 8,
     skipDates: [],
-    courtIds: venue.courts.filter((c) => c.active).slice(0, 1).map((c) => c.id),
+    // 使用場地為必填：不預設指派，由管理者明確選擇
+    courtIds: [],
     openDaysBefore: 7,
     openMinute: null,
     closeMinutesBefore: 60,
