@@ -89,6 +89,12 @@ enum MembershipLevel {
   VIP
 }
 
+enum CoachStatus {
+  ACTIVE // 在職
+  ON_LEAVE // 請假中
+  INACTIVE // 停用
+}
+
 enum BookingStatus {
   PENDING // 待付款
   PAID // 已付款
@@ -301,6 +307,41 @@ model MembershipTier {
   discountPct Int             @default(0)
   sortOrder   Int             @default(0)
   updatedAt   DateTime        @updatedAt
+}
+
+/// 教練
+model Coach {
+  id          String      @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  status      CoachStatus @default(ACTIVE)
+  /// 專長清單（字串陣列）
+  specialties Json
+  /// 每小時課程費用（新台幣整數元）
+  hourlyRate  Int         @default(0)
+  bio         String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  availability CoachAvailability[]
+
+  @@index([status])
+}
+
+/// 教練每週可授課時段
+model CoachAvailability {
+  id          String @id @default(cuid())
+  coachId     String
+  /// 0=週日 … 6=週六
+  dayOfWeek   Int
+  /// 自午夜起算分鐘
+  startMinute Int
+  endMinute   Int
+
+  coach Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([coachId])
 }
 
 model PriceRule {

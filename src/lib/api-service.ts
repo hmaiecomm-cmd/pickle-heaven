@@ -21,6 +21,8 @@ import {
   AuditEntry,
   AiChatResult,
   AiActionPreview,
+  SessionEvent,
+  CoachInput,
   Court,
   FinancialSummary,
   RevenueByCourtByType,
@@ -189,6 +191,11 @@ export async function getCoaches(
     status?: string
   },
 ): Promise<ApiResponse<Coach[]>> {
+  if (ADMIN_LIVE) {
+    const res = await fetchAdmin<Coach[]>('/api/admin/coaches')
+    if (!res.success) return { ...res, data: [] }
+    return { ...res, data: filters?.status ? res.data.filter((c) => c.status === filters.status) : res.data }
+  }
   try {
     let coaches = [...MOCK_DATA.coaches]
 
@@ -280,6 +287,33 @@ export async function getPricing(): Promise<ApiResponse<{ priceRules: PriceRuleR
 export async function updateMembershipTiers(tiers: { level: MembershipTierRow['level']; discountPct: number }[]): Promise<ApiResponse<MembershipTierRow[]>> {
   if (!ADMIN_LIVE) return { success: true, data: tiers.map((t) => ({ ...t, label: t.level })) }
   return sendAdmin('/api/admin/pricing/tiers', 'PUT', { tiers })
+}
+
+/** 活動清單：直接使用球敘（Phase 2）。scope：upcoming 尚未結束、past 已結束、all。 */
+export async function getSessionEvents(scope: 'upcoming' | 'past' | 'all' = 'upcoming'): Promise<ApiResponse<SessionEvent[]>> {
+  type Raw = Omit<SessionEvent, 'startAt' | 'endAt' | 'bookingOpenAt' | 'bookingCloseAt'> & { startAt: string; endAt: string; bookingOpenAt: string; bookingCloseAt: string }
+  const res = await fetchAdmin<Raw[]>(`/api/admin/events?scope=${scope}`)
+  if (!res.success) return { ...res, data: [] }
+  return {
+    ...res,
+    data: res.data.map((e) => ({
+      ...e,
+      startAt: new Date(e.startAt),
+      endAt: new Date(e.endAt),
+      bookingOpenAt: new Date(e.bookingOpenAt),
+      bookingCloseAt: new Date(e.bookingCloseAt),
+    })),
+  }
+}
+
+/** 新增教練（Phase 2）。 */
+export async function createCoach(input: CoachInput): Promise<ApiResponse<Coach>> {
+  return sendAdmin('/api/admin/coaches', 'POST', input)
+}
+
+/** 修改教練（部分欄位；提供 availability 時整組取代）。 */
+export async function updateCoach(id: string, patch: Partial<CoachInput>): Promise<ApiResponse<Coach>> {
+  return sendAdmin(`/api/admin/coaches/${encodeURIComponent(id)}`, 'PATCH', patch)
 }
 
 /** AI 管理助理對話（Phase 2，伺服器端呼叫 Claude）。history 只含文字。 */

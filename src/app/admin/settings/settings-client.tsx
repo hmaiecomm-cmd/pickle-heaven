@@ -31,7 +31,7 @@ const API_STATUS: { name: string; mode: 'live' | 'mock' }[] = [
   { name: '會員與定價（Turso）', mode: 'live' },
   { name: '場館設定與稽核紀錄（Turso）', mode: 'live' },
   { name: 'OCR 辨識（模擬）', mode: 'mock' },
-  { name: '活動與教練', mode: 'mock' },
+  { name: '活動（球敘）與教練（Turso）', mode: 'live' },
   { name: 'AI 管理助理（Claude）', mode: 'live' },
   { name: '智慧球場即時控制', mode: 'mock' },
 ]
@@ -52,6 +52,8 @@ const ACTION_LABEL: Record<string, string> = {
   VENUE_UPDATE: '更新場館設定',
   AI_ACTION_CONFIRMED: '確認 AI 操作預覽（未執行）',
   AI_ACTION_DECLINED: '取消 AI 操作預覽',
+  COACH_CREATE: '新增教練',
+  COACH_UPDATE: '修改教練',
 }
 
 const CODE_LABEL: Record<string, string> = {
@@ -86,6 +88,10 @@ function summarize(a: AuditEntry): string {
       const diff = Object.keys(to).filter((k) => from[k] !== to[k]).map((k) => `${code(k)} ${from[k] ?? '—'}% → ${to[k]}%`)
       return diff.join('、') || '無變動'
     }
+    case 'COACH_CREATE':
+      return `${d.name ?? ''}　NT${Number(d.hourlyRate ?? 0).toLocaleString()}/時`
+    case 'COACH_UPDATE':
+      return `${d.name ?? ''}：${Array.isArray(d.fields) ? d.fields.join('、') : ''}${arrow}`
     case 'AI_ACTION_CONFIRMED':
     case 'AI_ACTION_DECLINED':
       return String(d.title ?? '')

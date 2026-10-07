@@ -176,6 +176,49 @@ export interface Coach {
     endTime: string // HH:mm
   }[]
   image?: string
+  bio?: string
+}
+
+export type SessionEventStatus = 'DRAFT' | 'SCHEDULED' | 'OPEN' | 'FULL' | 'LOCKED' | 'PLAYING' | 'COMPLETED' | 'CANCELLED'
+
+/** 活動（直接使用球敘 Session） */
+export interface SessionEvent {
+  id: string
+  title: string
+  description: string
+  startAt: Date
+  endAt: Date
+  bookingOpenAt: Date
+  bookingCloseAt: Date
+  capacity: number
+  reservedCapacity: number
+  confirmed: number
+  waitlisted: number
+  waitlistEnabled: boolean
+  price: number
+  status: SessionEventStatus
+  venueName: string
+  courtName: string | null
+  templateTitle: string | null
+  skillLevelMin: number | null
+  skillLevelMax: number | null
+}
+
+export interface CoachSlotInput {
+  dayOfWeek: number
+  startMinute: number
+  endMinute: number
+}
+
+export interface CoachInput {
+  name: string
+  phone: string
+  email: string
+  status: CoachStatus
+  specialties: string[]
+  hourlyRate: number
+  bio: string
+  availability: CoachSlotInput[]
 }
 
 export interface Payment {

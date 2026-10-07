@@ -6,18 +6,17 @@ import { PageHeader } from '@/components/layout'
 import { ErrorState, LoadingState, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
-import { getCoaches, getEvents, getPricing, updateMembershipTiers } from '@/lib/api-service'
-import type { Coach, Event, MembershipTierRow, PriceRuleRow } from '@/lib/models'
+import { getCoaches, getPricing, getSessionEvents, updateMembershipTiers } from '@/lib/api-service'
+import type { Coach, MembershipTierRow, PriceRuleRow, SessionEvent } from '@/lib/models'
 
 /**
  * 定價（Phase 2）。
- * 場地費率規則與會員折扣來自資料庫；活動費用、教練時薪仍為 mock。
+ * 場地費率規則、會員折扣、活動（球敘）費用、教練時薪皆來自資料庫。
  * 費率規則即前台計價所用（lib/pricing.ts），這裡先唯讀，編輯列為後續項目。
  */
 
 const KIND_LABEL: Record<PriceRuleRow['kind'], string> = { PEAK: '尖峰', OFFPEAK: '離峰' }
 const DAY_LABEL: Record<PriceRuleRow['dayType'], string> = { ALL: '每天', WEEKDAY: '平日', WEEKEND: '假日' }
-const EVENT_TYPE_LABEL: Record<Event['type'], string> = { TOURNAMENT: '比賽', SOCIAL: '交流賽', TRAINING: '訓練課程', OTHER: '其他' }
 
 const fmtMoney = (n: number) => `NT$${Math.round(n).toLocaleString()}`
 const fmtMinute = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
@@ -26,7 +25,7 @@ export function PricingClient() {
   const { toast } = useToast()
   const [rules, setRules] = useState<PriceRuleRow[]>([])
   const [tiers, setTiers] = useState<MembershipTierRow[]>([])
-  const [events, setEvents] = useState<Event[]>([])
+  const [events, setEvents] = useState<SessionEvent[]>([])
   const [coaches, setCoaches] = useState<Coach[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +38,7 @@ export function PricingClient() {
     setLoading(true)
     setError(null)
     try {
-      const [p, e, k] = await Promise.all([getPricing(), getEvents(), getCoaches()])
+      const [p, e, k] = await Promise.all([getPricing(), getSessionEvents('upcoming'), getCoaches()])
       if (!p.success) throw new Error(p.error?.message ?? '無法載入定價')
       setRules(p.data.priceRules)
       setTiers(p.data.tiers)
@@ -61,6 +60,18 @@ export function PricingClient() {
     for (const r of rules) m.set(r.venueName, [...(m.get(r.venueName) ?? []), r])
     return [...m]
   }, [rules])
+
+  /** 未來場次依名稱與價格歸併，只列出不同的收費組合 */
+  const eventPrices = useMemo(() => {
+    const m = new Map<string, { title: string; price: number; count: number; source: string }>()
+    for (const e of events) {
+      const k = `${e.title}|${e.price}`
+      const cur = m.get(k)
+      if (cur) cur.count++
+      else m.set(k, { title: e.title, price: e.price, count: 1, source: e.templateTitle ? '週期範本' : '單次' })
+    }
+    return [...m.values()]
+  }, [events])
 
   /** 會員折扣範例以最低離峰價計算 */
   const basePrice = useMemo(() => Math.min(...rules.filter((r) => r.kind === 'OFFPEAK').map((r) => r.price), ...rules.map((r) => r.price), Infinity), [rules])
@@ -197,28 +208,34 @@ export function PricingClient() {
       </Section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="活動費用" subtitle="每人報名費" aside={<span className="flex items-center gap-2"><StatusBadge status="mock" variant="warning" size="sm" /><ReadOnlyBtn title="活動接資料庫後開放" /></span>}>
+        <Section title="活動（球敘）費用" subtitle="未來場次的每人報名費" aside={<a href="/admin/templates" className="text-xs text-brand-600 hover:underline">到範本修改 →</a>}>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted">
               <tr className="border-b border-[rgb(var(--border))]">
                 <th className="px-4 py-2.5 font-medium">活動</th>
-                <th className="px-4 py-2.5 font-medium">類型</th>
+                <th className="px-4 py-2.5 font-medium">來源</th>
                 <th className="px-4 py-2.5 text-right font-medium">費用</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgb(var(--border))]">
-              {events.map((e) => (
-                <tr key={e.id}>
-                  <td className="px-4 py-2.5">{e.name}</td>
-                  <td className="px-4 py-2.5 text-muted">{EVENT_TYPE_LABEL[e.type]}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{fmtMoney(e.price)}</td>
+              {eventPrices.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-muted">目前沒有未來場次</td>
                 </tr>
-              ))}
+              ) : (
+                eventPrices.map((e) => (
+                  <tr key={`${e.title}|${e.price}`}>
+                    <td className="px-4 py-2.5">{e.title}<span className="ml-1 text-xs text-muted">（{e.count} 場）</span></td>
+                    <td className="px-4 py-2.5 text-muted">{e.source}</td>
+                    <td className="px-4 py-2.5 text-right font-mono">{fmtMoney(e.price)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </Section>
 
-        <Section title="教練課程" subtitle="每小時" aside={<span className="flex items-center gap-2"><StatusBadge status="mock" variant="warning" size="sm" /><ReadOnlyBtn title="教練接資料庫後開放" /></span>}>
+        <Section title="教練課程" subtitle="每小時" aside={<a href="/admin/events" className="text-xs text-brand-600 hover:underline">到教練頁修改 →</a>}>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted">
               <tr className="border-b border-[rgb(var(--border))]">
@@ -228,6 +245,11 @@ export function PricingClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgb(var(--border))]">
+              {coaches.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-muted">尚未建立教練</td>
+                </tr>
+              )}
               {coaches.map((c) => (
                 <tr key={c.id}>
                   <td className="px-4 py-2.5">{c.name}</td>

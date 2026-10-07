@@ -130,6 +130,30 @@ CREATE TABLE "MembershipTier" (
 );
 
 -- CreateTable
+CREATE TABLE "Coach" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "phone" TEXT,
+    "email" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "specialties" JSONB NOT NULL,
+    "hourlyRate" INTEGER NOT NULL DEFAULT 0,
+    "bio" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "CoachAvailability" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "coachId" TEXT NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+    "startMinute" INTEGER NOT NULL,
+    "endMinute" INTEGER NOT NULL,
+    CONSTRAINT "CoachAvailability_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "Coach" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "PriceRule" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "venueId" TEXT NOT NULL,
@@ -410,6 +434,12 @@ CREATE INDEX "Invoice_status_dueDate_idx" ON "Invoice"("status", "dueDate");
 
 -- CreateIndex
 CREATE INDEX "Invoice_userId_idx" ON "Invoice"("userId");
+
+-- CreateIndex
+CREATE INDEX "Coach_status_idx" ON "Coach"("status");
+
+-- CreateIndex
+CREATE INDEX "CoachAvailability_coachId_idx" ON "CoachAvailability"("coachId");
 
 -- CreateIndex
 CREATE INDEX "PriceRule_venueId_dayType_idx" ON "PriceRule"("venueId", "dayType");

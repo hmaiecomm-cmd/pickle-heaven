@@ -35,6 +35,8 @@ export default async function AdminSessionsPage() {
   await requireAdmin()
 
   const sessions = await prisma.session.findMany({
+    // 已軟刪除的場次不列出（詳情頁也會回 404）
+    where: { deletedAt: null },
     orderBy: { startAt: 'asc' },
     take: 60,
     include: {
