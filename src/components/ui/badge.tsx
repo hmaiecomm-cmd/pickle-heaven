@@ -9,8 +9,8 @@ const badgeVariants = cva(
       variant: {
         neutral: 'surface-2 text-[rgb(var(--fg-muted))] border border-[rgb(var(--border))]',
         brand: 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300',
-        peak: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-        offpeak: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+        peak: 'bg-brand-600 text-white',
+        offpeak: 'bg-brand-100 text-brand-900',
         success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
         warn: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
         danger: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',

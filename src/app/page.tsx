@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import { brand, images, SITE_URL } from '@/config/site'
-import { getAdminUser } from '@/lib/admin-auth'
 import { getHomeData } from '@/server/home-data'
 import { displayFont } from '@/components/home/fonts'
-import { HomeNav } from '@/components/home/home-nav'
 import { MobileBookingBar } from '@/components/home/mobile-cta'
 import { RevealRoot } from '@/components/home/reveal-root'
 import {
@@ -17,7 +15,7 @@ import {
 } from '@/components/home/sections'
 import '@/components/home/home.css'
 
-// 場次、費率即時讀資料庫；後台連結依登入狀態顯示
+// 場次、費率即時讀資料庫
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -42,7 +40,7 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [data, admin] = await Promise.all([getHomeData(), getAdminUser().catch(() => null)])
+  const data = await getHomeData()
 
   // 結構化資料：只放已確認的欄位
   const jsonLd = {
@@ -66,7 +64,6 @@ export default async function HomePage() {
       >
         跳到主要內容
       </a>
-      <HomeNav isAdmin={Boolean(admin)} />
       <main>
         <HeroSection data={data} />
         <PlansSection data={data} />

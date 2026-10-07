@@ -52,6 +52,7 @@ export async function GET() {
         slotMinutes: v.slotMinutes,
         bookAheadDays: v.bookAheadDays,
         holdMinutes: v.holdMinutes,
+        bookingCutoffMinutes: v.bookingCutoffMinutes,
         timezone: v.timezone,
         active: v.active,
       })),

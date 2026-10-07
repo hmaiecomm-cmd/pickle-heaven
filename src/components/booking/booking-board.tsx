@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { MapPin, Phone, RefreshCw } from 'lucide-react'
+import { CalendarClock, ChevronRight, MapPin, Phone, RefreshCw } from 'lucide-react'
 import { DateStrip } from './date-strip'
 import { MatrixLegend, SlotMatrix } from './slot-matrix'
 import { CartBar } from './cart-bar'
@@ -236,17 +236,44 @@ export function BookingBoard({
 
         <p className="text-xs text-muted">點選可預約的時段加入購物車；紫色區塊是活動場次，點擊可查看活動並報名。</p>
 
-        <SlotMatrix data={data} pendingKey={pendingKey} onToggle={handleToggle} onOpenEvent={openEvent} busy={loading} />
+        {data.allEnded ? (
+          <div className="rounded-2xl border border-[rgb(var(--border))] bg-white px-4 py-8 text-center" role="status">
+            <CalendarClock className="mx-auto h-8 w-8 text-brand-600" aria-hidden />
+            <p className="mt-3 text-base font-semibold">今日場次已結束，請選擇其他日期。</p>
+            {dates.includes(data.nextDate) && (
+              <button
+                type="button"
+                onClick={() => handleDateChange(data.nextDate)}
+                className="mt-4 inline-flex h-11 items-center gap-1 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                查看明天
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {data.hiddenEndedRows > 0 && (
+              <p className="text-xs text-muted" role="status">
+                已隱藏今日已結束時段。
+              </p>
+            )}
+            <SlotMatrix data={data} pendingKey={pendingKey} onToggle={handleToggle} onOpenEvent={openEvent} busy={loading} />
+          </>
+        )}
 
-        <div className="pt-1">
-          <MatrixLegend />
-        </div>
+        {!data.allEnded && (
+          <div className="pt-1">
+            <MatrixLegend />
+          </div>
+        )}
         <p className="text-[11px] text-muted">
           加入購物車後系統會為您保留 {venue.holdMinutes} 分鐘，逾時將自動釋放給其他球友。
+          {venue.bookingCutoffMinutes > 0 && `線上預約於開打前 ${venue.bookingCutoffMinutes} 分鐘截止。`}
         </p>
       </section>
 
-      <DayActivities date={date} events={data.events} onOpen={openEvent} />
+      <DayActivities date={date} events={data.events} onOpen={openEvent} now={data.serverNow} />
 
       {/* 場館規則 */}
       {venue.policy && (

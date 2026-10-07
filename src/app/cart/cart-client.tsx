@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CalendarPlus, Clock, ShoppingCart, Trash2 } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, Clock, ShoppingCart, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, Separator } from '@/components/ui/card'
@@ -97,6 +97,7 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
   }, {})
 
   const urgent = remaining > 0 && remaining <= 120
+  const invalidCount = cart.invalidCount ?? 0
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
@@ -131,6 +132,15 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
         )}
       </div>
 
+      {invalidCount > 0 && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-800" role="alert">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            有 {invalidCount} 個項目已開始或已超過預約截止時間，無法結帳。請移除標示為「已失效」的項目後重新選擇。
+          </span>
+        </div>
+      )}
+
       <CartActivityItems items={activityItems} onRemove={handleRemoveActivity} busyId={busyId} />
 
       {Object.entries(groups).map(([date, items]) => (
@@ -140,11 +150,12 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
             <Separator />
             <ul className="divide-y divide-[rgb(var(--border))]">
               {items.map((item) => (
-                <li key={item.reservationId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <li key={item.reservationId} className={cn('flex items-center gap-3 py-3 first:pt-0 last:pb-0', item.invalid && 'opacity-80')}>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">{item.courtName}</span>
                       <Badge variant={item.rateName === '尖峰' ? 'peak' : 'offpeak'}>{item.rateName}</Badge>
+                      {item.invalid && <Badge variant="danger">已失效・{item.invalid}</Badge>}
                     </div>
                     <p className="mt-0.5 text-xs text-muted tabular">{item.timeLabel}</p>
                   </div>
@@ -178,8 +189,8 @@ export function CartClient({ initialCart }: { initialCart: CartDTO }) {
         <Button variant="secondary" asChild className="flex-1">
           <Link href="/booking">繼續選擇</Link>
         </Button>
-        <Button className="flex-[2]" onClick={() => router.push('/checkout')} disabled={remaining <= 0}>
-          前往結帳
+        <Button className="flex-[2]" onClick={() => router.push('/checkout')} disabled={remaining <= 0 || invalidCount > 0}>
+          {invalidCount > 0 ? '請先移除失效項目' : '前往結帳'}
         </Button>
       </div>
     </div>

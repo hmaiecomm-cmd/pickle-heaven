@@ -53,11 +53,13 @@ export interface VenueSettings {
   slotMinutes: number
   bookAheadDays: number
   holdMinutes: number
+  /** 開打前幾分鐘截止線上預約 */
+  bookingCutoffMinutes: number
   timezone: string
   active: boolean
 }
 
-export type VenueSettingsPatch = Partial<Pick<VenueSettings, 'name' | 'address' | 'phone' | 'description' | 'notice' | 'policy' | 'openMinute' | 'closeMinute' | 'bookAheadDays' | 'holdMinutes'>>
+export type VenueSettingsPatch = Partial<Pick<VenueSettings, 'name' | 'address' | 'phone' | 'description' | 'notice' | 'policy' | 'openMinute' | 'closeMinute' | 'bookAheadDays' | 'holdMinutes' | 'bookingCutoffMinutes'>>
 
 export interface SystemSettings {
   organization: { name: string } | null

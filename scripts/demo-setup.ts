@@ -5,6 +5,7 @@
  *
  * 讀取 DEMO_DATABASE_URL / DEMO_DATABASE_AUTH_TOKEN（可在同一行指定，不必寫入檔案）。
  * - 資料庫是空的：先依 prisma/turso-init.sql 建立完整資料表
+ * - 資料表已存在：補上後來新增的欄位（見 EXTRA_COLUMNS），可重複執行
  * - 接著清空並寫入虛構的展示資料（會員、訂單、活動、設備…）
  * 絕不會連到正式資料庫：DEMO_DATABASE_URL 與 TURSO_DATABASE_URL 相同時直接中止。
  */
@@ -14,6 +15,12 @@ import { createClient } from '@libsql/client'
 import { PrismaClient } from '@prisma/client'
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { seedDemoData } from '../src/server/demo-seed'
+
+/** 後來以 migrations-manual 新增的欄位；舊展示庫缺少時補上，已存在則略過 */
+const EXTRA_COLUMNS: { table: string; column: string; ddl: string }[] = [
+  { table: 'User', column: 'googleSub', ddl: 'ALTER TABLE "User" ADD COLUMN "googleSub" TEXT' },
+  { table: 'Venue', column: 'bookingCutoffMinutes', ddl: 'ALTER TABLE "Venue" ADD COLUMN "bookingCutoffMinutes" INTEGER NOT NULL DEFAULT 0' },
+]
 
 async function main() {
   const url = process.env.DEMO_DATABASE_URL
@@ -36,7 +43,14 @@ async function main() {
     for (const sql of statements) await raw.execute(sql)
     console.log(`已建立（${statements.length} 句）`)
   } else {
-    console.log('資料表已存在，略過建立（結構異動請用 apply-sql 套用 migrations-manual）')
+    console.log('資料表已存在，檢查新增欄位…')
+    for (const c of EXTRA_COLUMNS) {
+      const info = await raw.execute(`PRAGMA table_info("${c.table}")`)
+      if (info.rows.some((r) => r.name === c.column)) continue
+      await raw.execute(c.ddl)
+      console.log(`・已新增欄位 ${c.table}.${c.column}`)
+    }
+    await raw.execute('CREATE UNIQUE INDEX IF NOT EXISTS "User_googleSub_key" ON "User"("googleSub")')
   }
   raw.close()
 

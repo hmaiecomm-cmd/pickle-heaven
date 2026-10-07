@@ -78,7 +78,12 @@ export async function getAvailability(
 
   const starts = slotStarts(venue.openMinute, venue.closeMinute, venue.slotMinutes)
 
-  const times: TimeRowDTO[] = starts.map((start) => {
+  // 以伺服器時間與場館時區判斷，不依客人的裝置時間；跨午夜時段用完整日期時間比較
+  const nowMs = now().getTime()
+  const startMs = (minute: number) => taipeiToUtc(dateStr, minute).getTime()
+  const cutoffMs = venue.bookingCutoffMinutes * 60_000
+
+  const allTimes: TimeRowDTO[] = starts.map((start) => {
     const end = start + venue.slotMinutes
     const rate = resolveRate(dateStr, start, venue.priceRules)
     return {
@@ -88,8 +93,12 @@ export async function getAvailability(
       rateName: rate.name,
       kind: rate.kind,
       price: rate.price,
+      nextDay: start >= 1440,
     }
   })
+  // 已結束的時段整列隱藏（含時間欄與所有場地欄）
+  const times = allTimes.filter((t) => startMs(t.end) > nowMs)
+  const hiddenEndedRows = allTimes.length - times.length
 
   const dayStart = taipeiToUtc(dateStr, venue.openMinute)
   const dayEnd = taipeiToUtc(dateStr, venue.closeMinute)
@@ -117,9 +126,6 @@ export async function getAvailability(
   }
 
   const today = taipeiDateString()
-  const isToday = dateStr === today
-  const isPastDate = diffDays(today, dateStr) < 0
-  const nowMinute = taipeiMinuteOfDay()
   const maxDate = addDays(today, venue.bookAheadDays)
   const beyondWindow = diffDays(dateStr, maxDate) < 0
 
@@ -141,8 +147,8 @@ export async function getAvailability(
         // HELD：自己的購物車顯示為已選取，其餘為他人暫扣
         return cartToken && hit.cartToken === cartToken ? 'SELECTED' : 'HELD'
       }
-      if (isPastDate) return 'PAST'
-      if (isToday && t.start <= nowMinute) return 'PAST'
+      if (startMs(t.start) <= nowMs) return 'STARTED'
+      if (startMs(t.start) - cutoffMs <= nowMs) return 'CUTOFF'
       if (beyondWindow) return 'CLOSED'
       return 'AVAILABLE'
     }),
@@ -160,8 +166,13 @@ export async function getAvailability(
       slotMinutes: venue.slotMinutes,
       holdMinutes: venue.holdMinutes,
       bookAheadDays: venue.bookAheadDays,
+      bookingCutoffMinutes: venue.bookingCutoffMinutes,
     },
     date: dateStr,
+    serverNow: new Date(nowMs).toISOString(),
+    hiddenEndedRows,
+    allEnded: allTimes.length > 0 && times.length === 0,
+    nextDate: addDays(dateStr, 1),
     courts: venue.courts.map((c) => ({
       id: c.id,
       name: c.name,
@@ -179,9 +190,10 @@ export async function getAvailability(
 
 /** 讀取目前購物車（尚未逾時的暫扣） */
 export async function getCart(cartToken: string | null): Promise<CartDTO> {
-  if (!cartToken) return { items: [], activityItems: [], subtotal: 0, expiresAt: null }
+  if (!cartToken) return { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
 
   await releaseExpiredHolds()
+  const nowMs = now().getTime()
 
   const rows = await prisma.reservation.findMany({
     // bookingId 為 null 才算「還在購物車裡」；
@@ -212,20 +224,30 @@ export async function getCart(cartToken: string | null): Promise<CartDTO> {
       rateName: rate.name,
       price: rate.price,
       expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
+      invalid: slotInvalidReason(r.startsAt.getTime(), r.court.venue.bookingCutoffMinutes, nowMs),
     }
   })
 
-  const activityItems = await getCartActivityItems(cartToken)
+  const activityItems = await getCartActivityItems(cartToken, nowMs)
 
   const subtotal = items.reduce((sum, i) => sum + i.price, 0) + activityItems.reduce((sum, i) => sum + i.amount, 0)
   const all = [...items.map((i) => i.expiresAt), ...activityItems.map((i) => i.expiresAt)]
   const expiresAt = all.length > 0 ? all.sort()[0] : null
 
-  return { items, activityItems, subtotal, expiresAt }
+  const invalidCount = items.filter((i) => i.invalid).length + activityItems.filter((i) => i.invalid).length
+
+  return { items, activityItems, subtotal, expiresAt, invalidCount }
+}
+
+/** 場地時段是否已不能結帳：已開始，或已超過預約截止時間 */
+export function slotInvalidReason(startsAtMs: number, cutoffMinutes: number, nowMs = now().getTime()): string | null {
+  if (startsAtMs <= nowMs) return '時段已開始'
+  if (startsAtMs - cutoffMinutes * 60_000 <= nowMs) return '已超過預約截止時間'
+  return null
 }
 
 /** 購物車中的活動報名；金額依場次目前價格計算，結帳時伺服器再算一次 */
-async function getCartActivityItems(cartToken: string): Promise<CartActivityItemDTO[]> {
+async function getCartActivityItems(cartToken: string, nowMs: number): Promise<CartActivityItemDTO[]> {
   const regs = await prisma.sessionRegistration.findMany({
     where: { cartToken, status: 'PENDING', bookingId: null, holdExpiresAt: { gt: now() } },
     include: {
@@ -255,6 +277,8 @@ async function getCartActivityItems(cartToken: string): Promise<CartActivityItem
       unitPrice: s.price,
       amount: s.price * r.quantity,
       expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
+      // 活動是否仍可報名由各場次自己的截止規則決定（結帳時再驗證）；這裡只擋已開始或已取消的場次
+      invalid: s.status === 'CANCELLED' ? '活動已取消' : s.startAt.getTime() <= nowMs ? '活動已開始' : null,
     }
   })
 }

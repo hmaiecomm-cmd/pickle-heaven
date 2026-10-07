@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
-import { useLiff } from '@/components/liff-provider'
+import { GoogleLoginButton } from '@/components/google-button'
+import { useAuth } from '@/components/auth-provider'
 import { useHoldCountdown, formatCountdown } from '@/components/booking/cart-bar'
 import { TapPayCardForm } from '@/components/checkout/tappay-card-form'
 import { useSetCart } from '@/store/cart'
@@ -39,7 +40,7 @@ export function CheckoutClient({
 }) {
   const router = useRouter()
   const { toast } = useToast()
-  const { login, loggingIn } = useLiff()
+  const { login } = useAuth()
   const setCartStore = useSetCart()
 
   const [cart] = React.useState(initialCart)
@@ -136,7 +137,7 @@ export function CheckoutClient({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      await login()
+      login('/checkout')
       return
     }
 
@@ -162,7 +163,7 @@ export function CheckoutClient({
         return
       }
 
-      setCartStore({ items: [], activityItems: [], subtotal: 0, expiresAt: null })
+      setCartStore({ items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 })
 
       // 全額折抵，無須付款
       if (booking.total === 0) {
@@ -386,15 +387,18 @@ export function CheckoutClient({
           </CardContent>
         </Card>
 
-        {user ? (
+        {(cart.invalidCount ?? 0) > 0 ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+            購物車內有已開始或已超過預約截止時間的項目，無法付款。
+            <Link href="/cart" className="ml-1 font-semibold underline underline-offset-2">回購物車移除</Link>
+          </div>
+        ) : user ? (
           <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0}>
             <Lock className="h-4 w-4" aria-hidden />
             確認付款 {ntd(quote.total)}
           </Button>
         ) : (
-          <Button type="button" size="lg" block variant="line" onClick={login} loading={loggingIn}>
-            使用 LINE 登入後結帳
-          </Button>
+          <GoogleLoginButton size="lg" next="/checkout" label="使用 Google 登入後結帳" />
         )}
       </form>
 

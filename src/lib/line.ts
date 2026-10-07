@@ -170,11 +170,11 @@ export function buildBookingFlex(b: BookingNotifyPayload) {
       header: {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: '#0fa36b',
+        backgroundColor: '#6941A5',
         paddingAll: '16px',
         contents: [
           { type: 'text', text: '預約成功', color: '#ffffff', weight: 'bold', size: 'lg' },
-          { type: 'text', text: `訂單編號 ${b.code}`, color: '#d1fae5', size: 'xs', margin: 'sm' },
+          { type: 'text', text: `訂單編號 ${b.code}`, color: '#EEE6FA', size: 'xs', margin: 'sm' },
         ],
       },
       body: {
@@ -195,7 +195,7 @@ export function buildBookingFlex(b: BookingNotifyPayload) {
             margin: 'md',
             contents: [
               { type: 'text', text: '實付金額', size: 'sm', color: '#505b70' },
-              { type: 'text', text: ntd(b.total), size: 'sm', weight: 'bold', color: '#0fa36b', align: 'end' },
+              { type: 'text', text: ntd(b.total), size: 'sm', weight: 'bold', color: '#6941A5', align: 'end' },
             ],
           },
         ],
@@ -208,7 +208,7 @@ export function buildBookingFlex(b: BookingNotifyPayload) {
           {
             type: 'button',
             style: 'primary',
-            color: '#0fa36b',
+            color: '#6941A5',
             height: 'sm',
             action: { type: 'uri', label: '查看預約詳情', uri: bookingLink(b.bookingId) },
           },

@@ -51,8 +51,8 @@ export function DefaultCover({ typeLabel, className }: { typeLabel: string; clas
     >
       <defs>
         <linearGradient id="hp-cover-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#281343" />
-          <stop offset="1" stopColor="#713CDE" />
+          <stop offset="0" stopColor="#30223D" />
+          <stop offset="1" stopColor="#6941A5" />
         </linearGradient>
       </defs>
       <rect width="320" height="180" fill="url(#hp-cover-bg)" />
@@ -70,13 +70,13 @@ export function DefaultCover({ typeLabel, className }: { typeLabel: string; clas
         <rect x="-24" y="-34" width="48" height="58" rx="18" fill="#EEE6FA" fillOpacity=".92" />
         <rect x="-6" y="22" width="12" height="34" rx="5" fill="#EEE6FA" fillOpacity=".92" />
       </g>
-      <circle cx="270" cy="128" r="12" fill="#FAF8F4" />
-      <g fill="#713CDE" fillOpacity=".55">
+      <circle cx="270" cy="128" r="12" fill="#F5F1E8" />
+      <g fill="#6941A5" fillOpacity=".55">
         <circle cx="266" cy="124" r="2" />
         <circle cx="274" cy="125" r="2" />
         <circle cx="269" cy="132" r="2" />
       </g>
-      <text x="20" y="150" fill="#FAF8F4" fontSize="26" fontWeight="800" fontFamily="var(--font-app), sans-serif">
+      <text x="20" y="150" fill="#F5F1E8" fontSize="26" fontWeight="800" fontFamily="var(--font-app), sans-serif">
         {typeLabel}
       </text>
       <text x="20" y="34" fill="#EEE6FA" fillOpacity=".8" fontSize="10" letterSpacing="2" fontFamily="sans-serif">

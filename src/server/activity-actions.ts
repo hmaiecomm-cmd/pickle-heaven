@@ -81,7 +81,7 @@ export async function addActivityToCart(
 export async function removeActivityFromCart(registrationId: string): Promise<Result<{ cart: CartDTO }>> {
   try {
     const cartToken = await getCartToken()
-    if (!cartToken) return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null } }
+    if (!cartToken) return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 } }
     const sessionId = await releaseSeatHold(cartToken, registrationId)
     if (sessionId) await notifySeatWatchers([sessionId]).catch(() => {})
     revalidatePath('/cart')

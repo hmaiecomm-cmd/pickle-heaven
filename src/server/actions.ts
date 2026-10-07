@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getAvailability } from '@/lib/availability'
-import { verifyLineIdToken } from '@/lib/line'
 import { getPaymentProvider } from '@/lib/payments'
 import type { ChargeInstruction } from '@/lib/payments'
 import {
@@ -42,40 +41,6 @@ function fail(err: unknown): { ok: false; error: string; code?: string } {
 }
 
 /* ────────────────────────────── 登入 ────────────────────────────── */
-
-/** LIFF 前端取得 id_token 後呼叫，由伺服器向 LINE 驗證 */
-export async function loginWithLine(idToken: string): Promise<ActionResult<{ user: SessionUser }>> {
-  try {
-    if (!idToken) throw new BookingError('缺少 LINE id_token', 'UNAUTHORIZED')
-    const profile = await verifyLineIdToken(idToken)
-
-    const user = await prisma.user.upsert({
-      where: { lineUserId: profile.lineUserId },
-      update: { displayName: profile.displayName, pictureUrl: profile.pictureUrl },
-      create: {
-        lineUserId: profile.lineUserId,
-        displayName: profile.displayName,
-        pictureUrl: profile.pictureUrl,
-        email: profile.email,
-      },
-    })
-
-    await createSession(user.id)
-    return {
-      ok: true,
-      user: {
-        id: user.id,
-        displayName: user.displayName,
-        pictureUrl: user.pictureUrl,
-        phone: user.phone,
-        points: user.points,
-        role: user.role,
-      },
-    }
-  } catch (err) {
-    return fail(err)
-  }
-}
 
 /**
  * 開發用登入（不需 LINE 環境）。
@@ -187,7 +152,7 @@ export async function toggleSlot(input: z.infer<typeof toggleSchema>): Promise<T
 export async function removeCartItem(reservationId: string): Promise<ActionResult<{ cart: CartDTO }>> {
   try {
     const cartToken = await getCartToken()
-    if (!cartToken) return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null } }
+    if (!cartToken) return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 } }
     await releaseReservation(cartToken, reservationId)
     revalidatePath('/cart')
     return { ok: true, cart: await getCart(cartToken) }
@@ -201,7 +166,7 @@ export async function emptyCart(): Promise<ActionResult<{ cart: CartDTO }>> {
     const cartToken = await getCartToken()
     if (cartToken) await clearCart(cartToken)
     revalidatePath('/cart')
-    return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null } }
+    return { ok: true, cart: { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 } }
   } catch (err) {
     return fail(err)
   }

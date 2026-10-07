@@ -69,8 +69,8 @@ export function TapPayCardForm({
           },
           styles: {
             input: { color: '#0e1726', 'font-size': '16px' },
-            ':focus': { color: '#0fa36b' },
-            '.valid': { color: '#0fa36b' },
+            ':focus': { color: '#6941A5' },
+            '.valid': { color: '#6941A5' },
             '.invalid': { color: '#dc2626' },
           },
         })

@@ -16,16 +16,19 @@ export function CartActivityItems({
 }) {
   if (items.length === 0) return null
   return (
-    <section className="rounded-2xl bg-[#EEE6FA] p-4 text-[#281343]" aria-label="活動報名">
+    <section className="rounded-2xl bg-[#EEE6FA] p-4 text-[#30223D]" aria-label="活動報名">
       <h2 className="flex items-center gap-2 text-sm font-bold">
         <CalendarHeart className="h-4 w-4" aria-hidden />
         活動報名
       </h2>
-      <ul className="mt-3 divide-y divide-[#281343]/15">
+      <ul className="mt-3 divide-y divide-[#30223D]/15">
         {items.map((it) => (
           <li key={it.registrationId} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold">{it.title}</p>
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                {it.title}
+                {it.invalid && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">已失效・{it.invalid}</span>}
+              </p>
               <p className="mt-0.5 text-xs tabular">
                 {it.dateLabel} {it.timeLabel}
                 {it.courtNames.length > 0 && `・${it.courtNames.join('、')}`}
@@ -41,7 +44,7 @@ export function CartActivityItems({
                 onClick={() => onRemove(it)}
                 disabled={busyId === it.registrationId}
                 aria-label={`移除活動 ${it.title}`}
-                className="rounded-lg p-2 text-[#281343]/70 transition-colors hover:bg-white hover:text-red-600 disabled:opacity-40"
+                className="rounded-lg p-2 text-[#30223D]/70 transition-colors hover:bg-white hover:text-red-600 disabled:opacity-40"
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
@@ -49,7 +52,7 @@ export function CartActivityItems({
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-[#281343]/70">名額為暫留，完成付款才算報名成功。</p>
+      <p className="mt-2 text-[11px] text-[#30223D]/70">名額為暫留，完成付款才算報名成功。</p>
     </section>
   )
 }

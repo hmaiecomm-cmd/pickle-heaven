@@ -32,7 +32,7 @@ export default async function ActivitiesPage({
 
   return (
     <div className="space-y-6 pb-6">
-      <header className="rounded-3xl bg-[#281343] px-5 py-8 text-white sm:px-8">
+      <header className="rounded-3xl bg-[#30223D] px-5 py-8 text-white sm:px-8">
         <p className="text-xs font-bold tracking-[0.2em] text-[#EEE6FA]">ACTIVITIES</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">一起上場，認識新的球友。</h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80">

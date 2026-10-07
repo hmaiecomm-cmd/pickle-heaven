@@ -10,7 +10,7 @@ interface CartState {
   clear: () => void
 }
 
-const EMPTY: CartDTO = { items: [], activityItems: [], subtotal: 0, expiresAt: null }
+const EMPTY: CartDTO = { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
 
 type CartStore = ReturnType<typeof createCartStore>
 

@@ -126,6 +126,8 @@ enum VoucherType {
 model User {
   id              String          @id @default(cuid())
   lineUserId      String?         @unique
+  /// Google 登入的 subject（sub）；前台改用 Google 授權登入後的主要識別
+  googleSub       String?         @unique
   displayName     String
   pictureUrl      String?
   phone           String?
@@ -176,6 +178,8 @@ model Venue {
   bookAheadDays  Int     @default(14)
   /// 購物車暫扣保留時間（分鐘）
   holdMinutes    Int     @default(10)
+  /// 預約截止：開打前幾分鐘停止線上預約（0 = 可預約到開打前一刻）
+  bookingCutoffMinutes Int @default(0)
   active         Boolean @default(true)
   notice         String?
   policy         String?

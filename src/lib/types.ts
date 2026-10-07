@@ -8,7 +8,9 @@ export type SlotState =
   | 'HELD'          // 他人暫扣
   | 'BOOKED'        // 已預約
   | 'BLOCKED'       // 維護中
-  | 'PAST'          // 已過時
+  | 'PAST'          // 已結束（今日已結束的時段整列隱藏，此狀態只在保險情況出現）
+  | 'STARTED'       // 已開始、尚未結束：依預約截止規則不開放線上預約
+  | 'CUTOFF'        // 尚未開始但已超過預約截止時間
   | 'CLOSED'        // 未開放
   | 'EVENT'         // 活動場次使用中（cellSessions 指向場次）
   | 'RESERVED'      // 場館保留（活動草稿保留等），不開放預約
@@ -19,7 +21,9 @@ export const SLOT_STATE_LABEL: Record<SlotState, string> = {
   HELD: '他人暫扣',
   BOOKED: '已預約',
   BLOCKED: '維護中',
-  PAST: '已過時',
+  PAST: '已結束',
+  STARTED: '已開始',
+  CUTOFF: '已截止',
   CLOSED: '未開放',
   EVENT: '活動場次',
   RESERVED: '場館保留',
@@ -50,6 +54,8 @@ export interface TimeRowDTO {
   rateName: string
   kind: 'PEAK' | 'OFFPEAK'
   price: number
+  /** 跨午夜的時段（屬於前一天營業日），顯示時標示「翌日」 */
+  nextDay: boolean
 }
 
 export interface AvailabilityDTO {
@@ -64,8 +70,18 @@ export interface AvailabilityDTO {
     slotMinutes: number
     holdMinutes: number
     bookAheadDays: number
+    /** 開打前幾分鐘截止線上預約 */
+    bookingCutoffMinutes: number
   }
   date: string
+  /** 伺服器時間（場館時區判斷用），前端以此為準，不依裝置時間 */
+  serverNow: string
+  /** 今日已結束而被整列隱藏的時段數 */
+  hiddenEndedRows: number
+  /** 這一天的時段全部結束 */
+  allEnded: boolean
+  /** 「查看明天」要切換的日期 */
+  nextDate: string
   courts: CourtDTO[]
   times: TimeRowDTO[]
   /** cells[timeIndex][courtIndex] */
@@ -91,6 +107,8 @@ export interface CartItemDTO {
   price: number
   /** 暫扣到期時間 ISO */
   expiresAt: string
+  /** 已無法結帳的原因（已開始、已截止），有值時需移除才能結帳 */
+  invalid: string | null
 }
 
 /** 購物車中的活動報名（已暫留名額） */
@@ -108,6 +126,7 @@ export interface CartActivityItemDTO {
   unitPrice: number
   amount: number
   expiresAt: string
+  invalid: string | null
 }
 
 export interface CartDTO {
@@ -116,6 +135,8 @@ export interface CartDTO {
   subtotal: number
   /** 最早到期的暫扣時間，前端倒數用 */
   expiresAt: string | null
+  /** 已失效（已開始／已截止）的項目數，大於 0 時不能結帳 */
+  invalidCount: number
 }
 
 export interface SessionUser {

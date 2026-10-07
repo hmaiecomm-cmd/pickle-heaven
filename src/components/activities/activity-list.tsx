@@ -32,7 +32,7 @@ export function ActivityList({
   return (
     <>
       {cards.length === 0 ? (
-        <p className="rounded-3xl border-2 border-dashed border-[#281343]/20 px-4 py-12 text-center font-semibold text-[#281343]">
+        <p className="rounded-3xl border-2 border-dashed border-[#30223D]/20 px-4 py-12 text-center font-semibold text-[#30223D]">
           近期沒有已公布的活動
         </p>
       ) : (

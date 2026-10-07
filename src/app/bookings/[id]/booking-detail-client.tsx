@@ -17,7 +17,6 @@ import { Badge, BookingStatusBadge } from '@/components/ui/badge'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { useLiff } from '@/components/liff-provider'
 import { cancelMyBooking } from '@/server/actions'
 import { formatDateFull } from '@/lib/time'
 import { REFUND_POLICY_ROWS } from '@/lib/pricing'
@@ -62,7 +61,6 @@ interface BookingView {
 export function BookingDetailClient({ booking, justCreated }: { booking: BookingView; justCreated: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
-  const { shareBooking, inClient } = useLiff()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [cancelling, setCancelling] = React.useState(false)
 
@@ -92,21 +90,28 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
   const handleShare = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : ''
     const text = `我在「${booking.venue.name}」訂了 ${formatDateFull(booking.playDate)} 的場地，一起來打球！`
-    const shared = await shareBooking(text, url)
-    if (!shared) {
+    // 優先用系統分享面板（手機可直接分享到 LINE 等 App），不支援時複製文字
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
-        await navigator.clipboard.writeText(`${text}\n${url}`)
-        toast('已複製預約資訊，可直接貼給球友', 'success')
+        await navigator.share({ text, url })
+        return
       } catch {
-        toast('此環境不支援分享功能', 'info')
+        /* 使用者取消或不支援，改為複製 */
       }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text}
+${url}`)
+      toast('已複製預約資訊，可直接貼給球友', 'success')
+    } catch {
+      toast('此環境不支援分享功能', 'info')
     }
   }
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-6">
       <div className="flex items-center gap-2">
-        <Link href="/bookings" aria-label="返回列表" className="-ml-2 rounded-lg p-2 text-muted hover:surface-2">
+        <Link href="/account?tab=bookings" aria-label="返回我的預約" className="-ml-2 rounded-lg p-2 text-muted hover:surface-2">
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-lg font-semibold tracking-tight">預約詳情</h1>
@@ -306,12 +311,10 @@ export function BookingDetailClient({ booking, justCreated }: { booking: Booking
 
       {/* 操作 */}
       <div className="flex gap-3">
-        {inClient || typeof navigator !== 'undefined' ? (
-          <Button variant="secondary" className="flex-1" onClick={handleShare}>
-            <Share2 className="h-4 w-4" aria-hidden />
-            分享
-          </Button>
-        ) : null}
+        <Button variant="secondary" className="flex-1" onClick={handleShare}>
+          <Share2 className="h-4 w-4" aria-hidden />
+          分享
+        </Button>
         {canCancel && (
           <Button variant="secondary" className="flex-1 text-red-600" onClick={() => setConfirmOpen(true)}>
             取消預約

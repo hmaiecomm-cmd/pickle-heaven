@@ -17,6 +17,7 @@ type Body = Partial<{
   closeMinute: unknown
   bookAheadDays: unknown
   holdMinutes: unknown
+  bookingCutoffMinutes: unknown
 }>
 
 const LABEL: Record<string, string> = {
@@ -30,6 +31,7 @@ const LABEL: Record<string, string> = {
   closeMinute: '營業結束',
   bookAheadDays: '可預約天數',
   holdMinutes: '購物車保留時間',
+  bookingCutoffMinutes: '預約截止分鐘數',
 }
 
 /**
@@ -63,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data[key] = v || null
     return null
   }
-  const int = (key: 'openMinute' | 'closeMinute' | 'bookAheadDays' | 'holdMinutes', min: number, max: number) => {
+  const int = (key: 'openMinute' | 'closeMinute' | 'bookAheadDays' | 'holdMinutes' | 'bookingCutoffMinutes', min: number, max: number) => {
     if (body[key] === undefined) return null
     const n = toInt(body[key])
     if (n === null || n < min || n > max) return `${LABEL[key]}需介於 ${min} 到 ${max}`
@@ -81,7 +83,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     int('openMinute', 0, 1439) ??
     int('closeMinute', 1, 2880) ??
     int('bookAheadDays', 1, 90) ??
-    int('holdMinutes', 3, 60)
+    int('holdMinutes', 3, 60) ??
+    int('bookingCutoffMinutes', 0, 1440)
   if (err) return badRequest(err)
 
   const open = (data.openMinute as number | undefined) ?? venue.openMinute

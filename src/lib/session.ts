@@ -28,8 +28,7 @@ export async function createSession(userId: string): Promise<void> {
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    // LIFF 於 LINE 內建瀏覽器中可能以跨站情境載入，需 SameSite=None
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
     maxAge: SESSION_DAYS * 86400,
   })
@@ -72,7 +71,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 /** 要求登入，否則丟出錯誤（Server Action 內使用） */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser()
-  if (!user) throw new SessionError('請先以 LINE 登入')
+  if (!user) throw new SessionError('請先登入')
   return user
 }
 
@@ -99,7 +98,7 @@ export async function ensureCartToken(): Promise<string> {
   store.set(CART_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
     maxAge: 86400,
   })

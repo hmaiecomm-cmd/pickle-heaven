@@ -72,7 +72,10 @@ export async function holdSlot(
 
   const startsAt = taipeiToUtc(dateStr, startMinute)
   if (startsAt.getTime() <= now().getTime()) {
-    throw new BookingError('無法預約已過去的時段', 'BOOKING_CLOSED')
+    throw new BookingError('這個時段已開始，無法線上預約', 'BOOKING_CLOSED')
+  }
+  if (startsAt.getTime() - venue.bookingCutoffMinutes * 60_000 <= now().getTime()) {
+    throw new BookingError(`這個時段已超過預約截止時間（開打前 ${venue.bookingCutoffMinutes} 分鐘）`, 'BOOKING_CLOSED')
   }
 
   const endsAt = taipeiToUtc(dateStr, startMinute + venue.slotMinutes)
@@ -212,6 +215,9 @@ export interface CreateBookingInput {
  * 所有金額一律於伺服器端重算，不信任前端傳來的價格。
  * 暫扣以「條件式更新」轉綁訂單：重複送出時第二次的更新筆數不符，整筆回滾，不會產生兩張訂單。
  */
+/** UTC 時間 → 當天台北分鐘數（顯示用） */
+const minuteOf = (d: Date) => Math.round((d.getTime() - taipeiToUtc(taipeiDateString(d), 0).getTime()) / 60_000)
+
 export async function createPendingBooking(
   userId: string,
   cartToken: string,
@@ -252,6 +258,13 @@ export async function createPendingBooking(
   if (venueIds.size > 1) throw new BookingError('一張訂單僅能包含同一場館的項目')
   const venueId = [...venueIds][0]
   const venue = held[0]?.court.venue ?? (await prisma.venue.findUniqueOrThrow({ where: { id: venueId }, include: { priceRules: true } }))
+
+  // 場地時段在結帳當下不能已開始或已超過預約截止時間；購物車頁會先提示，這裡是最後防線
+  for (const r of held) {
+    if (r.startsAt.getTime() - venue.bookingCutoffMinutes * 60_000 <= at.getTime()) {
+      throw new BookingError(`「${r.court.name} ${formatRange(minuteOf(r.startsAt), minuteOf(r.endsAt))}」已開始或已超過預約截止時間，請從購物車移除`, 'BOOKING_CLOSED')
+    }
+  }
 
   // 活動場次在結帳當下必須仍可報名（未取消、未截止），不能只因為場次存在就允許付款
   const visibleIds = new Set(

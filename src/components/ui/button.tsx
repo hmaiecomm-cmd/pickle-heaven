@@ -15,7 +15,6 @@ const buttonVariants = cva(
         secondary: 'surface border border-[rgb(var(--border))] text-[rgb(var(--fg))] hover:surface-2',
         ghost: 'text-[rgb(var(--fg-muted))] hover:surface-2 hover:text-[rgb(var(--fg))]',
         danger: 'bg-red-600 text-white hover:bg-red-700',
-        line: 'bg-[#06C755] text-white hover:bg-[#05b34c]',
         link: 'text-brand-600 underline-offset-4 hover:underline',
       },
       size: {

@@ -163,7 +163,7 @@ export function SettingsClient() {
     if (!venue) return
     const pick: Record<Section, (keyof VenueSettingsPatch)[]> = {
       info: ['name', 'address', 'phone', 'description'],
-      rules: ['openMinute', 'closeMinute', 'bookAheadDays', 'holdMinutes'],
+      rules: ['openMinute', 'closeMinute', 'bookAheadDays', 'holdMinutes', 'bookingCutoffMinutes'],
       notice: ['notice', 'policy'],
     }
     setDraft(Object.fromEntries(pick[section].map((k) => [k, venue[k]])) as VenueSettingsPatch)
@@ -326,6 +326,9 @@ export function SettingsClient() {
                 <Field label="購物車保留（分鐘）" htmlFor="v-hold" hint="3–60 分鐘">
                   <Input id="v-hold" type="number" min={3} max={60} value={draft.holdMinutes ?? ''} onChange={(e) => set('holdMinutes', Number(e.target.value))} />
                 </Field>
+                <Field label="預約截止（開打前分鐘）" htmlFor="v-cutoff" hint="0 = 可預約到開打前一刻；前台超過截止會顯示「已截止」">
+                  <Input id="v-cutoff" type="number" min={0} max={1440} value={draft.bookingCutoffMinutes ?? ''} onChange={(e) => set('bookingCutoffMinutes', Number(e.target.value))} />
+                </Field>
                 <p className="col-span-2 text-xs text-muted">時段長度 {venue.slotMinutes} 分鐘不開放修改，避免打亂既有預約。縮短營業時間不會取消已成立的訂單。</p>
               </div>
             ) : (
@@ -335,6 +338,7 @@ export function SettingsClient() {
                   ['時段長度', `${venue.slotMinutes} 分鐘`],
                   ['可預約', `未來 ${venue.bookAheadDays} 天`],
                   ['購物車保留', `${venue.holdMinutes} 分鐘`],
+                  ['預約截止', venue.bookingCutoffMinutes > 0 ? `開打前 ${venue.bookingCutoffMinutes} 分鐘` : '可預約到開打前一刻'],
                   ['付款期限', `建立訂單後 ${settings.rules.paymentWindowMinutes} 分鐘`],
                 ]}
               />

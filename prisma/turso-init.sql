@@ -2,6 +2,7 @@
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "lineUserId" TEXT,
+    "googleSub" TEXT,
     "displayName" TEXT NOT NULL,
     "pictureUrl" TEXT,
     "phone" TEXT,
@@ -33,6 +34,7 @@ CREATE TABLE "Venue" (
     "slotMinutes" INTEGER NOT NULL DEFAULT 60,
     "bookAheadDays" INTEGER NOT NULL DEFAULT 14,
     "holdMinutes" INTEGER NOT NULL DEFAULT 10,
+    "bookingCutoffMinutes" INTEGER NOT NULL DEFAULT 0,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "notice" TEXT,
     "policy" TEXT,
@@ -663,6 +665,9 @@ CREATE TABLE "MemberRestriction" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_lineUserId_key" ON "User"("lineUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_googleSub_key" ON "User"("googleSub");
 
 -- CreateIndex
 CREATE INDEX "User_createdAt_idx" ON "User"("createdAt");
