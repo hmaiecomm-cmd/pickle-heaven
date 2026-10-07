@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function SimulatorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string; code?: string; booking?: string; amount?: string }>
+  searchParams: Promise<{ ref?: string; code?: string; booking?: string; amount?: string; return?: string }>
 }) {
   const sp = await searchParams
   return (
@@ -16,6 +16,7 @@ export default async function SimulatorPage({
       bookingCode={sp.code ?? ''}
       bookingId={sp.booking ?? ''}
       amount={Number(sp.amount ?? 0)}
+      returnPath={sp.return && sp.return.startsWith('http') ? new URL(sp.return).pathname + new URL(sp.return).search : null}
     />
   )
 }

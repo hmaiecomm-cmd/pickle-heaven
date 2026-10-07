@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { releaseExpiredHolds } from '@/lib/availability'
 import { completePastBookings, expireStaleBookings } from '@/server/booking-service'
+import { expireStaleTopUps } from '@/server/topup-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -20,11 +21,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
 
-  const [holds, expired, completed] = await Promise.all([
+  const [holds, expired, completed, topUps] = await Promise.all([
     releaseExpiredHolds(),
     expireStaleBookings(),
     completePastBookings(),
+    expireStaleTopUps(),
   ])
 
-  return NextResponse.json({ ok: true, releasedHolds: holds, expiredBookings: expired, completed })
+  return NextResponse.json({ ok: true, releasedHolds: holds, expiredBookings: expired, completed, expiredTopUps: topUps })
 }

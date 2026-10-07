@@ -52,6 +52,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '訂場與活動訂單', href: '/admin/bookings', permission: 'bookings', exact: true },
       { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
+      { label: '儲值單', href: '/admin/topup', permission: 'finance' },
       { label: '退款紀錄', href: '/admin/refunds', permission: 'finance' },
       { label: '發票管理', href: '/admin/invoices', permission: 'invoice' },
     ],
@@ -105,6 +106,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
       { label: '營業時間與預約規則', href: '/admin/pricing', permission: 'settings' },
       { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true },
+      { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings' },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
       { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
       { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },

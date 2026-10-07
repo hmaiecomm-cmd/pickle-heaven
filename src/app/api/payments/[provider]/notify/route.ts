@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getPaymentProvider, isProviderId } from '@/lib/payments'
 import { markBookingPaid, recordPaymentFailure } from '@/server/booking-service'
+import { findTopUpByCode, markTopUpPaid, recordTopUpFailure } from '@/server/topup-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -24,6 +25,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
 
   try {
     const result = await provider.handleCallback(req)
+
+    // 儲值單（TP-…）：付款確認後入點，與訂場分開處理
+    if (/^TP-?\d{8}/.test(result.bookingCode)) {
+      const order = await findTopUpByCode(result.bookingCode)
+      if (!order) return new NextResponse('BOOKING_NOT_FOUND', { status: 404 })
+      if (result.ok) {
+        if (result.amount != null && result.amount !== order.amount) {
+          console.error('[notify] 儲值金額不符', { expected: order.amount, got: result.amount })
+          await recordTopUpFailure(order.id, providerId, '回呼金額與儲值金額不符', result.raw, { keepPending: true })
+          return new NextResponse('AMOUNT_MISMATCH', { status: 400 })
+        }
+        await markTopUpPaid(order.id, { provider: providerId, method: provider.method, amount: order.amount, providerRef: result.providerRef, cardLast4: result.cardLast4, cardBrand: result.cardBrand, raw: result.raw })
+      } else {
+        await recordTopUpFailure(order.id, providerId, result.failReason ?? '付款失敗', result.raw)
+      }
+      return new NextResponse(result.ack.body, { status: 200, headers: { 'Content-Type': result.ack.contentType } })
+    }
+
     const booking = await findBookingByCode(result.bookingCode)
 
     if (!booking) {

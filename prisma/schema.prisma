@@ -161,6 +161,7 @@ model User {
   sessionWatches SessionWatch[]
   restrictions   MemberRestriction[]
   pointsLedger   PointsLedger[]
+  topUpOrders    TopUpOrder[]
 
   @@index([createdAt])
 }
@@ -1382,4 +1383,66 @@ model PointsLedger {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// 儲值方案：由擁有者設定；售價、點數、贈點分開，不假設 1 元 = 1 點
+model TopUpPlan {
+  id           String   @id @default(cuid())
+  name         String
+  /// 支付金額（新台幣整數元）
+  price        Int
+  /// 購買點數
+  points       Int
+  /// 贈送點數（與付費點數分開記錄）
+  bonusPoints  Int      @default(0)
+  /// 使用範圍說明
+  scopeNote    String?
+  /// 效期說明
+  validityNote String?
+  /// 退款說明
+  refundNote   String?
+  active       Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders TopUpOrder[]
+
+  @@index([active, sortOrder])
+}
+
+/// 儲值單：付款由金流回呼確認後才入點；入點走點數帳本（冪等）
+model TopUpOrder {
+  id          String    @id @default(cuid())
+  /// TP-YYYYMMDD-XXXX
+  code        String    @unique
+  userId      String
+  planId      String
+  /// 方案快照
+  planName    String
+  amount      Int
+  points      Int
+  bonusPoints Int       @default(0)
+  /// PENDING | PAID | CREDITED | CREDIT_FAILED | FAILED | EXPIRED | CANCELLED
+  status      String    @default("PENDING")
+  provider    String?
+  method      String?
+  providerRef String?
+  cardLast4   String?
+  cardBrand   String?
+  rawResponse Json?
+  failReason  String?
+  paidAt      DateTime?
+  creditedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan TopUpPlan @relation(fields: [planId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([providerRef])
 }

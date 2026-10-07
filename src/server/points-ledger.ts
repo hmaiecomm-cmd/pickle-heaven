@@ -9,7 +9,7 @@ import { isUniqueViolation } from './occupancy'
  * - idempotencyKey 唯一：同一事件重複送出只會記一筆（重試、回呼、連點都安全）。
  */
 
-export type PointsKind = 'ADMIN_ADD' | 'ADMIN_DEDUCT' | 'REDEEM' | 'REFUND' | 'RELEASE'
+export type PointsKind = 'ADMIN_ADD' | 'ADMIN_DEDUCT' | 'REDEEM' | 'REFUND' | 'RELEASE' | 'TOPUP_PAID' | 'TOPUP_BONUS'
 
 export const POINTS_KIND_LABEL: Record<PointsKind, string> = {
   ADMIN_ADD: '後台加點',
@@ -17,6 +17,8 @@ export const POINTS_KIND_LABEL: Record<PointsKind, string> = {
   REDEEM: '結帳折抵',
   REFUND: '退款回補',
   RELEASE: '訂單取消歸還',
+  TOPUP_PAID: '儲值（付費點數）',
+  TOPUP_BONUS: '儲值贈點',
 }
 
 export class PointsError extends Error {}

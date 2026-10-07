@@ -774,6 +774,50 @@ CREATE TABLE "PointsLedger" (
     CONSTRAINT "PointsLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "TopUpPlan" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "price" INTEGER NOT NULL,
+    "points" INTEGER NOT NULL,
+    "bonusPoints" INTEGER NOT NULL DEFAULT 0,
+    "scopeNote" TEXT,
+    "validityNote" TEXT,
+    "refundNote" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT false,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "TopUpOrder" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "code" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "planId" TEXT NOT NULL,
+    "planName" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "points" INTEGER NOT NULL,
+    "bonusPoints" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "provider" TEXT,
+    "method" TEXT,
+    "providerRef" TEXT,
+    "cardLast4" TEXT,
+    "cardBrand" TEXT,
+    "rawResponse" JSONB,
+    "failReason" TEXT,
+    "paidAt" DATETIME,
+    "creditedAt" DATETIME,
+    "expiresAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "TopUpOrder_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "TopUpOrder_planId_fkey" FOREIGN KEY ("planId") REFERENCES "TopUpPlan" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_lineUserId_key" ON "User"("lineUserId");
 
@@ -1040,4 +1084,19 @@ CREATE UNIQUE INDEX "PointsLedger_idempotencyKey_key" ON "PointsLedger"("idempot
 
 -- CreateIndex
 CREATE INDEX "PointsLedger_userId_createdAt_idx" ON "PointsLedger"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "TopUpPlan_active_sortOrder_idx" ON "TopUpPlan"("active", "sortOrder");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TopUpOrder_code_key" ON "TopUpOrder"("code");
+
+-- CreateIndex
+CREATE INDEX "TopUpOrder_userId_createdAt_idx" ON "TopUpOrder"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "TopUpOrder_status_createdAt_idx" ON "TopUpOrder"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "TopUpOrder_providerRef_idx" ON "TopUpOrder"("providerRef");
 

@@ -17,11 +17,14 @@ export function SimulatorClient({
   bookingCode,
   bookingId,
   amount,
+  returnPath,
 }: {
   providerRef: string
   bookingCode: string
   bookingId: string
   amount: number
+  /** 付款後導回的站內路徑（儲值等非訂場流程使用） */
+  returnPath?: string | null
 }) {
   const router = useRouter()
   const [busy, setBusy] = React.useState<'success' | 'fail' | null>(null)
@@ -37,7 +40,7 @@ export function SimulatorClient({
     } catch {
       /* 忽略，交由結果頁判斷實際狀態 */
     }
-    router.push(`/checkout/result?booking=${bookingId}`)
+    router.push(returnPath ?? `/checkout/result?booking=${bookingId}`)
   }
 
   return (

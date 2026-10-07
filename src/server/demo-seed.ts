@@ -389,6 +389,46 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
       { expenseNumber: 'EXP-DEMO-0002', category: 'UTILITIES', amount: 5400, status: 'SUBMITTED', description: '照明電費（展示）', submittedAt: new Date(now.getTime() - 2 * 86_400_000) },
     ],
   })
+  // 儲值方案（展示用，不是正式售價）與幾筆儲值單
+  const plans = await Promise.all([
+    db.topUpPlan.create({ data: { name: '儲值 1,000（展示）', price: 1000, points: 1000, bonusPoints: 0, scopeNote: '場地租借與活動報名結帳折抵', validityNote: '入帳後 12 個月', refundNote: '未使用之付費點數可申請退款，贈點不退', active: true, sortOrder: 1, createdBy: 'demo' } }),
+    db.topUpPlan.create({ data: { name: '儲值 3,000 送 300（展示）', price: 3000, points: 3000, bonusPoints: 300, scopeNote: '場地租借與活動報名結帳折抵', validityNote: '入帳後 12 個月', refundNote: '未使用之付費點數可申請退款，贈點不退', active: true, sortOrder: 2, createdBy: 'demo' } }),
+    db.topUpPlan.create({ data: { name: '儲值 5,000 送 750（展示）', price: 5000, points: 5000, bonusPoints: 750, scopeNote: '場地租借與活動報名結帳折抵', validityNote: '入帳後 12 個月', refundNote: '未使用之付費點數可申請退款，贈點不退', active: false, sortOrder: 3, createdBy: 'demo' } }),
+  ])
+  const topUpStates: Array<[number, number, string]> = [[0, 1, 'CREDITED'], [1, 2, 'CREDITED'], [2, 1, 'PENDING'], [3, 2, 'CREDIT_FAILED'], [4, 1, 'FAILED']]
+  for (const [i, [ui, pi, status]] of topUpStates.entries()) {
+    const plan = plans[pi - 1]
+    const u = users[ui]
+    const at = new Date(now.getTime() - (i + 1) * 86_400_000)
+    const order = await db.topUpOrder.create({
+      data: {
+        code: `TP-DEMO000${i + 1}`,
+        userId: u.id,
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.price,
+        points: plan.points,
+        bonusPoints: plan.bonusPoints,
+        status,
+        provider: status === 'PENDING' ? null : 'mock',
+        method: status === 'PENDING' ? null : 'CREDIT_CARD',
+        providerRef: status === 'PENDING' ? null : `MOCKDEMO${i}`,
+        paidAt: status === 'CREDITED' || status === 'CREDIT_FAILED' ? at : null,
+        creditedAt: status === 'CREDITED' ? at : null,
+        failReason: status === 'CREDIT_FAILED' ? '入帳失敗：資料庫暫時無法連線（展示）' : status === 'FAILED' ? '模擬付款失敗（卡片遭拒）' : null,
+        expiresAt: status === 'PENDING' ? new Date(now.getTime() + 20 * 60_000) : null,
+        createdAt: at,
+      },
+    })
+    if (status === 'CREDITED') {
+      const after1 = (await db.user.update({ where: { id: u.id }, data: { points: { increment: plan.points } } })).points
+      await db.pointsLedger.create({ data: { userId: u.id, delta: plan.points, balanceAfter: after1, kind: 'TOPUP_PAID', reason: `儲值 ${order.code}（${plan.name}）`, actor: 'system', idempotencyKey: `topup:${order.id}:paid`, createdAt: at } })
+      if (plan.bonusPoints > 0) {
+        const after2 = (await db.user.update({ where: { id: u.id }, data: { points: { increment: plan.bonusPoints } } })).points
+        await db.pointsLedger.create({ data: { userId: u.id, delta: plan.bonusPoints, balanceAfter: after2, kind: 'TOPUP_BONUS', reason: `儲值 ${order.code} 贈點（${plan.name}）`, actor: 'system', idempotencyKey: `topup:${order.id}:bonus`, createdAt: at } })
+      }
+    }
+  }
   log('完成')
   return { venueId: venue.id }
 }

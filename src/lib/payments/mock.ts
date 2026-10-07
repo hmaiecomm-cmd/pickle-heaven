@@ -21,11 +21,12 @@ export const mockProvider: PaymentProvider = {
 
   async createCharge(ctx: ChargeContext): Promise<ChargeInstruction> {
     const providerRef = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`
-    const url = new URL(ctx.returnUrl.replace(/\/checkout\/result.*$/, '/checkout/simulator'))
+    const url = new URL('/checkout/simulator', ctx.returnUrl)
     url.searchParams.set('ref', providerRef)
     url.searchParams.set('code', ctx.bookingCode)
     url.searchParams.set('booking', ctx.bookingId)
     url.searchParams.set('amount', String(ctx.amount))
+    url.searchParams.set('return', ctx.returnUrl)
     return { kind: 'redirect', providerRef, redirectUrl: url.toString() }
   },
 

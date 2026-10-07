@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { CalendarPlus, ChevronRight, Coins, Ticket } from 'lucide-react'
+import { CalendarPlus, ChevronRight, Coins, Ticket, Wallet } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { listUserBookings } from '@/server/booking-service'
@@ -17,6 +17,9 @@ import { BookingsClient, type BookingCardData } from '@/app/bookings/bookings-cl
 import { AccountTabs } from './account-tabs'
 import { isAccountTab, type AccountTab } from './tabs'
 import { ProfileForm } from './profile-form'
+import { POINTS_KIND_LABEL, type PointsKind } from '@/server/points-ledger'
+import { listUserLedger, listUserTopUps, topUpAvailability, TOPUP_STATUS_LABEL, userPointsBreakdown, type TopUpStatus } from '@/server/topup-service'
+import { formatDateTime } from '@/lib/time'
 
 export const metadata: Metadata = { title: '我的帳戶' }
 export const dynamic = 'force-dynamic'
@@ -74,6 +77,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, createdAt: true } }),
     prisma.court.findMany({ where: { active: true }, select: { id: true, name: true } }),
   ])
+  const [ledger, topUps, breakdown] = tab === 'points' ? await Promise.all([listUserLedger(user.id), listUserTopUps(user.id), userPointsBreakdown(user.id)]) : [[], [], null]
+  const topUpOpen = topUpAvailability().open
   const courtName = new Map(courts.map((c) => [c.id, c.name]))
   const TICKET_LABEL: Record<string, string> = { OFFPEAK: '離峰券', PEAK: '尖峰券', GENERAL: '通用券' }
 
@@ -125,12 +130,20 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             {upcoming.length > 0 && <>・即將到來 {upcoming.length} 筆預約</>}
           </p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/booking">
-            <CalendarPlus className="h-4 w-4" aria-hidden />
-            預約場地
-          </Link>
-        </Button>
+        <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+          <Button asChild size="sm">
+            <Link href="/account/topup" aria-label="儲值點數">
+              <Wallet className="h-4 w-4" aria-hidden />
+              儲值點數
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/booking">
+              <CalendarPlus className="h-4 w-4" aria-hidden />
+              預約場地
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <AccountTabs current={tab} counts={counts} />
@@ -199,6 +212,67 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                 <p className="text-xs text-muted">1 點折抵 NT$1；取消預約的退款會回補為點數，結帳時可直接折抵</p>
               </div>
               <span className="text-xl font-bold tabular">{user.points}</span>
+            </CardContent>
+            <CardContent className="space-y-3 border-t border-[rgb(var(--border))] pt-4">
+              <Button asChild block>
+                <Link href="/account/topup">
+                  <Wallet className="h-4 w-4" aria-hidden />
+                  儲值點數
+                </Link>
+              </Button>
+              {!topUpOpen && <p className="text-center text-[11px] text-muted">線上儲值尚未開放，請洽場館櫃台。</p>}
+              {breakdown && (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <dt className="text-muted">累計儲值（付費點數）</dt><dd className="text-right tabular">{breakdown.paid} 點</dd>
+                  <dt className="text-muted">累計贈送點數</dt><dd className="text-right tabular">{breakdown.bonus} 點</dd>
+                  <dt className="text-muted">累計結帳折抵</dt><dd className="text-right tabular">{breakdown.redeemed} 點</dd>
+                  <dt className="text-muted">退款／取消回補</dt><dd className="text-right tabular">{breakdown.refunded} 點</dd>
+                </dl>
+              )}
+              <p className="text-[11px] text-muted">付費點數與贈送點數分開記錄；退款規則依各方案說明，贈送點數不退現。</p>
+            </CardContent>
+          </Card>
+          {topUps.length > 0 && (
+            <Card>
+              <CardContent className="space-y-2">
+                <h2 className="text-sm font-semibold">儲值紀錄</h2>
+                <Separator />
+                <ul className="divide-y divide-[rgb(var(--border))] text-sm">
+                  {topUps.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-2 py-2">
+                      <Link href={`/account/topup/${t.id}`} className="min-w-0 flex-1 hover:underline">
+                        <span className="font-medium">{t.planName}</span>
+                        <span className="block text-[11px] text-muted">{t.code}・{formatDateTime(t.createdAt)}・{ntd(t.amount)}</span>
+                      </Link>
+                      <Badge variant={t.status === 'CREDITED' ? 'success' : t.status === 'PENDING' || t.status === 'PAID' || t.status === 'CREDIT_FAILED' ? 'warn' : 'neutral'}>{TOPUP_STATUS_LABEL[t.status as TopUpStatus] ?? t.status}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardContent className="space-y-2">
+              <h2 className="text-sm font-semibold">點數交易紀錄</h2>
+              <Separator />
+              {ledger.length === 0 ? (
+                <p className="py-2 text-xs text-muted">尚無點數異動</p>
+              ) : (
+                <ul className="divide-y divide-[rgb(var(--border))] text-sm">
+                  {ledger.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between gap-2 py-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium">{POINTS_KIND_LABEL[l.kind as PointsKind] ?? l.kind}</span>
+                        <span className="block truncate text-[11px] text-muted">{formatDateTime(l.createdAt)}・{l.reason}</span>
+                      </span>
+                      <span className="text-right">
+                        <span className={`tabular font-semibold ${l.delta > 0 ? 'text-emerald-700' : 'text-red-600'}`}>{l.delta > 0 ? `+${l.delta}` : l.delta}</span>
+                        <span className="block text-[11px] text-muted tabular">餘額 {l.balanceAfter}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
           <Card>
