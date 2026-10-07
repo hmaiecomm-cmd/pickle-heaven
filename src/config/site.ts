@@ -120,8 +120,8 @@ export const social: { label: string; href: string }[] = []
 export const legal = {
   /** 營運公司名稱（不可填系統名稱） */
   company: null as string | null,
-  termsUrl: null as string | null,
-  privacyUrl: null as string | null,
+  termsUrl: '/terms' as string | null,
+  privacyUrl: '/privacy' as string | null,
 }
 
 /** 首頁使用的圖片中，只要有示意圖就在頁尾加註 */
