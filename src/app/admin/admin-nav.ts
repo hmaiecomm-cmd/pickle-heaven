@@ -30,7 +30,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     key: 'ai',
     label: 'AI 營運中心',
     items: [
-      { label: 'AI 助理對話', href: '/admin/ai-assistant', permission: 'ai' },
       { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
       { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
       { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
@@ -120,6 +119,7 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/receipts': '/admin/expenses',
   '/admin/finance/payments': '/admin/finance',
   '/admin/ai-courts': '/admin/control',
+  '/admin/ai-assistant': '/admin',
   '/admin/templates': '/admin/activities',
 }
 

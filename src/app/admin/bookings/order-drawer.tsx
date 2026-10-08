@@ -85,7 +85,7 @@ export function OrderDrawer({
             {detail && (
               <button type="button" onClick={() => ask('這筆訂單可以退哪些項目？')} className="flex h-9 items-center gap-1 rounded-lg border border-zinc-300 px-2 text-xs hover:bg-violet-50">
                 <MessageCircleQuestion className="h-4 w-4" aria-hidden />
-                問小匹
+                問小P
               </button>
             )}
             <CloseButton onClick={onClose} />

@@ -80,7 +80,7 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
                 aria-pressed={open}
               >
                 <Avatar size={26} />
-                <span className="hidden sm:inline">詢問小匹</span>
+                <span className="hidden sm:inline">詢問小P</span>
               </button>
             )}
           </header>
@@ -91,7 +91,7 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
 
         {/* AI 面板：桌機在右側並排（不蓋住表格），手機全螢幕 */}
         {open && (
-          <aside aria-label="AI 助理" className="fixed inset-0 z-50 flex flex-col md:relative md:inset-auto md:w-[380px] md:shrink-0 md:border-l md:border-[rgb(var(--border))]">
+          <aside aria-label="小P AI 營運助理" className="fixed inset-0 z-50 flex flex-col md:relative md:inset-auto md:w-[380px] md:shrink-0 md:border-l md:border-[rgb(var(--border))]">
             <AiChat onClose={() => setOpen(false)} />
           </aside>
         )}

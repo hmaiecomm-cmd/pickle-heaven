@@ -10,7 +10,7 @@ export function AskAiButton({ prompt }: { prompt?: string }) {
   return (
     <button type="button" onClick={() => ask(prompt)} className="flex h-10 items-center gap-2 rounded-full bg-white px-2 pr-3 text-sm font-semibold text-[#281343] hover:bg-violet-50">
       <Avatar size={26} />
-      詢問 AI 助理
+      詢問小P
     </button>
   )
 }

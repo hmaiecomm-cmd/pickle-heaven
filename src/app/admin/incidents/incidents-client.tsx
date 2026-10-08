@@ -47,7 +47,7 @@ export function IncidentsClient({ rows, showAll }: { rows: Row[]; showAll: boole
       <div className="flex flex-wrap gap-2 text-sm">
         <Link href="/admin/incidents" className={`rounded-full px-3 py-1 ${!showAll ? 'bg-brand-100 font-semibold text-brand-800' : 'bg-white ring-1 ring-zinc-200'}`}>待處理</Link>
         <Link href="/admin/incidents?all=1" className={`rounded-full px-3 py-1 ${showAll ? 'bg-brand-100 font-semibold text-brand-800' : 'bg-white ring-1 ring-zinc-200'}`}>全部紀錄</Link>
-        <button type="button" onClick={() => ask('今天有哪些異常？')} className="ml-auto rounded-full bg-white px-3 py-1 ring-1 ring-zinc-200 hover:bg-violet-50">請小匹整理</button>
+        <button type="button" onClick={() => ask('今天有哪些異常？')} className="ml-auto rounded-full bg-white px-3 py-1 ring-1 ring-zinc-200 hover:bg-violet-50">請小P整理</button>
       </div>
       {rows.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-muted">沒有事件</p>}
       {rows.map((r) => {

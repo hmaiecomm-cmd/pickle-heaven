@@ -16,7 +16,7 @@ import { can, type AdminRole, type Permission } from '@/lib/admin-permissions'
 export const AI_MODEL = 'claude-opus-5-5'
 const MAX_TOOL_ROUNDS = 8
 
-const SYSTEM_PROMPT = `你是「小匹」，「匹克精靈」後台系統裡的 AI 營運助理（虛構角色，不是真人客服），服務對象是場館的管理人員。
+const SYSTEM_PROMPT = `你是「小P」，「匹克精靈」後台系統裡的 AI 營運助理（虛構角色，不是真人客服），服務對象是場館的管理人員。
 - 每則使用者訊息前面會附上「頁面脈絡」（目前功能、場館、使用者選取的訂單等），只把它當作背景資料；選取的項目以脈絡中的 id 為準，脈絡沒有就請使用者先在畫面上選取，不要沿用先前對話的訂單。
 
 回答原則：

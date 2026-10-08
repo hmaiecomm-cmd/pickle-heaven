@@ -6,7 +6,7 @@ import { ExternalLink, Loader2, RotateCcw, Send, Square, Trash2, X } from 'lucid
 import { cn } from '@/lib/utils'
 import { useAi } from './ai-context'
 
-export const ASSISTANT_NAME = '小匹｜AI 營運助理'
+export const ASSISTANT_NAME = '小P｜AI 營運助理'
 export const ASSISTANT_AVATAR = '/images/admin/xiaopi-avatar-v2.webp'
 
 /* ─────────────────────────── 型別 ─────────────────────────── */
@@ -18,13 +18,18 @@ export type AiCard =
   | { kind: 'refund'; title: string; code: string; href: string; items: { label: string; cash: number; points: number; blocked: string | null }[]; note: string | null }
   | { kind: 'steps'; title: string; steps: string[]; href: string; linkLabel: string }
   | { kind: 'devices'; title: string; items: { court: string; usage: string; sensor: string; devices: string }[]; href: string }
+  | { kind: 'guide'; title: string; links: { label: string; href: string | null; state: string | null }[] }
+  | { kind: 'faq'; title: string; items: { id: string; question: string }[] }
 
 export interface AiReply {
   reply: string
   cards?: AiCard[]
   sources?: { label: string; href: string }[]
   queriedAt?: string
-  mode: 'quick' | 'model' | 'unavailable'
+  mode: 'quick' | 'model' | 'unavailable' | 'guide'
+  /** 伺服器給的標示：操作指南／即時查詢／展示範例／AI 回答 */
+  label?: string
+  demo?: boolean
   actions?: { title: string; items: string[]; impact: string }[]
   /** 下一則使用者訊息要當成什麼快捷查詢的輸入 */
   expect?: 'find' | null
@@ -41,11 +46,27 @@ const QUICK: { key: string; label: string }[] = [
   { key: 'incidents', label: '今天有哪些異常？' },
   { key: 'find', label: '幫我找客人的預約' },
   { key: 'open_sessions', label: '哪些活動還有名額？' },
-  { key: 'howto_weekly', label: '如何新增每週固定活動？' },
   { key: 'refundable', label: '這筆訂單可以退哪些項目？' },
+  { key: 'faq', label: '操作指南' },
 ]
 
 const uid = () => Math.random().toString(36).slice(2, 10)
+
+/** 操作指南題目（與伺服器 ai-guide.ts 同步；內容由伺服器提供） */
+const FAQ: { id: string; question: string }[] = [
+  { id: 'new_session', question: '如何新增球敘活動？' },
+  { id: 'slot_blocked', question: '為什麼某個時段不能預約？' },
+  { id: 'weekly', question: '如何設定每週固定活動？' },
+  { id: 'modify_booking', question: '如何修改客人的預約？' },
+  { id: 'complaint', question: '工作人員如何處理客訴？' },
+  { id: 'devices', question: '如何查看門是否關好、燈是否關閉？' },
+  { id: 'topup_how', question: '客人如何購買點數？' },
+  { id: 'topup_missing', question: '付款了但點數沒增加怎麼辦？' },
+  { id: 'expense', question: '如何登錄支出收據？' },
+  { id: 'finance_hidden', question: '為什麼我看不到財務報表？' },
+  { id: 'courts', question: '本館有幾面球場？' },
+  { id: 'staff_account', question: '如何建立工作人員帳號？' },
+]
 
 /* ─────────────────────────── 元件 ─────────────────────────── */
 
@@ -54,7 +75,7 @@ export function Avatar({ size = 34 }: { size?: number }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={ASSISTANT_AVATAR}
-      alt="小匹（AI 助理頭像，虛構角色）"
+      alt="小P（AI 助理頭像，虛構角色）"
       width={size}
       height={size}
       className="shrink-0 rounded-full object-cover ring-1 ring-black/10"
@@ -74,8 +95,10 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
   const listRef = React.useRef<HTMLDivElement>(null)
   const lastRequest = React.useRef<{ text: string; quick?: string } | null>(null)
 
-  // 對話依「資料範圍＋場館」分開保存，切換後不會看到別處的紀錄
+  // 對話依「資料範圍＋場館」分開保存，切換後不會看到別處的紀錄；讀回之前不寫入，避免以空白覆蓋既有紀錄
+  const [loaded, setLoaded] = React.useState(false)
   React.useEffect(() => {
+    setLoaded(false)
     try {
       const raw = sessionStorage.getItem(storageKey)
       setMessages(raw ? JSON.parse(raw) : [])
@@ -83,18 +106,24 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
       setMessages([])
     }
     setExpect(null)
+    setLoaded(true)
   }, [storageKey])
   React.useEffect(() => {
+    if (!loaded) return
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(messages.slice(-40)))
     } catch {}
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, storageKey])
+  }, [messages, storageKey, loaded])
 
   const send = React.useCallback(
     async (text: string, quick?: string) => {
       const clean = text.trim()
       if (!clean || busy) return
+      if (quick === 'faq') {
+        setMessages((m) => [...m, { id: uid(), role: 'assistant', text: '這些是不需要查即時資料的操作指南，點一題即可：', mode: 'guide', label: '操作指南', cards: [{ kind: 'faq', title: '操作指南', items: FAQ }] }])
+        return
+      }
       const mode = quick ?? (expect === 'find' ? 'find' : undefined)
       lastRequest.current = { text: clean, quick: mode }
       const userMsg: Msg = { id: uid(), role: 'user', text: clean }
@@ -194,7 +223,7 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
           <div className="flex items-start gap-2">
             <Avatar />
             <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-3 py-2 shadow-sm">
-              我是小匹，可以幫你查訂單、活動名額、場地與設備狀態。資料以系統紀錄為準；退款、開門等操作會先給你預覽，由你確認後才執行。
+              我是小P，可以解說功能與規則、依你的權限查詢資料。資料以系統紀錄為準；回覆會標示「操作指南」「即時查詢」或「展示範例」。退款、開門等操作只會產生預覽，由你確認後才執行。
             </div>
           </div>
         )}
@@ -212,7 +241,7 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
               {firstOfGroup ? <Avatar /> : <span className="w-[34px] shrink-0" />}
               <div className={cn('max-w-[85%] space-y-2 rounded-2xl rounded-tl-sm bg-white px-3 py-2 shadow-sm', m.error && 'border border-red-200 bg-red-50 text-red-800')}>
                 <p className="whitespace-pre-wrap">{m.text}</p>
-                {m.cards?.map((c, ci) => <CardView key={ci} card={c} />)}
+                {m.cards?.map((c, ci) => <CardView key={ci} card={c} onAsk={(q, id) => void send(q, `guide:${id}`)} />)}
                 {m.actions?.map((a, ai) => (
                   <div key={ai} className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
                     <p className="font-semibold">操作預覽（尚未執行）：{a.title}</p>
@@ -220,16 +249,17 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
                     <p className="mt-1">{a.impact}</p>
                   </div>
                 ))}
-                {(m.sources?.length || m.queriedAt) && (
+                {(m.label || m.sources?.length || m.queriedAt) && (
                   <div className="border-t border-zinc-100 pt-1.5 text-[11px] text-zinc-500">
-                    {m.queriedAt && <span>查詢時間 {new Date(m.queriedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</span>}
+                    {m.label && <span className={cn('mr-2 rounded px-1.5 py-0.5 font-semibold', m.label.startsWith('展示') ? 'bg-amber-100 text-amber-800' : m.mode === 'guide' ? 'bg-zinc-100 text-zinc-700' : 'bg-violet-100 text-violet-800')}>{m.label}</span>}
+                    {m.queriedAt && m.mode !== 'guide' && <span>查詢時間 {new Date(m.queriedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</span>}
                     {m.sources?.map((s, si) => (
                       <Link key={si} href={s.href} className="ml-2 inline-flex items-center gap-0.5 text-violet-700 hover:underline">
                         {s.label}
                         <ExternalLink className="h-3 w-3" aria-hidden />
                       </Link>
                     ))}
-                    {m.mode === 'quick' && <span className="ml-2">（系統查詢，未使用 AI 模型）</span>}
+                    {m.mode === 'quick' && !m.label && <span className="ml-2">（系統查詢，未使用 AI 模型）</span>}
                   </div>
                 )}
                 {m.error && (
@@ -317,9 +347,39 @@ export function AiChat({ onClose, compact = false }: { onClose?: () => void; com
   )
 }
 
-function CardView({ card }: { card: AiCard }) {
+function CardView({ card, onAsk }: { card: AiCard; onAsk: (question: string, id: string) => void }) {
   const box = 'rounded-lg border border-zinc-200 bg-zinc-50 p-2 text-xs'
   switch (card.kind) {
+    case 'guide':
+      return (
+        <div className={box}>
+          <p className="mb-1 font-semibold">相關入口</p>
+          <ul className="space-y-0.5">
+            {card.links.map((l, i) => (
+              <li key={i}>
+                {l.href ? (
+                  <Link href={l.href} className="inline-flex items-center gap-0.5 font-semibold text-violet-700 hover:underline">{l.label}<ExternalLink className="h-3 w-3" aria-hidden /></Link>
+                ) : (
+                  <span className="text-zinc-500">{l.label}（{l.state ?? '尚未開放'}）</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    case 'faq':
+      return (
+        <div className={box}>
+          <p className="mb-1 font-semibold">{card.title}</p>
+          <ul className="space-y-1">
+            {card.items.map((q) => (
+              <li key={q.id}>
+                <button type="button" onClick={() => onAsk(q.question, q.id)} className="w-full rounded-md bg-white p-1.5 text-left ring-1 ring-zinc-200 hover:ring-violet-300">{q.question}</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
     case 'orders':
       return (
         <div className={box}>

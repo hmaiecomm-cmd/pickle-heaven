@@ -33,7 +33,8 @@
     "verify:people": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-people.ts",
     "verify:permissions": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-permissions.ts",
     "verify:topup": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-topup.ts",
-    "verify:expenses": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-expenses.ts"
+    "verify:expenses": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-expenses.ts",
+    "verify:ai-guide": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-ai-guide.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

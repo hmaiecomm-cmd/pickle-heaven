@@ -5,6 +5,7 @@ import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { AiNotConfiguredError, isAiConfigured, runAdminChat, type ChatTurn } from '@/server/ai-assistant'
 import { AiContextError, routeWithoutModel, runQuick, verifyContext, type AiContextInput } from '@/server/ai-quick'
+import { GUIDES, guideList, matchGuide, renderGuide } from '@/server/ai-guide'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -37,25 +38,36 @@ export async function POST(req: NextRequest) {
   if (!history.length || history[history.length - 1].role !== 'user') return badRequest('最後一則必須是使用者訊息')
   const lastText = history[history.length - 1].text
 
+  const withLabel = <T extends { mode: string; label?: string }>(d: T) => ({ ...d, demo: ctx.tenant === 'demo', label: d.label ?? (ctx.tenant === 'demo' ? '展示範例（隔離示範資料）' : d.mode === 'quick' ? '即時查詢' : d.mode === 'model' ? 'AI 回答（依權限查詢）' : '操作指南') })
+  const unavailable = (reason: string) => ({
+    reply: `即時查詢暫不可用：${reason}。操作指南仍可使用，點選下方題目即可；需要即時資料請直接到對應頁面查看。`,
+    cards: [{ kind: 'faq', title: '操作指南', items: guideList() }],
+    queriedAt: new Date().toISOString(),
+    mode: 'unavailable' as const,
+    label: '操作指南',
+    demo: ctx.tenant === 'demo',
+  })
+
   try {
+    // 操作指南（指定題目）：不需要模型
+    if (body?.quick?.startsWith('guide:')) {
+      const g = GUIDES.find((x) => x.id === body!.quick!.slice(6))
+      if (g) return NextResponse.json({ success: true, data: await renderGuide(g, ctx.role, ctx.tenant) })
+    }
     // 快捷查詢
     const quick = body?.quick && QUICK_KINDS.has(body.quick) ? body.quick : null
     if (quick) {
-      return NextResponse.json({ success: true, data: await runQuick(quick, body?.query ?? lastText, context, ctx.role) })
+      return NextResponse.json({ success: true, data: withLabel(await runQuick(quick, body?.query ?? lastText, context, ctx.role)) })
     }
+    // 自由提問：先比對操作指南（固定說明，不需即時資料）
+    const guide = matchGuide(lastText)
+    if (guide) return NextResponse.json({ success: true, data: await renderGuide(guide, ctx.role, ctx.tenant) })
 
-    // 沒有設定模型：不猜，導向對應的系統查詢
+    // 沒有設定模型：不猜，導向對應的系統查詢；判斷不了就提供操作指南
     if (!isAiConfigured()) {
       const routed = routeWithoutModel(lastText)
-      if (routed) return NextResponse.json({ success: true, data: await runQuick(routed, lastText, context, ctx.role) })
-      return NextResponse.json({
-        success: true,
-        data: {
-          reply: 'AI 模型尚未設定（缺少 ANTHROPIC_API_KEY），目前只能使用下方的快捷查詢：異常事件、找客人預約、活動名額、新增每週活動、訂單可退項目、設備狀態。',
-          queriedAt: new Date().toISOString(),
-          mode: 'unavailable',
-        },
-      })
+      if (routed) return NextResponse.json({ success: true, data: withLabel(await runQuick(routed, lastText, context, ctx.role)) })
+      return NextResponse.json({ success: true, data: unavailable('AI 模型尚未設定') })
     }
 
     const verified = await verifyContext(context)
@@ -71,22 +83,24 @@ export async function POST(req: NextRequest) {
     const result = await runAdminChat(history, ctx.username, { pageNote, role: ctx.role })
     return NextResponse.json({
       success: true,
-      data: {
+      data: withLabel({
         reply: result.reply,
         sources: result.sources.map((s) => ({ label: s, href: '/admin' })),
         queriedAt: new Date().toISOString(),
         mode: 'model',
         actions: result.actions,
-      },
+      }),
     })
   } catch (err) {
+    // 異常來源分開回報；AI 服務失敗時操作指南仍可使用
     if (err instanceof AiContextError) return apiError(409, 'AI_CONTEXT', err.message)
-    if (err instanceof AiNotConfiguredError) return apiError(503, 'AI_NOT_CONFIGURED', 'AI 模型尚未設定。')
-    if (err instanceof Anthropic.AuthenticationError) return apiError(503, 'AI_AUTH', 'AI 金鑰無效或已失效。')
-    if (err instanceof Anthropic.RateLimitError) return apiError(429, 'AI_RATE_LIMIT', 'AI 使用量暫時過高，請稍後再試。')
+    if (err instanceof AiNotConfiguredError) return NextResponse.json({ success: true, data: unavailable('AI 模型尚未設定') })
+    if (err instanceof Anthropic.AuthenticationError) return NextResponse.json({ success: true, data: unavailable('AI 金鑰無效或已失效，請擁有者檢查設定') })
+    if (err instanceof Anthropic.RateLimitError) return NextResponse.json({ success: true, data: unavailable('AI 使用量暫時過高，請稍後再試') })
+    if (err instanceof Anthropic.APIConnectionTimeoutError) return NextResponse.json({ success: true, data: unavailable('AI 服務逾時') })
     if (err instanceof Anthropic.APIError) {
       console.error('[ai-assistant] api error', err.status, err.message)
-      return apiError(502, 'AI_UPSTREAM', 'AI 服務暫時無法回應，請稍後再試。')
+      return NextResponse.json({ success: true, data: unavailable('AI 服務暫時無法回應') })
     }
     console.error('[ai-assistant] unexpected', err)
     return apiError(500, 'AI_ERROR', 'AI 助理發生錯誤，請稍後再試。')

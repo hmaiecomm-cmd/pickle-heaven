@@ -35,7 +35,7 @@ interface Ctx {
   /** 使用者從對話中移除脈絡標籤 */
   dismissed: { section: boolean; selection: boolean; filters: boolean }
   dismiss: (k: 'section' | 'selection' | 'filters') => void
-  /** 預先填入的問題（例如從訂單明細按「問小匹」） */
+  /** 預先填入的問題（例如從訂單明細按「問小P」） */
   pendingPrompt: string | null
   ask: (prompt?: string) => void
   consumePrompt: () => string | null
@@ -93,6 +93,14 @@ export function AiProvider({
     window.addEventListener('resize', apply)
     return () => window.removeEventListener('resize', apply)
   }, [open])
+
+  // 由舊的全頁對話網址導回時（/admin?ai=1）自動開啟面板
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ai') === '1') {
+      setOpen(true)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
 
   // 換頁：功能標籤恢復顯示
   React.useEffect(() => setDismissed((d) => ({ ...d, section: false, filters: false })), [pathname])
