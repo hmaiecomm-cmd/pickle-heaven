@@ -267,16 +267,31 @@ model Expense {
   approvedBy    String?
   /// 申請人（admin:帳號）；管理員與工作人員只能看自己的申請
   submittedBy   String?
-  /// 來源收據（選填）
+  /// 支出日期（與提交日期分開）
+  expenseDate   DateTime?
+  /// 商家／供應商
+  vendorName    String?
+  /// 發票或收據號碼（如有）
+  docNumber     String?
+  currency      String          @default("TWD")
+  /// 審核說明（退回原因或核對方式）
+  reviewNote    String?
+  reviewedAt    DateTime?
+  /// 防重複提交：同一表單送出多次只建立一筆
+  idempotencyKey String?        @unique
+  /// 來源收據（舊流程，選填）
   receiptId     String?         @unique
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  receipt Receipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  receipt     Receipt?            @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  attachments ExpenseAttachment[]
+  revisions   ExpenseRevision[]
 
   @@index([status, submittedAt])
   @@index([category])
   @@index([submittedBy])
+  @@index([docNumber])
 }
 
 /// 收據歸檔；OCR 辨識結果一律先為草稿，人工確認後才標示 CONFIRMED
@@ -1445,4 +1460,41 @@ model TopUpOrder {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([providerRef])
+}
+
+/// 費用附件（收據照片或 PDF）：私有，讀取需驗證權限；上傳後與費用在同一交易綁定
+model ExpenseAttachment {
+  id           String   @id @default(cuid())
+  expenseId    String?
+  uploadedBy   String
+  mime         String
+  sizeBytes    Int
+  bytes        Bytes
+  thumbBytes   Bytes?
+  width        Int?
+  height       Int?
+  originalName String?
+  sha256       String
+  createdAt    DateTime @default(now())
+
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([expenseId])
+  @@index([uploadedBy, createdAt])
+  @@index([sha256])
+}
+
+/// 費用更正歷史：每次修改保留前後值，已核准資料不無痕覆寫
+model ExpenseRevision {
+  id        String   @id @default(cuid())
+  expenseId String
+  changedBy String
+  note      String?
+  before    Json
+  after     Json
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
 }

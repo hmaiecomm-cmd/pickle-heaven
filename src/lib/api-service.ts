@@ -9,9 +9,8 @@ import {
   Payment,
   Revenue,
   Invoice,
-  Receipt,
-  Expense,
   Device,
+  Expense,
   AIEvent,
   Member,
   MembershipTierRow,
@@ -101,13 +100,6 @@ async function fetchAdmin<T>(path: string): Promise<ApiResponse<T>> {
 /** JSON 的日期字串還原成 Date。 */
 const toDate = (v: unknown): Date | undefined => (typeof v === 'string' ? new Date(v) : undefined)
 
-const reviveReceipt = (r: Omit<Receipt, 'issueDate'> & { issueDate: string }): Receipt => ({ ...r, issueDate: toDate(r.issueDate) ?? new Date() })
-const reviveExpense = (e: Omit<Expense, 'submittedAt' | 'approvedAt' | 'receipt'> & { submittedAt: string; approvedAt?: string; receipt?: Omit<Receipt, 'issueDate'> & { issueDate: string } }): Expense => ({
-  ...e,
-  submittedAt: toDate(e.submittedAt) ?? new Date(),
-  approvedAt: toDate(e.approvedAt),
-  receipt: e.receipt ? reviveReceipt(e.receipt) : undefined,
-})
 const reviveInvoice = (i: Omit<Invoice, 'issueDate' | 'dueDate'> & { issueDate: string; dueDate: string }): Invoice => ({
   ...i,
   issueDate: toDate(i.issueDate) ?? new Date(),
@@ -552,84 +544,14 @@ export async function updateInvoiceStatus(id: string, status: Invoice['status'])
   return res.success ? { ...res, data: reviveInvoice(res.data) } : { ...res, data: undefined as unknown as Invoice }
 }
 
-export async function getReceipts(): Promise<ApiResponse<Receipt[]>> {
-  if (ADMIN_LIVE) {
-    const res = await fetchAdmin<Parameters<typeof reviveReceipt>[0][]>('/api/admin/receipts')
-    return res.success ? { ...res, data: res.data.map(reviveReceipt) } : { ...res, data: [] }
-  }
-  try {
-    return {
-      success: true,
-      data: MOCK_DATA.receipts,
-      meta: {
-        total: MOCK_DATA.receipts.length,
-      },
-    }
-  } catch (error) {
-    return {
-      success: false,
-      data: [],
-      error: {
-        code: 'FETCH_ERROR',
-        message: String(error),
-      },
-    }
-  }
-}
-
 // ============ EXPENSES ============
-/** 建立 OCR 草稿收據（Phase 2）。 */
-export async function createReceiptDraft(input: { amount: number; issueDate: Date; vendorName: string; paymentMethod?: string; fields?: Record<string, string>; confidence?: number }): Promise<ApiResponse<Receipt>> {
-  const res = await sendAdmin<Parameters<typeof reviveReceipt>[0]>('/api/admin/receipts', 'POST', { ...input, issueDate: input.issueDate.toISOString() })
-  return res.success ? { ...res, data: reviveReceipt(res.data) } : { ...res, data: undefined as unknown as Receipt }
-}
-
-/** 人工確認 OCR 辨識結果（Phase 2）。 */
-export async function confirmReceiptOcr(id: string): Promise<ApiResponse<Receipt>> {
-  const res = await sendAdmin<Parameters<typeof reviveReceipt>[0]>(`/api/admin/receipts/${encodeURIComponent(id)}/confirm`, 'PATCH')
-  return res.success ? { ...res, data: reviveReceipt(res.data) } : { ...res, data: undefined as unknown as Receipt }
-}
-
-export async function getExpenses(
-  filters?: {
-    category?: string
-    status?: string
-  },
-): Promise<ApiResponse<Expense[]>> {
-  if (ADMIN_LIVE) {
-    const p = new URLSearchParams()
-    if (filters?.category) p.set('category', filters.category)
-    if (filters?.status) p.set('status', filters.status)
-    const q = p.toString() ? `?${p}` : ''
-    const res = await fetchAdmin<Parameters<typeof reviveExpense>[0][]>(`/api/admin/expenses${q}`)
-    return res.success ? { ...res, data: res.data.map(reviveExpense) } : { ...res, data: [] }
-  }
-  try {
-    let expenses = [...MOCK_DATA.expenses]
-
-    if (filters?.category) {
-      expenses = expenses.filter((e) => e.category === filters.category)
-    }
-    if (filters?.status) {
-      expenses = expenses.filter((e) => e.status === filters.status)
-    }
-
-    return {
-      success: true,
-      data: expenses,
-      meta: {
-        total: expenses.length,
-      },
-    }
-  } catch (error) {
-    return {
-      success: false,
-      data: [],
-      error: {
-        code: 'FETCH_ERROR',
-        message: String(error),
-      },
-    }
+/** 費用清單（擁有者財務頁用；資料來自「費用與收據」API，只取財務彙總需要的欄位） */
+export async function getExpenses(): Promise<ApiResponse<Expense[]>> {
+  const res = await fetchAdmin<Array<{ id: string; expenseNumber: string; category: Expense['category']; amount: number; status: Expense['status']; description: string; submittedAt: string; approvedAt: string | null; approvedBy: string | null }>>('/api/admin/expenses')
+  if (!res.success) return { ...res, data: [] }
+  return {
+    ...res,
+    data: res.data.map((e) => ({ id: e.id, expenseNumber: e.expenseNumber, category: e.category, amount: e.amount, status: e.status, description: e.description, submittedAt: toDate(e.submittedAt) ?? new Date(), approvedAt: toDate(e.approvedAt ?? undefined) ?? undefined, approvedBy: e.approvedBy ?? undefined })),
   }
 }
 
@@ -638,18 +560,6 @@ export async function getExpenses(
 export async function updateCourtStatus(id: string, status: Court['status']): Promise<ApiResponse<{ id: string; status: Court['status']; active: boolean }>> {
   if (!ADMIN_LIVE) return { success: true, data: { id, status, active: status === 'ACTIVE' } }
   return sendAdmin(`/api/admin/courts/${encodeURIComponent(id)}/status`, 'PATCH', { status })
-}
-
-/** 手動登錄費用（Phase 2）。 */
-export async function createExpense(input: { category: Expense['category']; amount: number; description: string; submittedAt?: Date; status?: 'DRAFT' | 'SUBMITTED'; receiptId?: string }): Promise<ApiResponse<Expense>> {
-  const res = await sendAdmin<Parameters<typeof reviveExpense>[0]>('/api/admin/expenses', 'POST', { ...input, submittedAt: input.submittedAt?.toISOString() })
-  return res.success ? { ...res, data: reviveExpense(res.data) } : { ...res, data: undefined as unknown as Expense }
-}
-
-/** 費用審核狀態變更（Phase 2）。 */
-export async function updateExpenseStatus(id: string, status: Expense['status']): Promise<ApiResponse<Expense>> {
-  const res = await sendAdmin<Parameters<typeof reviveExpense>[0]>(`/api/admin/expenses/${encodeURIComponent(id)}/status`, 'PATCH', { status })
-  return res.success ? { ...res, data: reviveExpense(res.data) } : { ...res, data: undefined as unknown as Expense }
 }
 
 export async function getDevices(): Promise<ApiResponse<Device[]>> {
@@ -741,20 +651,4 @@ export async function postDeviceAction(
   }
 }
 
-// ============ OCR SCAN (Mock) ============
-export async function postOCRScan(
-  file: File,
-): Promise<ApiResponse<{ status: string; fields: Record<string, string> }>> {
-  return {
-    success: true,
-    data: {
-      status: 'DRAFT',
-      fields: {
-        date: new Date().toISOString().split('T')[0],
-        amount: '5000',
-        vendor: 'Mock Vendor',
-        category: 'MAINTENANCE',
-      },
-    },
-  }
-}
+

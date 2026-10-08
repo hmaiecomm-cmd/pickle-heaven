@@ -1,71 +1,62 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { audit, badRequest, nextNumber, readJson, toDateOrNull, toInt, unauthorized } from '@/lib/admin-api'
+import { apiError, readJson, toDateOrNull, toInt, unauthorized } from '@/lib/admin-api'
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
-import { serializeExpense } from '@/lib/admin-serializers'
+import { createExpense, EXPENSE_CATEGORIES, EXPENSE_INCLUDE, ExpenseError, serializeExpenseRow, visibleWhere, type ExpenseCategory } from '@/server/expense-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const CATEGORIES = ['MAINTENANCE', 'SUPPLIES', 'UTILITIES', 'LABOR', 'OTHER'] as const
-type Category = (typeof CATEGORIES)[number]
-
-/** 費用清單。查詢參數 category、status。擁有者看全部；管理員與工作人員只看本人的申請。 */
+/** 費用清單（含附件摘要）。擁有者看全部；管理員與工作人員只看本人的申請。 */
 export async function GET(req: NextRequest) {
   const ctx = await getAdminContext()
   if (!ctx || !can(ctx.role, 'expenses.own')) return unauthorized()
-  const reviewAll = can(ctx.role, 'expenses.review')
   const category = req.nextUrl.searchParams.get('category')
   const status = req.nextUrl.searchParams.get('status')
   const rows = await prisma.expense.findMany({
     where: {
-      ...(reviewAll ? {} : { submittedBy: `admin:${ctx.username}` }),
-      ...(category && (CATEGORIES as readonly string[]).includes(category) ? { category: category as Category } : {}),
+      ...visibleWhere(ctx),
+      ...(category && (EXPENSE_CATEGORIES as readonly string[]).includes(category) ? { category: category as ExpenseCategory } : {}),
       ...(status ? { status: status as 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' } : {}),
     },
     orderBy: { submittedAt: 'desc' },
     take: 500,
-    include: { receipt: true },
+    include: EXPENSE_INCLUDE,
   })
-  return NextResponse.json({ success: true, data: rows.map(serializeExpense), meta: { total: rows.length, reviewAll } })
+  return NextResponse.json({ success: true, data: rows.map(serializeExpenseRow), meta: { total: rows.length, reviewAll: can(ctx.role, 'expenses.review'), me: `admin:${ctx.username}` } })
 }
 
-/** 手動登錄費用。body: { category, amount, description, submittedAt?, status?: 'DRAFT' | 'SUBMITTED', receiptId? } */
+/**
+ * 登錄費用（拍照／上傳／手動共用）。
+ * body: { category, amount, currency?, description, vendorName?, expenseDate?, docNumber?, attachmentIds?, status?: 'DRAFT'|'SUBMITTED', idempotencyKey }
+ * 同一 idempotencyKey 重複送出只會建立一筆。
+ */
 export async function POST(req: NextRequest) {
   const ctx = await getAdminContext()
   if (!ctx || !can(ctx.role, 'expenses.own')) return unauthorized()
-  const admin = ctx.username
-  const body = await readJson<{ category?: string; amount?: unknown; description?: string; submittedAt?: string; status?: string; receiptId?: string }>(req)
-  if (!body) return badRequest('缺少內容')
-  const amount = toInt(body.amount)
-  const description = body.description?.trim() ?? ''
-  if (!body.category || !(CATEGORIES as readonly string[]).includes(body.category)) return badRequest('類別不正確')
-  if (amount === null || amount <= 0) return badRequest('金額必須大於 0')
-  if (!description) return badRequest('請填寫說明')
-  const status = body.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'
-  const submittedAt = toDateOrNull(body.submittedAt) ?? new Date()
-
-  const create = async () =>
-    prisma.expense.create({
-      data: {
-        expenseNumber: await nextNumber('EXP', () => prisma.expense.count({ where: { expenseNumber: { startsWith: `EXP-${new Date().getFullYear()}-` } } })),
-        category: body.category as Category,
-        amount,
-        status,
-        description,
-        submittedAt,
-        submittedBy: `admin:${admin}`,
-        receiptId: body.receiptId || undefined,
-      },
-      include: { receipt: true },
-    })
-  let row
+  const body = await readJson<{ category?: string; amount?: unknown; currency?: string; description?: string; vendorName?: string; expenseDate?: string; docNumber?: string; attachmentIds?: unknown; status?: string; idempotencyKey?: string }>(req)
+  if (!body) return apiError(400, 'BAD_REQUEST', '缺少內容')
   try {
-    row = await create()
-  } catch {
-    row = await create() // 流水號撞號時重試一次
+    const res = await createExpense(
+      {
+        category: body.category as ExpenseCategory,
+        amount: toInt(body.amount) ?? 0,
+        currency: body.currency,
+        description: body.description ?? '',
+        vendorName: body.vendorName ?? null,
+        expenseDate: toDateOrNull(body.expenseDate),
+        docNumber: body.docNumber ?? null,
+        attachmentIds: Array.isArray(body.attachmentIds) ? body.attachmentIds.filter((x): x is string => typeof x === 'string') : [],
+        status: body.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT',
+        idempotencyKey: typeof body.idempotencyKey === 'string' && body.idempotencyKey.length >= 8 ? body.idempotencyKey.slice(0, 80) : null,
+      },
+      ctx,
+    )
+    return NextResponse.json({ success: true, data: serializeExpenseRow(res.expense), meta: { duplicateSubmit: res.duplicateSubmit } }, { status: res.duplicateSubmit ? 200 : 201 })
+  } catch (err) {
+    if (err instanceof ExpenseError) return apiError(err.status, 'EXPENSE', err.message)
+    console.error('[expenses] create', err)
+    return apiError(500, 'ERROR', '系統忙碌中，請稍後再試')
   }
-  await audit(admin, 'EXPENSE_CREATE', row.id, { expenseNumber: row.expenseNumber, amount, status })
-  return NextResponse.json({ success: true, data: serializeExpense(row) }, { status: 201 })
 }

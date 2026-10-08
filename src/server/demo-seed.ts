@@ -385,8 +385,9 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
   await db.coach.create({ data: { name: '示範教練 阿凱', status: 'ACTIVE', specialties: ['新手入門', '雙打戰術'], hourlyRate: 1200, bio: '展示資料' } })
   await db.expense.createMany({
     data: [
-      { expenseNumber: 'EXP-DEMO-0001', category: 'MAINTENANCE', amount: 3200, status: 'APPROVED', description: '球網更換（展示）', submittedAt: new Date(now.getTime() - 5 * 86_400_000) },
-      { expenseNumber: 'EXP-DEMO-0002', category: 'UTILITIES', amount: 5400, status: 'SUBMITTED', description: '照明電費（展示）', submittedAt: new Date(now.getTime() - 2 * 86_400_000) },
+      { expenseNumber: 'EXP-DEMO-0001', category: 'MAINTENANCE', amount: 3200, status: 'APPROVED', description: '球網更換（展示）', vendorName: '示範體育用品行', expenseDate: new Date(now.getTime() - 6 * 86_400_000), docNumber: 'AB-10000001', submittedAt: new Date(now.getTime() - 5 * 86_400_000), submittedBy: 'admin:DEMO', approvedAt: new Date(now.getTime() - 4 * 86_400_000), approvedBy: 'admin:DEMO' },
+      { expenseNumber: 'EXP-DEMO-0002', category: 'UTILITIES', amount: 5400, status: 'SUBMITTED', description: '照明電費（展示）', vendorName: '台灣電力公司', expenseDate: new Date(now.getTime() - 3 * 86_400_000), submittedAt: new Date(now.getTime() - 2 * 86_400_000), submittedBy: 'admin:DEMO' },
+      { expenseNumber: 'EXP-DEMO-0003', category: 'SUPPLIES', amount: 860, status: 'DRAFT', description: '球、膠帶等耗材（展示）', vendorName: '示範體育用品行', expenseDate: new Date(now.getTime() - 86_400_000), submittedAt: new Date(now.getTime() - 86_400_000), submittedBy: 'admin:DEMO' },
     ],
   })
   // 儲值方案（展示用，不是正式售價）與幾筆儲值單

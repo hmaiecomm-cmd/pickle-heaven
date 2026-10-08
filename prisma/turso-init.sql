@@ -86,6 +86,13 @@ CREATE TABLE "Expense" (
     "approvedAt" DATETIME,
     "approvedBy" TEXT,
     "submittedBy" TEXT,
+    "expenseDate" DATETIME,
+    "vendorName" TEXT,
+    "docNumber" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'TWD',
+    "reviewNote" TEXT,
+    "reviewedAt" DATETIME,
+    "idempotencyKey" TEXT,
     "receiptId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -818,6 +825,35 @@ CREATE TABLE "TopUpOrder" (
     CONSTRAINT "TopUpOrder_planId_fkey" FOREIGN KEY ("planId") REFERENCES "TopUpPlan" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "ExpenseAttachment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "expenseId" TEXT,
+    "uploadedBy" TEXT NOT NULL,
+    "mime" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "bytes" BLOB NOT NULL,
+    "thumbBytes" BLOB,
+    "width" INTEGER,
+    "height" INTEGER,
+    "originalName" TEXT,
+    "sha256" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ExpenseAttachment_expenseId_fkey" FOREIGN KEY ("expenseId") REFERENCES "Expense" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ExpenseRevision" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "expenseId" TEXT NOT NULL,
+    "changedBy" TEXT NOT NULL,
+    "note" TEXT,
+    "before" JSONB NOT NULL,
+    "after" JSONB NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ExpenseRevision_expenseId_fkey" FOREIGN KEY ("expenseId") REFERENCES "Expense" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_lineUserId_key" ON "User"("lineUserId");
 
@@ -840,6 +876,9 @@ CREATE INDEX "Device_courtId_idx" ON "Device"("courtId");
 CREATE UNIQUE INDEX "Expense_expenseNumber_key" ON "Expense"("expenseNumber");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Expense_idempotencyKey_key" ON "Expense"("idempotencyKey");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Expense_receiptId_key" ON "Expense"("receiptId");
 
 -- CreateIndex
@@ -850,6 +889,9 @@ CREATE INDEX "Expense_category_idx" ON "Expense"("category");
 
 -- CreateIndex
 CREATE INDEX "Expense_submittedBy_idx" ON "Expense"("submittedBy");
+
+-- CreateIndex
+CREATE INDEX "Expense_docNumber_idx" ON "Expense"("docNumber");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Receipt_receiptNumber_key" ON "Receipt"("receiptNumber");
@@ -1099,4 +1141,16 @@ CREATE INDEX "TopUpOrder_status_createdAt_idx" ON "TopUpOrder"("status", "create
 
 -- CreateIndex
 CREATE INDEX "TopUpOrder_providerRef_idx" ON "TopUpOrder"("providerRef");
+
+-- CreateIndex
+CREATE INDEX "ExpenseAttachment_expenseId_idx" ON "ExpenseAttachment"("expenseId");
+
+-- CreateIndex
+CREATE INDEX "ExpenseAttachment_uploadedBy_createdAt_idx" ON "ExpenseAttachment"("uploadedBy", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ExpenseAttachment_sha256_idx" ON "ExpenseAttachment"("sha256");
+
+-- CreateIndex
+CREATE INDEX "ExpenseRevision_expenseId_createdAt_idx" ON "ExpenseRevision"("expenseId", "createdAt");
 
