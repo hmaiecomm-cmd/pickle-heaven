@@ -52,7 +52,7 @@ export default function TermsPage() {
       </Section>
 
       <p className="mt-8 text-xs text-muted">
-        個人資料的處理方式請見 <Link href="/privacy" className="underline underline-offset-2">隱私權政策</Link>。
+        個人資料的處理方式請見 <Link href="/privacy" className="underline underline-offset-2">蒐集、處理及利用個人資料法定告知事項</Link>。
       </p>
     </article>
   )

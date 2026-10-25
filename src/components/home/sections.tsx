@@ -552,7 +552,7 @@ export function HomeFooter({ data }: { data: HomeData }) {
   ].filter(Boolean) as { label: string; href?: string }[]
   const legalLinks = [
     legal.termsUrl && { href: legal.termsUrl, label: '服務條款' },
-    legal.privacyUrl && { href: legal.privacyUrl, label: '隱私權政策' },
+    legal.privacyUrl && { href: legal.privacyUrl, label: '個人資料法定告知事項' },
   ].filter(Boolean) as { href: string; label: string }[]
 
   return (
@@ -626,7 +626,7 @@ export function HomeFooter({ data }: { data: HomeData }) {
                   {l.label}
                 </a>
               ))}
-              {legalLinks.length === 0 && <Pending>服務條款與隱私權政策待補</Pending>}
+              {legalLinks.length === 0 && <Pending>服務條款與個人資料法定告知事項待補</Pending>}
             </div>
           </div>
           {HOME_IMAGES_HAVE_CONCEPT && (
