@@ -68,6 +68,8 @@ export async function devLogin(displayName = '測試球友'): Promise<ActionResu
         points: user.points,
         role: user.role,
         restricted: false,
+        // 開發登入模擬 LINE 會員（lineUserId = DEV_USER）
+        viaLine: true,
       },
     }
   } catch (err) {

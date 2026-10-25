@@ -150,6 +150,8 @@ export interface SessionUser {
   role: 'USER' | 'STAFF' | 'ADMIN'
   /** 帳戶目前受限（黑名單）：可瀏覽與查看本人資料，不能新增預約、報名、消費 */
   restricted: boolean
+  /** 以 LINE 登入的會員：加入官方帳號好友後可收到 LINE 推播通知 */
+  viaLine: boolean
 }
 
 export interface ApiError {

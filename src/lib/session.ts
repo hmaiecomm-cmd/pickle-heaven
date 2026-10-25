@@ -52,6 +52,7 @@ const USER_SELECT = {
   phone: true,
   points: true,
   role: true,
+  lineUserId: true,
   restrictions: { where: { type: 'BLACKLIST', revokedAt: null }, select: { expiresAt: true } },
 } as const
 
@@ -80,7 +81,16 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
       const user = await prisma.user.findUnique({ where: { id: uid }, select: USER_SELECT })
       if (!user) return null
       const restricted = user.restrictions.some((r) => !r.expiresAt || r.expiresAt > new Date())
-      return { id: user.id, displayName: user.displayName, pictureUrl: user.pictureUrl, phone: user.phone, points: user.points, role: user.role, restricted }
+      return {
+        id: user.id,
+        displayName: user.displayName,
+        pictureUrl: user.pictureUrl,
+        phone: user.phone,
+        points: user.points,
+        role: user.role,
+        restricted,
+        viaLine: Boolean(user.lineUserId),
+      }
     } catch (err) {
       lastErr = err
     }

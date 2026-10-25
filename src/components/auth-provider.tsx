@@ -28,6 +28,8 @@ interface AuthState {
   /** LINE 登入；next 同上 */
   loginLine: (next?: string) => void
   logout: () => Promise<void>
+  /** 是否已加 LINE 官方帳號好友；LINE 未登入或無法判斷時為 null */
+  lineFriendship: () => Promise<boolean | null>
 }
 
 const AuthContext = React.createContext<AuthState | null>(null)
@@ -257,6 +259,20 @@ export function AuthProvider({
     router.refresh()
   }, [router])
 
+  // 需 LINE 登入頻道已連結官方帳號（Linked LINE Official Account），LIFF 才查得到好友狀態
+  const lineFriendship = React.useCallback(async (): Promise<boolean | null> => {
+    if (!lineLiffId) return null
+    try {
+      const liff = await loadLiff(lineLiffId)
+      if (!liff.isLoggedIn()) return null
+      const { friendFlag } = await liff.getFriendship()
+      return Boolean(friendFlag)
+    } catch (err) {
+      console.warn('[liff] 無法取得好友狀態', err)
+      return null
+    }
+  }, [lineLiffId])
+
   const value = React.useMemo<AuthState>(
     () => ({
       user,
@@ -268,8 +284,9 @@ export function AuthProvider({
       login,
       loginLine,
       logout,
+      lineFriendship,
     }),
-    [user, googleConfigured, devLoginEnabled, lineLiffId, inLineApp, unavailable, loggingIn, login, loginLine, logout],
+    [user, googleConfigured, devLoginEnabled, lineLiffId, inLineApp, unavailable, loggingIn, login, loginLine, logout, lineFriendship],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

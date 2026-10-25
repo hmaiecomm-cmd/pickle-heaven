@@ -18,6 +18,8 @@ import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
 import { cancelMyBooking } from '@/server/actions'
+import { useAuth } from '@/components/auth-provider'
+import { LineFriendPrompt } from '@/components/line-friend-prompt'
 import { formatDateFull } from '@/lib/time'
 import { REFUND_POLICY_ROWS } from '@/lib/pricing'
 import { ntd } from '@/lib/utils'
@@ -61,6 +63,7 @@ interface BookingView {
 export function BookingDetailClient({ booking, justCreated }: { booking: BookingView; justCreated: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
+  const { user } = useAuth()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [cancelling, setCancelling] = React.useState(false)
 
@@ -127,11 +130,14 @@ ${url}`)
           <div>
             <p className="text-sm font-semibold text-brand-800 dark:text-brand-200">預約成功！</p>
             <p className="mt-0.5 text-xs leading-relaxed text-brand-700 dark:text-brand-300">
-              預約確認訊息已發送至您的 LINE，開打前也會再提醒您一次。
+              {user?.viaLine
+                ? '確認通知會傳送到您的 LINE（需加入官方帳號好友）。'
+                : '可隨時在「我的預約」查看這筆訂單。'}
             </p>
           </div>
         </div>
       )}
+      {justCreated && booking.status === 'PAID' && <LineFriendPrompt />}
 
       {booking.status === 'REFUND_PENDING' && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">

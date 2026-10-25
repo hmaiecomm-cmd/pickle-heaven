@@ -117,6 +117,18 @@ export const contact = {
 
 export const social: { label: string; href: string }[] = []
 
+/**
+ * LINE 官方帳號（Messaging API，與 LINE 登入同一個 Provider「匹克天堂」）。
+ * 會員須加入好友才收得到訂單推播；預約時以此提示加好友。
+ */
+export const lineOfficialAccount = {
+  name: '大新店森林匹克球',
+  basicId: '@977vvfkz',
+  addFriendUrl: 'https://line.me/R/ti/p/%40977vvfkz',
+  /** LINE 官方產生的加好友 QR Code（qr-official.line.me），存於本站避免外部連結失效 */
+  qrImage: '/images/line-oa-qr.png',
+}
+
 export const legal = {
   /** 營運公司名稱（不可填系統名稱） */
   company: null as string | null,

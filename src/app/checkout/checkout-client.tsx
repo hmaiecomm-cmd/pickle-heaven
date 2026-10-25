@@ -11,6 +11,7 @@ import { Field, Input, Textarea } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { LoginButtons } from '@/components/google-button'
 import { useAuth } from '@/components/auth-provider'
+import { LineFriendPrompt } from '@/components/line-friend-prompt'
 import { useHoldCountdown, formatCountdown } from '@/components/booking/cart-bar'
 import { TapPayCardForm } from '@/components/checkout/tappay-card-form'
 import { useSetCart } from '@/store/cart'
@@ -229,6 +230,8 @@ export function CheckoutClient({
           ))}
         </CardContent>
       </Card>
+
+      <LineFriendPrompt variant="compact" />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* 聯絡資訊 */}
