@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { devLogin, loginWithLine, logout as logoutAction } from '@/server/actions'
+import { checkLineFriend, devLogin, loginWithLine, logout as logoutAction } from '@/server/actions'
 import { useToast } from '@/components/ui/toast'
 import type { SessionUser } from '@/lib/types'
 
@@ -289,7 +289,11 @@ export function AuthProvider({
     return status
   }, [lineLiffId])
 
-  const lineFriendship = React.useCallback(async () => (await lineStatus()).friend, [lineStatus])
+  // 先由伺服器向 Messaging API 查（任何瀏覽器都可用），查不到再退回 LIFF
+  const lineFriendship = React.useCallback(async () => {
+    const viaServer = await checkLineFriend().catch(() => null)
+    return viaServer ?? (await lineStatus()).friend
+  }, [lineStatus])
 
   const value = React.useMemo<AuthState>(
     () => ({

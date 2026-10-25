@@ -93,6 +93,28 @@ export async function pushMessages(lineUserId: string, messages: unknown[]): Pro
 }
 
 /**
+ * 是否為官方帳號好友：Messaging API 只回傳好友（未封鎖）的個人資料，非好友回 404。
+ * 不依賴瀏覽器的 LIFF 登入狀態，電腦瀏覽器也查得到。無法判斷時回傳 null。
+ */
+export async function isLineFriend(lineUserId: string): Promise<boolean | null> {
+  const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
+  if (!token || (await isDemoTenant())) return null
+  try {
+    const res = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(lineUserId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (res.ok) return true
+    if (res.status === 404) return false
+    console.error('[line] 查詢好友狀態失敗', res.status, await res.text().catch(() => ''))
+    return null
+  } catch (err) {
+    console.error('[line] 查詢好友狀態例外', err)
+    return null
+  }
+}
+
+/**
  * LINE MINI App 服務訊息。
  * notificationToken 由前端 LIFF 於使用者完成動作後取得，
  * templateName 必須先在 LINE Developers 後台註冊並通過審核。

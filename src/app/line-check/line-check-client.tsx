@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useAuth, type LineStatus } from '@/components/auth-provider'
+import { checkLineFriend } from '@/server/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -10,11 +11,14 @@ const yesNo = (v: boolean | null) => (v === null ? '無法判斷' : v ? '是' : 
 export function LineCheckClient() {
   const { user, lineStatus } = useAuth()
   const [status, setStatus] = React.useState<LineStatus | null>(null)
+  const [serverFriend, setServerFriend] = React.useState<boolean | null | undefined>(undefined)
   const [checking, setChecking] = React.useState(false)
 
   const check = React.useCallback(async () => {
     setChecking(true)
-    setStatus(await lineStatus())
+    const [s, f] = await Promise.all([lineStatus(), checkLineFriend().catch(() => null)])
+    setStatus(s)
+    setServerFriend(f)
     setChecking(false)
   }, [lineStatus])
 
@@ -27,7 +31,8 @@ export function LineCheckClient() {
     ['LINE 登入已設定', status ? yesNo(status.configured) : '檢查中…'],
     ['在 LINE App 內開啟', status ? yesNo(status.inClient) : '檢查中…'],
     ['LINE（LIFF）已登入', status ? yesNo(status.loggedIn) : '檢查中…'],
-    ['已加官方帳號好友', status ? yesNo(status.friend) : '檢查中…'],
+    ['已加官方帳號好友（伺服器查詢）', serverFriend === undefined ? '檢查中…' : yesNo(serverFriend)],
+    ['已加官方帳號好友（LIFF 查詢）', status ? yesNo(status.friend) : '檢查中…'],
     ['錯誤訊息', status?.error ?? '無'],
   ]
 

@@ -14,7 +14,7 @@ import {
   getSessionUser,
 } from '@/lib/session'
 import type { AvailabilityDTO, CartDTO, SessionUser } from '@/lib/types'
-import { verifyLineIdToken, type LineProfile } from '@/lib/line'
+import { isLineFriend, verifyLineIdToken, type LineProfile } from '@/lib/line'
 import { legal } from '@/config/site'
 import {
   assertBookingPayable,
@@ -145,6 +145,14 @@ export async function acceptConsent(input: { notice: boolean; terms: boolean; ma
   } catch (err) {
     return fail(err)
   }
+}
+
+/** 目前會員是否已加 LINE 官方帳號好友；非 LINE 會員或無法判斷時為 null */
+export async function checkLineFriend(): Promise<boolean | null> {
+  const user = await getSessionUser().catch(() => null)
+  if (!user?.viaLine) return null
+  const row = await prisma.user.findUnique({ where: { id: user.id }, select: { lineUserId: true } })
+  return row?.lineUserId ? isLineFriend(row.lineUserId) : null
 }
 
 export async function logout(): Promise<{ ok: true }> {
