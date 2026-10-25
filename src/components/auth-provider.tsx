@@ -30,6 +30,17 @@ interface AuthState {
   logout: () => Promise<void>
   /** 是否已加 LINE 官方帳號好友；LINE 未登入或無法判斷時為 null */
   lineFriendship: () => Promise<boolean | null>
+  /** LIFF 連線狀態（/line-check 診斷用） */
+  lineStatus: () => Promise<LineStatus>
+}
+
+export interface LineStatus {
+  configured: boolean
+  inClient: boolean | null
+  loggedIn: boolean | null
+  friend: boolean | null
+  /** 無法判斷時的原因（LIFF 錯誤碼與訊息） */
+  error: string | null
 }
 
 const AuthContext = React.createContext<AuthState | null>(null)
@@ -260,18 +271,25 @@ export function AuthProvider({
   }, [router])
 
   // 需 LINE 登入頻道已連結官方帳號（Linked LINE Official Account），LIFF 才查得到好友狀態
-  const lineFriendship = React.useCallback(async (): Promise<boolean | null> => {
-    if (!lineLiffId) return null
+  const lineStatus = React.useCallback(async (): Promise<LineStatus> => {
+    const status: LineStatus = { configured: Boolean(lineLiffId), inClient: null, loggedIn: null, friend: null, error: null }
+    if (!lineLiffId) return status
     try {
       const liff = await loadLiff(lineLiffId)
-      if (!liff.isLoggedIn()) return null
+      status.inClient = liff.isInClient()
+      status.loggedIn = liff.isLoggedIn()
+      if (!status.loggedIn) return status
       const { friendFlag } = await liff.getFriendship()
-      return Boolean(friendFlag)
+      status.friend = Boolean(friendFlag)
     } catch (err) {
+      const e = err as { code?: string; message?: string }
+      status.error = [e?.code, e?.message].filter(Boolean).join(' ') || String(err)
       console.warn('[liff] 無法取得好友狀態', err)
-      return null
     }
+    return status
   }, [lineLiffId])
+
+  const lineFriendship = React.useCallback(async () => (await lineStatus()).friend, [lineStatus])
 
   const value = React.useMemo<AuthState>(
     () => ({
@@ -285,8 +303,9 @@ export function AuthProvider({
       loginLine,
       logout,
       lineFriendship,
+      lineStatus,
     }),
-    [user, googleConfigured, devLoginEnabled, lineLiffId, inLineApp, unavailable, loggingIn, login, loginLine, logout, lineFriendship],
+    [user, googleConfigured, devLoginEnabled, lineLiffId, inLineApp, unavailable, loggingIn, login, loginLine, logout, lineFriendship, lineStatus],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
