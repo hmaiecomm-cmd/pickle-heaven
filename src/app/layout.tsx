@@ -9,7 +9,9 @@ import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { getCartToken } from '@/lib/session'
 import { getCart } from '@/lib/availability'
 import { googleConfigured } from '@/lib/google-auth'
-import { brand, SITE_URL } from '@/config/site'
+import { brand, legal, SITE_URL } from '@/config/site'
+import { prisma } from '@/lib/db'
+import { ConsentGate } from '@/components/consent-gate'
 
 // 前台一律使用對外場館名稱；後台在 admin/layout 另外設定系統名稱
 export const metadata: Metadata = {
@@ -58,6 +60,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ])
   const cart = await getCart(cartToken).catch(() => ({ items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }))
   const area = h.get('x-ph-area') === 'admin' ? 'admin' : 'public'
+  // 前台會員尚未同意目前版本的告知事項與服務條款 → 顯示同意畫面
+  const needsConsent =
+    area === 'public' && user
+      ? await prisma.user
+          .findUnique({ where: { id: user.id }, select: { consentVersion: true } })
+          .then((u) => Boolean(u) && u!.consentVersion !== legal.consentVersion)
+          .catch((err) => {
+            // 查不到同意狀態時不擋住網站，只留下紀錄
+            console.error('[consent] 無法讀取同意狀態', err instanceof Error ? err.message : err)
+            return false
+          })
+      : false
   // 開發登入只在本機且明確開啟時可用，正式環境一律關閉
   const devLoginEnabled = process.env.NODE_ENV !== 'production' && process.env.DEV_LOGIN === '1'
   // LINE 登入需要前端的 LIFF ID，以及伺服器驗證 id_token 用的 Channel ID
@@ -75,6 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <AppShell user={user}>
                 {children}
               </AppShell>
+              {needsConsent && <ConsentGate key={user?.id} />}
             </CartStoreProvider>
           </AuthProvider>
         </ToastProvider>

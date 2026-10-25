@@ -122,6 +122,11 @@ export const legal = {
   company: null as string | null,
   termsUrl: '/terms' as string | null,
   privacyUrl: '/privacy' as string | null,
+  /**
+   * 個資告知事項與服務條款的同意版本。
+   * 兩者內容有實質修改時改成新的日期，所有會員下次登入都會重新出現同意畫面。
+   */
+  consentVersion: '2026-10-25',
 }
 
 /** 首頁使用的圖片中，只要有示意圖就在頁尾加註 */

@@ -134,6 +134,12 @@ model User {
   adminNote       String?
   /// 教練身分（與後台管理角色分開；不授予後台權限）
   isCoach         Boolean         @default(false)
+  /// 已同意的個資告知事項與服務條款版本（legal.consentVersion）；與目前版本不同時，登入後須重新同意
+  consentVersion   String?
+  consentAt        DateTime?
+  /// 行銷訊息同意（另行勾選、不預設勾選；可隨時取消）
+  marketingOptIn   Boolean   @default(false)
+  marketingOptInAt DateTime?
   displayName     String
   pictureUrl      String?
   phone           String?

@@ -4,7 +4,7 @@ import { brand, legal } from '@/config/site'
 
 export const metadata: Metadata = { title: '服務條款', robots: { index: true, follow: true } }
 
-const UPDATED = '2026 年 10 月 7 日'
+const UPDATED = '2026 年 10 月 25 日'
 
 /** 服務條款：預約、付款、取消退款與帳號使用規範；退款比例以場館公告為準 */
 export default function TermsPage() {

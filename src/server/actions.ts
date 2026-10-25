@@ -15,6 +15,7 @@ import {
 } from '@/lib/session'
 import type { AvailabilityDTO, CartDTO, SessionUser } from '@/lib/types'
 import { verifyLineIdToken, type LineProfile } from '@/lib/line'
+import { legal } from '@/config/site'
 import {
   assertBookingPayable,
   BookingError,
@@ -109,6 +110,35 @@ export async function loginWithLine(idToken: string): Promise<ActionResult<objec
         })
 
     await createSession(user.id)
+    return { ok: true }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+/**
+ * 同意個資告知事項與服務條款（必要），並記錄另行勾選的行銷同意。
+ * 同意的版本為 legal.consentVersion；版本更新後會員需重新同意。
+ */
+export async function acceptConsent(input: { notice: boolean; terms: boolean; marketing: boolean }): Promise<ActionResult<object>> {
+  try {
+    const user = await getSessionUser()
+    if (!user) throw new BookingError('請先登入', 'UNAUTHORIZED')
+    if (input?.notice !== true || input?.terms !== true) {
+      throw new BookingError('請先閱讀並勾選告知事項與服務條款', 'INVALID_INPUT')
+    }
+    const now = new Date()
+    const marketing = input.marketing === true
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        consentVersion: legal.consentVersion,
+        consentAt: now,
+        marketingOptIn: marketing,
+        marketingOptInAt: marketing ? now : null,
+      },
+    })
+    revalidatePath('/', 'layout')
     return { ok: true }
   } catch (err) {
     return fail(err)
