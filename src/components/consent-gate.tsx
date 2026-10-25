@@ -94,8 +94,8 @@ export function ConsentGate() {
           </div>
         </header>
 
-        <div className="relative min-h-0 flex-1">
-          <div ref={scrollRef} onScroll={checkScroll} className="h-full max-h-[50dvh] overflow-y-auto px-4 pb-6 sm:max-h-[55dvh] sm:px-6" tabIndex={0} aria-label={PRIVACY_NOTICE_TITLE}>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div ref={scrollRef} onScroll={checkScroll} className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6" tabIndex={0} aria-label={PRIVACY_NOTICE_TITLE}>
             <h3 className="pt-4 text-lg font-bold">{PRIVACY_NOTICE_TITLE}</h3>
             <PrivacyNoticeBody />
             <p className="mt-6 text-center text-xs text-muted">— 告知事項到此結束 —</p>
