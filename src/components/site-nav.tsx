@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { brand, images } from '@/config/site'
 import { useCartCount } from '@/store/cart'
 import { currentPath, useAuth } from '@/components/auth-provider'
-import { GoogleLoginButton } from '@/components/google-button'
+import { LoginButtons } from '@/components/google-button'
 import type { SessionUser } from '@/lib/types'
 
 /** 右側選單的項目順序固定：場地預約、球敘、我的帳戶 */
@@ -185,7 +185,7 @@ export function SiteNav({ user, variant = 'inner' }: { user: SessionUser | null;
             </nav>
 
             <div className="border-t border-white/15 px-4 py-4 pb-safe">
-              {user ? <UserBlock user={user} /> : <GoogleLoginButton next={currentPath()} />}
+              {user ? <UserBlock user={user} /> : <LoginButtons next={currentPath()} />}
             </div>
           </div>
         </div>

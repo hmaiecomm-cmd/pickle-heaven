@@ -18,7 +18,7 @@ const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 tex
 type SP = { tab?: string; q?: string; role?: string; status?: string; from?: string; to?: string; sort?: string; page?: string }
 
 /**
- * 人員管理：會員（Google 登入自動建立）、教練、工作人員與管理員、黑名單。
+ * 人員管理：會員（Google 或 LINE 登入自動建立）、教練、工作人員與管理員、黑名單。
  * 列表只讀；管理操作在詳情頁並由後端驗證權限。
  */
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -43,7 +43,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-4">
-      <PageTitle title="人員管理" desc="會員於首次 Google 登入時自動建立（同一 Google 帳號不會重複新增）。教練身分與後台角色分開；黑名單是帳戶限制狀態，不改變角色。" />
+      <PageTitle title="人員管理" desc="會員於首次以 Google 或 LINE 登入時自動建立（同一帳號不會重複新增；Google 與 LINE 為各自獨立的會員）。教練身分與後台角色分開；黑名單是帳戶限制狀態，不改變角色。" />
 
       <nav className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" aria-label="人員分頁">
         {TABS.map((t) => (
@@ -174,7 +174,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                     <td className="px-3 py-2 text-xs text-muted">{m.bookAhead ? `${m.bookAhead} 天` : '場館預設'}</td>
                     <td className="px-3 py-2 text-xs text-muted">
                       {m.joinedAt}
-                      <span className="block">{m.lastLoginAt ? `登入 ${m.lastLoginAt}` : '尚未以 Google 登入'}</span>
+                      <span className="block">{m.lastLoginAt ? `登入 ${m.lastLoginAt}` : '尚未登入'}</span>
                     </td>
                     <td className="px-3 py-2">
                       <Link href={`/admin/members/${m.id}`} className="inline-flex h-8 items-center rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-50">查看詳情</Link>

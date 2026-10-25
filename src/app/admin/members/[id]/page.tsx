@@ -53,7 +53,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
     <div className="space-y-4">
       <PageTitle
         title={u.name}
-        desc={`會員 #${u.id.slice(-6)}・加入 ${u.joinedAt}・${u.lastLoginAt ? `最近登入 ${u.lastLoginAt}` : '尚未以 Google 登入'}`}
+        desc={`會員 #${u.id.slice(-6)}・加入 ${u.joinedAt}・${u.lastLoginAt ? `最近登入 ${u.lastLoginAt}` : '尚未登入'}`}
         right={<Link href="/admin/members" className="text-sm text-brand-700 hover:underline">← 人員列表</Link>}
       />
 
@@ -96,7 +96,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
               <dt className="text-muted">最近登入</dt><dd>{u.lastLoginAt ?? '—'}</dd>
               <dt className="text-muted">會員編號</dt><dd className="font-mono text-xs">{u.id}</dd>
             </dl>
-            <p className="mt-3 text-xs text-muted">姓名、Email、頭像來自 Google 帳號；電話由會員在前台自行填寫。</p>
+            <p className="mt-3 text-xs text-muted">姓名、Email、頭像來自會員的 Google 或 LINE 帳號；電話由會員在前台自行填寫。</p>
           </Card>
           <Card title="內部備註（僅後台可見）">
             <NotePanel userId={u.id} note={u.adminNote} canEdit={canNote} />
@@ -222,7 +222,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title="角色">
             <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
-              <dt className="text-muted">會員</dt><dd>是（Google 登入自動建立）</dd>
+              <dt className="text-muted">會員</dt><dd>是（Google 或 LINE 登入自動建立）</dd>
               <dt className="text-muted">教練</dt>
               <dd className="flex flex-wrap items-center gap-2">
                 {u.isCoach || u.coach ? <Pill tone="violet">教練</Pill> : <span className="text-muted">否</span>}
@@ -244,7 +244,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
           </Card>
           <Card title="帳戶限制與黑名單" className="lg:col-span-2">
             <RestrictionPanel userId={u.id} canEdit={canRestrict} rows={d.restrictions} restricted={u.restricted} />
-            <p className="mt-3 text-xs text-muted">黑名單以會員帳號（Google 身分）為準，改名或改 Email 不會解除。受限期間不能新增預約、報名、下單、使用點數或進入後台；既有已付款訂單與點數保留。解除後原有角色與資格自動恢復。</p>
+            <p className="mt-3 text-xs text-muted">黑名單以會員帳號（Google 或 LINE 身分）為準，改名或改 Email 不會解除。受限期間不能新增預約、報名、下單、使用點數或進入後台；既有已付款訂單與點數保留。解除後原有角色與資格自動恢復。</p>
           </Card>
         </div>
       )}

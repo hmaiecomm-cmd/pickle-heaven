@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, Separator } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
-import { GoogleLoginButton } from '@/components/google-button'
+import { LoginButtons } from '@/components/google-button'
 import { useAuth } from '@/components/auth-provider'
 import { useHoldCountdown, formatCountdown } from '@/components/booking/cart-bar'
 import { TapPayCardForm } from '@/components/checkout/tappay-card-form'
@@ -398,7 +398,7 @@ export function CheckoutClient({
             確認付款 {ntd(quote.total)}
           </Button>
         ) : (
-          <GoogleLoginButton size="lg" next="/checkout" label="使用 Google 登入後結帳" />
+          <LoginButtons size="lg" next="/checkout" lineLabel="使用 LINE 登入後結帳" googleLabel="使用 Google 登入後結帳" />
         )}
       </form>
 

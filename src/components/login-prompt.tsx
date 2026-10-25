@@ -2,7 +2,7 @@
 
 import { LockKeyhole } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { GoogleLoginButton } from '@/components/google-button'
+import { LoginButtons } from '@/components/google-button'
 import { currentPath } from '@/components/auth-provider'
 
 /** 需要登入的頁面提示；登入完成後回到原本要看的頁面 */
@@ -18,8 +18,8 @@ export function LoginPrompt({ title, description, next }: { title: string; descr
             <h1 className="text-base font-semibold">{title}</h1>
             <p className="mt-1.5 text-sm leading-relaxed text-muted">{description}</p>
           </div>
-          <GoogleLoginButton size="lg" next={next ?? (typeof window !== 'undefined' ? currentPath() : undefined)} />
-          <p className="text-[11px] text-muted">登入在 Google 官方畫面完成，本站不會取得您的 Google 密碼。登入即表示您同意本平台的服務條款與隱私權政策。</p>
+          <LoginButtons size="lg" next={next ?? (typeof window !== 'undefined' ? currentPath() : undefined)} />
+          <p className="text-[11px] text-muted">登入在 LINE 或 Google 官方畫面完成，本站不會取得您的密碼。登入即表示您同意本平台的服務條款與隱私權政策。</p>
         </CardContent>
       </Card>
     </div>

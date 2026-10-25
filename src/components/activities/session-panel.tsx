@@ -17,7 +17,7 @@ import { ActivityCover, priceText, SignupBadge } from './activity-cover'
 /**
  * 活動詳細面板：桌機為右側抽屜，手機為全螢幕。
  * 「報名這場活動」只會暫留名額並放入購物車，完成付款才算報名成功。
- * 未登入時先把場次與人數寫進網址，Google 登入回來後自動回到同一場次並保留人數。
+ * 未登入時先把場次與人數寫進網址，登入回來後自動回到同一場次並保留人數。
  */
 export function SessionPanel({
   sessionId,

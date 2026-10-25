@@ -74,7 +74,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       orderBy: { createdAt: 'desc' },
       take: 20,
     }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, createdAt: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, lineUserId: true, createdAt: true } }),
     prisma.court.findMany({ where: { active: true }, select: { id: true, name: true } }),
   ])
   const [ledger, topUps, breakdown] = tab === 'points' ? await Promise.all([listUserLedger(user.id), listUserTopUps(user.id), userPointsBreakdown(user.id)]) : [[], [], null]
@@ -316,7 +316,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <Separator />
               <dl className="grid grid-cols-[6rem_1fr] gap-y-1.5 text-sm">
                 <dt className="text-muted">登入方式</dt>
-                <dd>{profile?.googleSub ? 'Google 帳號' : '—'}</dd>
+                <dd>{profile?.googleSub ? 'Google 帳號' : profile?.lineUserId ? 'LINE 帳號' : '—'}</dd>
                 <dt className="text-muted">Email</dt>
                 <dd className="truncate">{profile?.email ?? '—'}</dd>
                 <dt className="text-muted">加入日期</dt>

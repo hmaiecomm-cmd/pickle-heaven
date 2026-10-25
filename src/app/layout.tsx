@@ -60,12 +60,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const area = h.get('x-ph-area') === 'admin' ? 'admin' : 'public'
   // 開發登入只在本機且明確開啟時可用，正式環境一律關閉
   const devLoginEnabled = process.env.NODE_ENV !== 'production' && process.env.DEV_LOGIN === '1'
+  // LINE 登入需要前端的 LIFF ID，以及伺服器驗證 id_token 用的 Channel ID
+  const lineLiffId =
+    process.env.NEXT_PUBLIC_LIFF_ID && (process.env.LINE_LOGIN_CHANNEL_ID || process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID)
+      ? process.env.NEXT_PUBLIC_LIFF_ID
+      : null
 
   return (
     <html lang="zh-Hant-TW" data-area={area} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         <ToastProvider>
-          <AuthProvider initialUser={user} googleConfigured={googleConfigured()} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
+          <AuthProvider initialUser={user} googleConfigured={googleConfigured()} lineLiffId={lineLiffId} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
             <CartStoreProvider initialCart={cart}>
               <AppShell user={user}>
                 {children}

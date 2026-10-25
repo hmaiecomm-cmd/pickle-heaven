@@ -14,6 +14,7 @@ import {
   getSessionUser,
 } from '@/lib/session'
 import type { AvailabilityDTO, CartDTO, SessionUser } from '@/lib/types'
+import { verifyLineIdToken, type LineProfile } from '@/lib/line'
 import {
   assertBookingPayable,
   BookingError,
@@ -68,6 +69,47 @@ export async function devLogin(displayName = '測試球友'): Promise<ActionResu
         restricted: false,
       },
     }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+/**
+ * LINE 登入：LIFF 取得的 id_token 交由伺服器向 LINE 驗證後，以 LINE userId 找或建立會員。
+ * 與 Google 帳號各自獨立，絕不以 Email 或姓名自動合併既有會員。
+ */
+export async function loginWithLine(idToken: string): Promise<ActionResult<object>> {
+  try {
+    if (typeof idToken !== 'string' || !idToken || idToken.length > 4096) {
+      throw new BookingError('LINE 登入資料不完整', 'UNAUTHORIZED')
+    }
+    let profile: LineProfile
+    try {
+      profile = await verifyLineIdToken(idToken)
+    } catch (err) {
+      console.error('[line] id_token 驗證失敗', err)
+      throw new BookingError('LINE 登入已逾時或驗證失敗，請再試一次', 'UNAUTHORIZED')
+    }
+
+    const existing = await prisma.user.findUnique({ where: { lineUserId: profile.lineUserId } })
+    const user = existing
+      ? await prisma.user.update({
+          where: { id: existing.id },
+          // 顯示名稱由會員自行維護，不每次覆寫；頭像跟著 LINE 更新
+          data: { pictureUrl: profile.pictureUrl ?? existing.pictureUrl, lastLoginAt: new Date() },
+        })
+      : await prisma.user.create({
+          data: {
+            lineUserId: profile.lineUserId,
+            displayName: profile.displayName,
+            pictureUrl: profile.pictureUrl,
+            email: profile.email,
+            lastLoginAt: new Date(),
+          },
+        })
+
+    await createSession(user.id)
+    return { ok: true }
   } catch (err) {
     return fail(err)
   }
