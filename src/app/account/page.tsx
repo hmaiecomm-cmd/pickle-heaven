@@ -335,7 +335,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   )
 }
 
-/** 登入狀態暫時無法確認：顯示重試，不清除登入、不導向 Google */
+/** 登入狀態暫時無法確認：顯示重試，不清除登入、不導向登入畫面 */
 function Unavailable() {
   return (
     <div className="mx-auto max-w-md py-16 text-center">

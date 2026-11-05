@@ -39,7 +39,7 @@ function isUniqueViolation(err: unknown): boolean {
  * 寫入一筆待送通知。dedupeKey 重複時視為已排入，不重複建立。
  * 回傳是否為本次新增。
  */
-async function queueNotification(params: {
+export async function queueNotification(params: {
   dedupeKey: string
   type: Prisma.NotificationLogCreateInput['type']
   userId?: string | null

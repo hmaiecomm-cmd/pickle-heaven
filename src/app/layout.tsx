@@ -8,7 +8,6 @@ import { AppShell } from '@/components/app-shell'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { getCartToken } from '@/lib/session'
 import { getCart } from '@/lib/availability'
-import { googleConfigured } from '@/lib/google-auth'
 import { brand, legal, SITE_URL } from '@/config/site'
 import { prisma } from '@/lib/db'
 import { ConsentGate } from '@/components/consent-gate'
@@ -84,7 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="zh-Hant-TW" data-area={area} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         <ToastProvider>
-          <AuthProvider initialUser={user} googleConfigured={googleConfigured()} lineLiffId={lineLiffId} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
+          <AuthProvider initialUser={user} lineLiffId={lineLiffId} devLoginEnabled={devLoginEnabled} unavailable={authUnavailable}>
             <CartStoreProvider initialCart={cart}>
               <AppShell user={user}>
                 {children}

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { brand, images } from '@/config/site'
 import { useCartCount } from '@/store/cart'
 import { currentPath, useAuth } from '@/components/auth-provider'
-import { LoginButtons } from '@/components/google-button'
+import { LoginButtons } from '@/components/login-buttons'
 import type { SessionUser } from '@/lib/types'
 
 /** 右側選單的項目順序固定：場地預約、球敘、我的帳戶 */
@@ -199,7 +199,7 @@ function UserBlock({ user }: { user: SessionUser }) {
   return (
     <div className="flex items-center gap-3">
       {user.pictureUrl ? (
-        // 頭像來自 Google 或 LINE 的外部網址
+        // 頭像來自 LINE 的外部網址（舊會員可能是 Google）
         // eslint-disable-next-line @next/next/no-img-element
         <img src={user.pictureUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/40" />
       ) : (

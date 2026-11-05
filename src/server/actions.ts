@@ -79,7 +79,7 @@ export async function devLogin(displayName = '測試球友'): Promise<ActionResu
 
 /**
  * LINE 登入：LIFF 取得的 id_token 交由伺服器向 LINE 驗證後，以 LINE userId 找或建立會員。
- * 與 Google 帳號各自獨立，絕不以 Email 或姓名自動合併既有會員。
+ * 與舊 Google 會員各自獨立，絕不以 Email 或姓名自動合併既有會員。
  */
 export async function loginWithLine(idToken: string): Promise<ActionResult<object>> {
   try {

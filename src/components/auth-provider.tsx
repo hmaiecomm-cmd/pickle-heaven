@@ -7,26 +7,18 @@ import { useToast } from '@/components/ui/toast'
 import type { SessionUser } from '@/lib/types'
 
 /**
- * 前台登入狀態。提供兩種登入方式，各自建立獨立會員（不以 Email 自動合併）：
- * - Google：導向 /api/auth/google/start，由 Google 官方畫面完成驗證。
- * - LINE：透過 LIFF 取得 id_token，交由伺服器向 LINE 驗證（loginWithLine）。
+ * 前台登入狀態。只提供 LINE 登入：透過 LIFF 取得 id_token，交由伺服器向 LINE 驗證（loginWithLine）。
  * 本站只保存 HttpOnly session Cookie，前端不接觸任何密碼。
  */
 interface AuthState {
   user: SessionUser | null
-  /** Google 授權是否已設定；未設定時不顯示 Google 按鈕 */
-  googleConfigured: boolean
   /** LINE 登入（LIFF）是否已設定 */
   lineConfigured: boolean
-  /** 是否在 LINE App 內開啟；LINE 內建瀏覽器不支援 Google 登入，只顯示 LINE */
-  inLineApp: boolean
   /** 伺服器暫時無法確認登入狀態（資料庫故障）：不顯示登入入口，提示重試 */
   unavailable: boolean
   loggingIn: boolean
-  /** 導向 Google 登入；next 為登入完成後要回到的站內路徑，預設為目前頁面 */
+  /** LINE 登入；next 為登入完成後要回到的站內路徑，預設為目前頁面 */
   login: (next?: string) => void
-  /** LINE 登入；next 同上 */
-  loginLine: (next?: string) => void
   logout: () => Promise<void>
   /** 是否已加 LINE 官方帳號好友；LINE 未登入或無法判斷時為 null */
   lineFriendship: () => Promise<boolean | null>
@@ -57,13 +49,6 @@ export function currentPath(): string {
   const url = new URL(window.location.href)
   url.searchParams.delete('auth')
   return `${url.pathname}${url.search}${url.hash}`
-}
-
-const AUTH_MESSAGES: Record<string, { text: string; kind: 'info' | 'error' }> = {
-  cancelled: { text: '已取消 Google 登入', kind: 'info' },
-  failed: { text: 'Google 登入失敗，請再試一次', kind: 'error' },
-  unavailable: { text: 'Google 登入尚未設定，請聯絡場館', kind: 'error' },
-  expired: { text: '登入已逾時，請重新登入', kind: 'info' },
 }
 
 /* ────────────────────────────── LIFF ────────────────────────────── */
@@ -123,17 +108,15 @@ function writeFlag(key: string, on: boolean) {
 export function AuthProvider({
   children,
   initialUser,
-  googleConfigured,
   lineLiffId = null,
   devLoginEnabled = false,
   unavailable = false,
 }: {
   children: React.ReactNode
   initialUser: SessionUser | null
-  googleConfigured: boolean
   /** LIFF ID；未設定（或伺服器缺 LINE Channel ID）時為 null，不顯示 LINE 按鈕 */
   lineLiffId?: string | null
-  /** 僅本機開發：以測試會員登入，不經 Google */
+  /** 僅本機開發：LINE 按鈕改以測試會員登入（localhost 無法走 LIFF） */
   devLoginEnabled?: boolean
   unavailable?: boolean
 }) {
@@ -141,23 +124,11 @@ export function AuthProvider({
   const { toast } = useToast()
   const [user, setUser] = React.useState<SessionUser | null>(initialUser)
   const [loggingIn, setLoggingIn] = React.useState(false)
-  const [inLineApp, setInLineApp] = React.useState(false)
   const userRef = React.useRef(initialUser)
   userRef.current = user
 
   // 伺服器端 session 變動（登入回呼、登出）後同步
   React.useEffect(() => setUser(initialUser), [initialUser])
-
-  // 授權回呼帶回的結果：提示一次並從網址移除
-  React.useEffect(() => {
-    const url = new URL(window.location.href)
-    const auth = url.searchParams.get('auth')
-    if (!auth) return
-    const msg = AUTH_MESSAGES[auth]
-    if (msg) toast(msg.text, msg.kind)
-    url.searchParams.delete('auth')
-    window.history.replaceState(null, '', url.toString())
-  }, [toast])
 
   /** 已在 LINE 登入：把 id_token 交給伺服器驗證並建立本站 session */
   const completeLineLogin = React.useCallback(
@@ -177,14 +148,11 @@ export function AuthProvider({
 
   // LINE App 內或剛從 LINE 登入導回：初始化 LIFF，已登入 LINE 但尚無本站 session 時自動帶入
   React.useEffect(() => {
-    // 先以 UA 判斷，避免 LINE 內短暫出現無法使用的 Google 按鈕
-    if (/\bLine\//i.test(navigator.userAgent)) setInLineApp(true)
     if (!lineLiffId || !shouldInitLiffOnLoad()) return
     let cancelled = false
     loadLiff(lineLiffId)
       .then(async (liff) => {
         if (cancelled) return
-        setInLineApp(liff.isInClient())
         if (userRef.current || !liff.isLoggedIn() || readFlag(LINE_LOGGED_OUT_KEY)) return
         setLoggingIn(true)
         await completeLineLogin(liff)
@@ -203,12 +171,6 @@ export function AuthProvider({
 
   const login = React.useCallback(
     (next?: string) => {
-      const target = next ?? currentPath()
-      if (googleConfigured) {
-        setLoggingIn(true)
-        window.location.assign(`/api/auth/google/start?next=${encodeURIComponent(target)}`)
-        return
-      }
       if (devLoginEnabled) {
         setLoggingIn(true)
         void devLogin()
@@ -221,13 +183,6 @@ export function AuthProvider({
           .finally(() => setLoggingIn(false))
         return
       }
-      toast(AUTH_MESSAGES.unavailable.text, 'error')
-    },
-    [devLoginEnabled, googleConfigured, router, toast],
-  )
-
-  const loginLine = React.useCallback(
-    (next?: string) => {
       if (!lineLiffId) {
         toast('LINE 登入尚未設定，請聯絡場館', 'error')
         return
@@ -253,7 +208,7 @@ export function AuthProvider({
           setLoggingIn(false)
         })
     },
-    [lineLiffId, completeLineLogin, router, toast],
+    [devLoginEnabled, lineLiffId, completeLineLogin, router, toast],
   )
 
   const logout = React.useCallback(async () => {
@@ -298,18 +253,15 @@ export function AuthProvider({
   const value = React.useMemo<AuthState>(
     () => ({
       user,
-      googleConfigured: googleConfigured || devLoginEnabled,
-      lineConfigured: Boolean(lineLiffId),
-      inLineApp,
+      lineConfigured: Boolean(lineLiffId) || devLoginEnabled,
       unavailable,
       loggingIn,
       login,
-      loginLine,
       logout,
       lineFriendship,
       lineStatus,
     }),
-    [user, googleConfigured, devLoginEnabled, lineLiffId, inLineApp, unavailable, loggingIn, login, loginLine, logout, lineFriendship, lineStatus],
+    [user, devLoginEnabled, lineLiffId, unavailable, loggingIn, login, logout, lineFriendship, lineStatus],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

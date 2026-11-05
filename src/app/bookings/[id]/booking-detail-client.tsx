@@ -131,7 +131,7 @@ ${url}`)
             <p className="text-sm font-semibold text-brand-800 dark:text-brand-200">預約成功！</p>
             <p className="mt-0.5 text-xs leading-relaxed text-brand-700 dark:text-brand-300">
               {user?.viaLine
-                ? '確認通知會傳送到您的 LINE（需加入官方帳號好友）。'
+                ? '確認通知會傳送到您的 LINE，前一天與開打前兩小時也會提醒您（需加入官方帳號好友）。'
                 : '可隨時在「我的預約」查看這筆訂單。'}
             </p>
           </div>

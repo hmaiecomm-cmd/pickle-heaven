@@ -8,7 +8,7 @@ import { POINTS_KIND_LABEL, type PointsKind } from './points-ledger'
 
 /**
  * 人員管理查詢：會員、教練、工作人員與管理員、黑名單。
- * 會員資料來自前台 Google 或 LINE 登入自動建立的 User；教練身分（isCoach／Coach）與後台角色（AdminAccount）分開。
+ * 會員資料來自前台 LINE 登入自動建立的 User（含停用前的 Google 會員）；教練身分（isCoach／Coach）與後台角色（AdminAccount）分開。
  */
 
 export type PeopleTab = 'all' | 'coaches' | 'staff' | 'blacklist'

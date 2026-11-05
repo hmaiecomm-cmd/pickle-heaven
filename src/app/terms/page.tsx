@@ -4,7 +4,7 @@ import { brand, legal } from '@/config/site'
 
 export const metadata: Metadata = { title: '服務條款', robots: { index: true, follow: true } }
 
-const UPDATED = '2026 年 10 月 25 日'
+const UPDATED = '2026 年 11 月 5 日'
 
 /** 服務條款：預約、付款、取消退款與帳號使用規範；退款比例以場館公告為準 */
 export default function TermsPage() {
@@ -20,7 +20,7 @@ export default function TermsPage() {
 
       <Section title="二、帳號">
         <ul>
-          <li>本站以 Google 或 LINE 帳號登入，您應妥善保管自己的帳號；以您帳號完成的預約與付款視為您本人的行為。</li>
+          <li>本站以 LINE 帳號登入，您應妥善保管自己的帳號；以您帳號完成的預約與付款視為您本人的行為。</li>
           <li>請提供正確的姓名與手機號碼，以便到場報到與場館聯絡。</li>
           <li>違反場館規定、惡意佔用時段或重複未到場者，場館得限制其預約或報名權限。</li>
         </ul>

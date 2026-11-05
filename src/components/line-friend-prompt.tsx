@@ -3,13 +3,13 @@
 import * as React from 'react'
 import { BellRing, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
-import { LineMark } from '@/components/google-button'
+import { LineMark } from '@/components/login-buttons'
 import { lineOfficialAccount } from '@/config/site'
 import { cn } from '@/lib/utils'
 
 /**
  * 預約時提示 LINE 會員加入官方帳號好友，才收得到訂單推播。
- * - 只對以 LINE 登入的會員顯示（Google 會員沒有 LINE userId，加好友也收不到推播）。
+ * - 只對以 LINE 登入的會員顯示（舊 Google 會員沒有 LINE userId，加好友也收不到推播）。
  * - 透過 LIFF 查好友狀態；已是好友就不再提示，回到頁面時重新確認。查不到狀態時照常顯示。
  * - 手機顯示「加入好友」按鈕；電腦另外顯示 QR Code 供手機掃描。
  */
@@ -67,8 +67,8 @@ export function LineFriendPrompt({ variant = 'full', className }: { variant?: 'f
       <div className={cn('flex items-center gap-3 rounded-2xl border border-[#06C755]/30 bg-[#06C755]/5 px-4 py-3', className)}>
         <BellRing className="h-5 w-5 shrink-0 text-[#06C755]" aria-hidden />
         <p className="flex-1 text-xs leading-relaxed">
-          <span className="font-semibold">加入 LINE 好友，預約成功立即通知</span>
-          <span className="block text-muted">訂單成立、取消與場次異動會傳到您的 LINE。</span>
+          <span className="font-semibold">加入 LINE 好友，接收預約通知與開打提醒</span>
+          <span className="block text-muted">預約成功、前一天與開打前兩小時都會傳到您的 LINE。</span>
         </p>
         {addButton}
       </div>
@@ -84,7 +84,7 @@ export function LineFriendPrompt({ variant = 'full', className }: { variant?: 'f
             加入 LINE 好友，接收預約通知
           </p>
           <p className="text-xs leading-relaxed text-muted">
-            加入「{lineOfficialAccount.name}」官方帳號（{lineOfficialAccount.basicId}）好友後，訂單成立、取消與場次異動都會透過 LINE 通知您。
+            加入「{lineOfficialAccount.name}」官方帳號（{lineOfficialAccount.basicId}）好友後，預約成功、前一天與開打前兩小時都會透過 LINE 通知您。
           </p>
           <div className="pt-1">{addButton}</div>
         </div>

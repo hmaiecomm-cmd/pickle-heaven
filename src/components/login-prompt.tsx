@@ -2,7 +2,7 @@
 
 import { LockKeyhole } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { LoginButtons } from '@/components/google-button'
+import { LoginButtons } from '@/components/login-buttons'
 import { currentPath } from '@/components/auth-provider'
 
 /** 需要登入的頁面提示；登入完成後回到原本要看的頁面 */
@@ -19,7 +19,7 @@ export function LoginPrompt({ title, description, next }: { title: string; descr
             <p className="mt-1.5 text-sm leading-relaxed text-muted">{description}</p>
           </div>
           <LoginButtons size="lg" next={next ?? (typeof window !== 'undefined' ? currentPath() : undefined)} />
-          <p className="text-[11px] text-muted">登入在 LINE 或 Google 官方畫面完成，本站不會取得您的密碼。登入即表示您同意本平台的服務條款，並已知悉個人資料法定告知事項。</p>
+          <p className="text-[11px] text-muted">登入在 LINE 官方畫面完成，本站不會取得您的密碼。登入即表示您同意本平台的服務條款，並已知悉個人資料法定告知事項。</p>
         </CardContent>
       </Card>
     </div>
