@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getCart } from '@/lib/availability'
 import { getCartToken, getSessionUser } from '@/lib/session'
-import { availableProviders } from '@/lib/payments'
+import { checkoutProviders } from '@/lib/payments'
 import { REFUND_POLICY_ROWS } from '@/lib/pricing'
 import { CheckoutClient } from './checkout-client'
 
@@ -16,13 +16,13 @@ export default async function CheckoutPage() {
   if (cart.items.length === 0 && cart.activityItems.length === 0) redirect('/cart')
 
   const user = await getSessionUser()
-  const providers = availableProviders()
+  const providers = checkoutProviders(user?.id)
 
   return (
     <CheckoutClient
       initialCart={cart}
       user={user}
-      providers={providers.length > 0 ? providers : [{ id: 'mock', displayName: '測試信用卡（模擬）', method: 'CREDIT_CARD' }]}
+      providers={providers}
       refundRows={REFUND_POLICY_ROWS}
     />
   )

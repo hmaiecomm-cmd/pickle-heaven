@@ -325,6 +325,7 @@ export function CheckoutClient({
         )}
 
         {/* 付款方式 */}
+        {providers.length > 0 && (
         <Card>
           <CardContent className="space-y-3">
             <h2 className="text-sm font-semibold">付款方式</h2>
@@ -358,6 +359,7 @@ export function CheckoutClient({
             </p>
           </CardContent>
         </Card>
+        )}
 
         {/* 金額 */}
         <Card>
@@ -394,6 +396,10 @@ export function CheckoutClient({
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
             購物車內有已開始或已超過預約截止時間的項目，無法付款。
             <Link href="/cart" className="ml-1 font-semibold underline underline-offset-2">回購物車移除</Link>
+          </div>
+        ) : user && providers.length === 0 && quote.total > 0 ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+            線上付款尚未開放，請洽場館櫃台。
           </div>
         ) : user ? (
           <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0}>

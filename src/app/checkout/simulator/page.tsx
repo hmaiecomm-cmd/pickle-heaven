@@ -1,4 +1,7 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
+import { canUseMockPayment } from '@/lib/payments'
+import { getSessionUser } from '@/lib/session'
 import { SimulatorClient } from './simulator-client'
 
 export const metadata: Metadata = { title: '模擬付款' }
@@ -9,6 +12,8 @@ export default async function SimulatorPage({
 }: {
   searchParams: Promise<{ ref?: string; code?: string; booking?: string; amount?: string; return?: string }>
 }) {
+  const user = await getSessionUser().catch(() => null)
+  if (!canUseMockPayment(user?.id)) notFound()
   const sp = await searchParams
   return (
     <SimulatorClient

@@ -28,6 +28,7 @@ export function LineCheckClient() {
 
   const rows: [string, string][] = [
     ['網站會員', user ? `${user.displayName}（${user.viaLine ? 'LINE 登入' : '非 LINE 登入'}）` : '未登入'],
+    ['會員編號', user?.id ?? '—'],
     ['LINE 登入已設定', status ? yesNo(status.configured) : '檢查中…'],
     ['在 LINE App 內開啟', status ? yesNo(status.inClient) : '檢查中…'],
     ['LINE（LIFF）已登入', status ? yesNo(status.loggedIn) : '檢查中…'],

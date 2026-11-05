@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getAvailability } from '@/lib/availability'
-import { getPaymentProvider } from '@/lib/payments'
+import { checkoutProviders, getPaymentProvider } from '@/lib/payments'
 import type { ChargeInstruction } from '@/lib/payments'
 import {
   clearSession,
@@ -337,7 +337,10 @@ export async function startPayment(
     await assertBookingPayable(booking.id)
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const provider = getPaymentProvider(providerId)
+    const allowed = checkoutProviders(user.id)
+    const chosen = allowed.find((p) => p.id === providerId) ?? allowed[0]
+    if (!chosen) throw new BookingError('線上付款尚未開放，請洽場館櫃台。', 'PAYMENT_FAILED')
+    const provider = getPaymentProvider(chosen.id)
 
     const instruction = await provider.createCharge({
       bookingId: booking.id,

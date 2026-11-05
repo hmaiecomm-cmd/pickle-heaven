@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/session'
 import { getBookingDetail } from '@/server/booking-service'
-import { availableProviders } from '@/lib/payments'
+import { checkoutProviders } from '@/lib/payments'
 import { LoginPrompt } from '@/components/login-prompt'
 import { RetryPaymentClient } from './retry-payment-client'
 
@@ -20,7 +20,7 @@ export default async function RetryPaymentPage({ params }: { params: Promise<{ i
 
   if (booking.status === 'PAID' || booking.status === 'COMPLETED') redirect(`/bookings/${id}`)
 
-  const providers = availableProviders()
+  const providers = checkoutProviders(user.id)
 
   return (
     <RetryPaymentClient
@@ -35,11 +35,7 @@ export default async function RetryPaymentPage({ params }: { params: Promise<{ i
         timeLabel: it.timeLabel,
         price: it.price,
       }))}
-      providers={
-        providers.length > 0
-          ? providers
-          : [{ id: 'mock', displayName: '測試信用卡（模擬）', method: 'CREDIT_CARD' }]
-      }
+      providers={providers}
     />
   )
 }

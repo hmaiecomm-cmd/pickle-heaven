@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getPaymentProvider, isProviderId } from '@/lib/payments'
+import { canUseMockPayment, getPaymentProvider, isProviderId } from '@/lib/payments'
+import { getSessionUser } from '@/lib/session'
 import { markBookingPaid, recordPaymentFailure } from '@/server/booking-service'
 import { findTopUpByCode, markTopUpPaid, recordTopUpFailure } from '@/server/topup-service'
 
@@ -19,6 +20,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
 
   if (!isProviderId(providerId)) {
     return NextResponse.json({ error: '未知的金流代號' }, { status: 404 })
+  }
+
+  // 模擬金流沒有簽章可驗證，正式環境只接受測試者本人從瀏覽器送出的通知
+  if (providerId === 'mock') {
+    const user = await getSessionUser().catch(() => null)
+    if (!canUseMockPayment(user?.id)) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
   }
 
   const provider = getPaymentProvider(providerId)

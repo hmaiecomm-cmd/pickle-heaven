@@ -118,6 +118,7 @@ export function RetryPaymentClient({
         </Card>
       ) : (
         <>
+          {providers.length > 0 && (
           <Card>
             <CardContent className="space-y-3">
               <h2 className="text-sm font-semibold">付款方式</h2>
@@ -147,6 +148,7 @@ export function RetryPaymentClient({
               </div>
             </CardContent>
           </Card>
+          )}
 
           {expiresAt && (
             <p className="text-center text-xs text-muted tabular">
@@ -154,10 +156,16 @@ export function RetryPaymentClient({
             </p>
           )}
 
-          <Button size="lg" block loading={busy} onClick={handlePay}>
-            <Lock className="h-4 w-4" aria-hidden />
-            確認付款 {ntd(total)}
-          </Button>
+          {providers.length > 0 ? (
+            <Button size="lg" block loading={busy} onClick={handlePay}>
+              <Lock className="h-4 w-4" aria-hidden />
+              確認付款 {ntd(total)}
+            </Button>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+              線上付款尚未開放，請洽場館櫃台。
+            </div>
+          )}
         </>
       )}
 
