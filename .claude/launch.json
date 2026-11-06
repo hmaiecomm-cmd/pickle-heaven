@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "-p", "3100"],
       "port": 3100
+    },
+    {
+      "name": "pickle-heaven-3200",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3200"],
+      "port": 3200
+    },
+    {
+      "name": "pickle-heaven-mirror",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\hmai.ecomm\\dev\\pickle-heaven-run", "run", "dev", "--", "-p", "3300"],
+      "port": 3300
     }
   ]
 }
