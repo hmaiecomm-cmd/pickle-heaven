@@ -402,10 +402,21 @@ export function CheckoutClient({
             線上付款尚未開放，請洽場館櫃台。
           </div>
         ) : user ? (
-          <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0}>
-            <Lock className="h-4 w-4" aria-hidden />
-            確認付款 {ntd(quote.total)}
-          </Button>
+          <>
+            <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0 || !name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))}>
+              <Lock className="h-4 w-4" aria-hidden />
+              確認付款 {ntd(quote.total)}
+            </Button>
+            {(!name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))) && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" role="alert">
+                <p className="font-semibold mb-2">📋 請完成聯絡資訊</p>
+                <ul className="space-y-1 text-xs">
+                  {!name.trim() && <li>• 聯絡人姓名：請填寫</li>}
+                  {!/^09\d{8}$/.test(phone.replace(/[\s-]/g, '')) && <li>• 手機號碼：請填寫正確的手機號碼（09 開頭共 10 碼，例：0912345678）</li>}
+                </ul>
+              </div>
+            )}
+          </>
         ) : (
           <LoginButtons size="lg" next="/checkout" label="使用 LINE 登入後結帳" />
         )}
