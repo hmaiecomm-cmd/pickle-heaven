@@ -403,16 +403,23 @@ export function CheckoutClient({
           </div>
         ) : user ? (
           <>
-            {(!name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))) && (
+            {!name.trim() && (
               <div className="rounded-xl border-l-4 border-l-blue-600 border border-blue-200 bg-blue-50 px-4 py-3.5 text-sm text-blue-900 shadow-sm" role="alert">
                 <div className="flex gap-3">
                   <div className="flex-shrink-0 text-lg">⚠️</div>
                   <div className="flex-1">
-                    <p className="font-semibold mb-2">請完成聯絡資訊後再付款</p>
-                    <ul className="space-y-1 text-xs opacity-90">
-                      {!name.trim() && <li className="flex items-center gap-2"><span>✗</span> 聯絡人姓名未填寫</li>}
-                      {!/^09\d{8}$/.test(phone.replace(/[\s-]/g, '')) && <li className="flex items-center gap-2"><span>✗</span> 手機號碼格式不正確（需09開頭共10碼，例：0912345678）</li>}
-                    </ul>
+                    <p className="font-semibold">聯絡人姓名未填寫</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!/^09\d{8}$/.test(phone.replace(/[\s-]/g, '')) && (
+              <div className="rounded-xl border-l-4 border-l-red-600 border border-red-200 bg-red-50 px-4 py-3.5 text-sm text-red-900 shadow-sm" role="alert">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 text-lg">🔴</div>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-1">請填寫正確的手機號碼（09 開頭共 10 碼）</p>
+                    <p className="text-xs opacity-85">例如：0912345678</p>
                   </div>
                 </div>
               </div>
