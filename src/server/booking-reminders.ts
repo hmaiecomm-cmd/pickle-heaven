@@ -87,7 +87,6 @@ export function buildReminderText(
     ...lineText,
     '',
     `報到編號：${booking.code}`,
-    '請於開打前 10 分鐘至櫃台報到。',
     ...(booking.address ? [`地址：${booking.address}`] : []),
     `預約詳情：${bookingLink(booking.id)}`,
   ].join('\n')
