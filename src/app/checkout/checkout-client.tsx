@@ -144,7 +144,6 @@ export function CheckoutClient({
 
     const nextErrors: Record<string, string> = {}
     if (!name.trim()) nextErrors.name = '請填寫聯絡人姓名'
-    if (!/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))) nextErrors.phone = '請填寫正確的手機號碼（09 開頭共 10 碼）'
     setErrors((prev) => ({ ...prev, ...nextErrors }))
     if (Object.keys(nextErrors).length > 0) return
 
