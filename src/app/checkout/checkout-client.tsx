@@ -403,10 +403,6 @@ export function CheckoutClient({
           </div>
         ) : user ? (
           <>
-            <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0 || !name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))}>
-              <Lock className="h-4 w-4" aria-hidden />
-              確認付款 {ntd(quote.total)}
-            </Button>
             {(!name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))) && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" role="alert">
                 <p className="font-semibold mb-2">📋 請完成聯絡資訊</p>
@@ -416,6 +412,10 @@ export function CheckoutClient({
                 </ul>
               </div>
             )}
+            <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0 || !name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))}>
+              <Lock className="h-4 w-4" aria-hidden />
+              確認付款 {ntd(quote.total)}
+            </Button>
           </>
         ) : (
           <LoginButtons size="lg" next="/checkout" label="使用 LINE 登入後結帳" />
