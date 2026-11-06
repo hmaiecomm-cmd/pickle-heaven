@@ -248,22 +248,23 @@ export function buildBookingFlex(b: BookingNotifyPayload) {
   }
 }
 
-/** 送出「訂單成立」通知：先試服務訊息，退回 Messaging API 推播 */
+/** 送出「訂單成立」通知：先試服務訊息，退回 Messaging API 推播；回傳是否成功 */
 export async function notifyBookingConfirmed(
   lineUserId: string | null,
   payload: BookingNotifyPayload,
   notificationToken?: string | null,
-): Promise<void> {
-  if (!lineUserId) return
+): Promise<boolean> {
+  if (!lineUserId) return false
 
   const viaService = await sendServiceMessage(notificationToken, 'booking_confirmed', {
     code: payload.code,
     venue: payload.venueName,
     date: payload.playDate,
   })
-  if (viaService) return
+  if (viaService) return true
 
-  await pushMessages(lineUserId, [buildBookingFlex(payload)])
+  const ok = await pushMessages(lineUserId, [buildBookingFlex(payload)])
+  return ok
 }
 
 /** 取消通知 */

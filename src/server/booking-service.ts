@@ -679,10 +679,19 @@ async function sendConfirmationNotification(bookingId: string): Promise<void> {
         activityItems: { orderBy: { startsAt: 'asc' } },
       },
     })
-    if (!booking?.user.lineUserId) return
+    if (!booking) return
+
+    // 記錄通知嘗試
+    if (!booking.user.lineUserId) {
+      console.warn('[booking] 無法發送預約成功通知：使用者未設定 LINE User ID', { code: booking.code })
+      return
+    }
+
+    let sent = false
+    let error: string | null = null
 
     if (booking.items.length > 0) {
-      await notifyBookingConfirmed(booking.user.lineUserId, {
+      const ok = await notifyBookingConfirmed(booking.user.lineUserId, {
         bookingId: booking.id,
         code: booking.code,
         venueName: booking.venue.name,
@@ -698,7 +707,10 @@ async function sendConfirmationNotification(bookingId: string): Promise<void> {
           }
         }),
       })
+      sent = ok !== false
+      if (!sent) error = '場地預約通知發送失敗'
     }
+
     if (booking.activityItems.length > 0) {
       const lines = booking.activityItems.map((it) => {
         const d = taipeiDateString(it.startsAt)
@@ -707,13 +719,21 @@ async function sendConfirmationNotification(bookingId: string): Promise<void> {
         const e = Math.round((it.endsAt.getTime() - base) / 60_000)
         return `・${it.title} ${d} ${activityTimeLabel(s, e)} × ${it.quantity}`
       })
-      await pushMessages(booking.user.lineUserId, [
+      const ok = await pushMessages(booking.user.lineUserId, [
         { type: 'text', text: `【${booking.venue.name}】活動報名完成（訂單 ${booking.code}）\n${lines.join('\n')}` },
       ])
+      if (ok) sent = true
+      else error = '活動報名通知發送失敗'
+    }
+
+    if (!sent) {
+      console.warn('[booking] 預約成功通知未能發送', { code: booking.code, error, reason: '用戶可能未加好友或 LINE API 故障' })
+    } else {
+      console.info('[booking] 預約成功通知已發送', { code: booking.code })
     }
   } catch (err) {
     // 通知失敗不影響訂單成立
-    console.error('[booking] LINE 通知失敗', err)
+    console.error('[booking] 發送預約成功通知時例外', err)
   }
 }
 
