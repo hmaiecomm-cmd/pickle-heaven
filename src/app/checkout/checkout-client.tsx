@@ -404,12 +404,17 @@ export function CheckoutClient({
         ) : user ? (
           <>
             {(!name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))) && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" role="alert">
-                <p className="font-semibold mb-2">📋 請完成聯絡資訊</p>
-                <ul className="space-y-1 text-xs">
-                  {!name.trim() && <li>• 聯絡人姓名：請填寫</li>}
-                  {!/^09\d{8}$/.test(phone.replace(/[\s-]/g, '')) && <li>• 手機號碼：請填寫正確的手機號碼（09 開頭共 10 碼，例：0912345678）</li>}
-                </ul>
+              <div className="rounded-xl border-l-4 border-l-blue-600 border border-blue-200 bg-blue-50 px-4 py-3.5 text-sm text-blue-900 shadow-sm" role="alert">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 text-lg">⚠️</div>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-2">請完成聯絡資訊後再付款</p>
+                    <ul className="space-y-1 text-xs opacity-90">
+                      {!name.trim() && <li className="flex items-center gap-2"><span>✗</span> 聯絡人姓名未填寫</li>}
+                      {!/^09\d{8}$/.test(phone.replace(/[\s-]/g, '')) && <li className="flex items-center gap-2"><span>✗</span> 手機號碼格式不正確（需09開頭共10碼，例：0912345678）</li>}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
             <Button type="submit" size="lg" block loading={submitting} disabled={remaining <= 0 || !name.trim() || !/^09\d{8}$/.test(phone.replace(/[\s-]/g, ''))}>
