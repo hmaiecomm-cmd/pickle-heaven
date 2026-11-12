@@ -2,8 +2,8 @@
  * Cron API：Watchdog 定期監控
  *
  * 執行頻率：建議每 30 秒一次
- * Vercel Cron：cron: "*/0.5 * * * *" （每 30 秒）
- * 或每分鐘一次：cron: "* * * * *"
+ * Vercel Cron: '* * * * *' (每分鐘)
+ * 或每 30 秒一次：使用 Vercel Edge Cron
  */
 
 import { NextRequest, NextResponse } from 'next/server'

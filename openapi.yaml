@@ -1,0 +1,529 @@
+openapi: 3.0.0
+info:
+  title: 匹克天堂智慧場館平台 API
+  description: |
+    完整的場館預約、退款與電力控制系統
+
+    ## 認證方式
+    - Bearer Token (JWT)
+    - OAuth 2.0
+
+    ## 基礎 URL
+    - 生產環境: https://api.pickle-heaven.com/v1
+    - 測試環境: https://staging-api.pickle-heaven.com/v1
+
+    ## 速率限制
+    - 普通用戶: 1000 請求/小時
+    - 管理員: 10000 請求/小時
+  version: 1.0.0
+  contact:
+    name: 匹克天堂技術支持
+    email: tech-support@pickle-heaven.com
+    url: https://www.pickle-heaven.com
+
+servers:
+  - url: https://api.pickle-heaven.com/v1
+    description: 生產環境
+  - url: https://staging-api.pickle-heaven.com/v1
+    description: 測試環境
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 訂單 ID
+        code:
+          type: string
+          description: 訂單代號 (BK-20261115-001)
+        userId:
+          type: string
+        contactName:
+          type: string
+        contactPhone:
+          type: string
+        playDate:
+          type: string
+          format: date-time
+        total:
+          type: number
+          description: 訂單總金額 (NT$)
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CHECKED_IN, COMPLETED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Refund:
+      type: object
+      properties:
+        id:
+          type: string
+        bookingId:
+          type: string
+        method:
+          type: string
+          enum: [ORIGINAL_CARD, POINTS, VOUCHER, MANUAL]
+          description: 退款方式
+        cashAmount:
+          type: number
+          description: 現金退款金額 (NT$)
+        pointsAmount:
+          type: integer
+          description: 點數回補數量
+        status:
+          type: string
+          enum: [PROCESSING, SUCCEEDED, FAILED, MANUAL_PENDING, MANUAL_DONE]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [HEALTHY, DEGRADED, OFFLINE, ERROR]
+          description: 系統健康狀態
+        mqttConnected:
+          type: boolean
+          description: MQTT 連接狀態
+        rs485Connected:
+          type: boolean
+          description: RS-485 連接狀態
+        totalCommands:
+          type: integer
+          description: 總命令數
+        failureRate:
+          type: number
+          description: 命令失敗率 (0-1)
+        lastUpdate:
+          type: string
+          format: date-time
+
+    CommandRequest:
+      type: object
+      required: [commandId, circuitId, targetState]
+      properties:
+        commandId:
+          type: string
+          description: 唯一命令 ID
+        circuitId:
+          type: string
+          description: 迴路編號 (01-18)
+        targetState:
+          type: string
+          enum: [ON, OFF]
+        source:
+          type: string
+          enum: [MOBILE_APP, SCHEDULE, MANUAL_OVERRIDE]
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 錯誤代碼
+        message:
+          type: string
+        details:
+          type: object
+
+paths:
+  /booking/{code}/cancel:
+    post:
+      summary: 取消訂單
+      description: 用戶可以在 24 小時內取消訂單並獲得全額退款
+      tags:
+        - 預約管理
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 訂單代號
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 取消原因
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  refund:
+                    $ref: '#/components/schemas/Refund'
+                  message:
+                    type: string
+        '400':
+          description: 無效請求（超過 24 小時截止點）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 訂單不存在
+        '401':
+          description: 未授權
+
+  /refunds:
+    get:
+      summary: 查詢退款列表
+      description: 獲取所有退款記錄（管理員）
+      tags:
+        - 退款管理
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PROCESSING, SUCCEEDED, FAILED, MANUAL_PENDING]
+          description: 按狀態過濾
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 退款列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Refund'
+
+  /refunds/{refundId}/review:
+    post:
+      summary: 人工審核退款
+      description: 管理員可以手動審核待處理的退款
+      tags:
+        - 退款管理
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum: [APPROVE, PARTIAL, REJECT]
+                reason:
+                  type: string
+                  description: 審核備註
+      responses:
+        '200':
+          description: 審核成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  refund:
+                    $ref: '#/components/schemas/Refund'
+
+  /gateway/health:
+    get:
+      summary: 查詢 Gateway Agent 健康狀態
+      description: 實時監控 Raspberry Pi 端的健康狀態
+      tags:
+        - 系統監控
+      responses:
+        '200':
+          description: 健康狀態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: 服務不可用
+
+  /gateway/control/circuit/{circuitId}:
+    post:
+      summary: 控制迴路
+      description: 發送命令打開或關閉指定的迴路
+      tags:
+        - 電力控制
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: circuitId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: 迴路編號 (01-18)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetState:
+                  type: string
+                  enum: [ON, OFF]
+                reason:
+                  type: string
+                  description: 操作原因
+      responses:
+        '200':
+          description: 命令已執行
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commandId:
+                    type: string
+                  circuitId:
+                    type: string
+                  targetState:
+                    type: string
+                  executionTimeMs:
+                    type: integer
+        '400':
+          description: 無效的迴路編號或狀態
+        '503':
+          description: 閘道器不可用
+
+  /gateway/status/all:
+    get:
+      summary: 獲取所有迴路狀態
+      description: 實時查詢所有 18 個迴路的狀態
+      tags:
+        - 電力控制
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 迴路狀態列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  circuits:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        circuitId:
+                          type: string
+                        state:
+                          type: string
+                          enum: [ON, OFF, UNKNOWN]
+                        lastUpdate:
+                          type: string
+                          format: date-time
+
+  /admin/venue/{venueId}/config:
+    get:
+      summary: 獲取場館配置
+      description: 查詢場館的設備映射與迴路配置
+      tags:
+        - 管理
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 場館配置
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  venueId:
+                    type: string
+                  devices:
+                    type: object
+                  circuits:
+                    type: array
+
+    put:
+      summary: 更新場館配置
+      description: 管理員可以更新設備映射與迴路配置
+      tags:
+        - 管理
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                devices:
+                  type: object
+                circuits:
+                  type: array
+      responses:
+        '200':
+          description: 配置已更新
+        '400':
+          description: 無效的配置
+
+  /analytics/revenue:
+    get:
+      summary: 收入統計
+      description: 查詢指定時間範圍內的收入統計
+      tags:
+        - 分析
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 收入統計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalRevenue:
+                    type: number
+                  totalRefunds:
+                    type: number
+                  netRevenue:
+                    type: number
+                  byPaymentMethod:
+                    type: object
+
+  /analytics/refunds:
+    get:
+      summary: 退款統計
+      description: 查詢退款相關的統計信息
+      tags:
+        - 分析
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 退款統計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalRefunds:
+                    type: number
+                  successfulRefunds:
+                    type: number
+                  failedRefunds:
+                    type: number
+                  averageRefundAmount:
+                    type: number
+                  refundRate:
+                    type: number
+                    description: 退款率 (%)
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: 預約管理
+    description: 訂單與預約相關操作
+  - name: 退款管理
+    description: 退款申請與審核
+  - name: 電力控制
+    description: 場館電力控制與監控
+  - name: 系統監控
+    description: 系統健康狀態與性能監控
+  - name: 管理
+    description: 系統管理與配置
+  - name: 分析
+    description: 數據分析與報表
