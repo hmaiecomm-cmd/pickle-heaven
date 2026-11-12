@@ -144,6 +144,24 @@ export async function signInAdmin(username: string, password: string): Promise<S
   const ok = Boolean(account && account.active && passwordOk)
   await mainPrisma.adminLoginAttempt.create({ data: { usernameKey: key, ip, success: ok } })
   if (!ok || !account) return { ok: false, error: '帳號或密碼錯誤' }
+
+  const issued = await issueAdminSession(account, { ip, userAgent })
+  if (!issued.ok) return issued
+  await setAdminCookie(issued.token)
+  return { ok: true, mustChangePassword: account.mustChangePassword }
+}
+
+type SessionAccount = { id: string; username: string; role: string; tenant: string; active: boolean; userId: string | null }
+
+/**
+ * 為已通過驗證（密碼或 LINE）的帳號建立伺服器端 session，回傳要寫入 Cookie 的憑證。
+ * 帳號停用、黑名單、展示環境未設定時拒絕。密碼登入與 LINE 登入共用，規則完全一致。
+ */
+export async function issueAdminSession(
+  account: SessionAccount,
+  meta: { ip: string; userAgent: string },
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  if (!account.active) return { ok: false, error: '此後台帳號已停用' }
   if (account.userId && (await memberBlacklisted(account.userId))) return { ok: false, error: '此帳戶目前限制使用，無法進入後台，若有疑問請聯絡場館' }
 
   const tenant: Tenant = account.tenant === 'demo' ? 'demo' : 'main'
@@ -153,7 +171,7 @@ export async function signInAdmin(username: string, password: string): Promise<S
 
   const expiresAt = new Date(Date.now() + ADMIN_SESSION_HOURS * 3600_000)
   const session = await mainPrisma.adminSession.create({
-    data: { accountId: account.id, tenant, expiresAt, ip, userAgent },
+    data: { accountId: account.id, tenant, expiresAt, ip: meta.ip, userAgent: meta.userAgent },
   })
   await mainPrisma.adminAccount.update({ where: { id: account.id }, data: { lastLoginAt: new Date() } })
 
@@ -163,17 +181,23 @@ export async function signInAdmin(username: string, password: string): Promise<S
     .setIssuedAt()
     .setExpirationTime(`${ADMIN_SESSION_HOURS}h`)
     .sign(secret())
-
-  const store = await cookies()
-  store.set(ADMIN_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: ADMIN_SESSION_HOURS * 3600,
-  })
-  return { ok: true, mustChangePassword: account.mustChangePassword }
+  return { ok: true, token }
 }
+
+export const ADMIN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: ADMIN_SESSION_HOURS * 3600,
+}
+
+export async function setAdminCookie(token: string) {
+  const store = await cookies()
+  store.set(ADMIN_COOKIE, token, ADMIN_COOKIE_OPTIONS)
+}
+
+export { ADMIN_COOKIE, requestMeta }
 
 /** 登出：撤銷伺服器端 session 並刪除 Cookie */
 export async function signOutAdmin(): Promise<void> {

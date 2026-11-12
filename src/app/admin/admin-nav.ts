@@ -122,6 +122,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
       { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
       { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
+      { label: 'LINE 登入與邀請', href: '/admin/settings/line', permission: 'dashboard' },
       { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
     ],
   },

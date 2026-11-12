@@ -2119,62 +2119,48 @@ model CredentialAlert {
   @@index([createdAt])
 }
 
-/// 後台管理員帳號
-model AdminUser {
-  id                String                 @id @default(cuid())
-  username          String                 @unique
-  passwordHash      String
-  displayName       String
-  role              String                 @default("STAFF")
-  status            String                 @default("active")
-  allowedVenueIds   Json                   @default("[]")
-  lastLoginAt       DateTime?
-  loginFailureCount Int                    @default(0)
-  lockedUntil       DateTime?
-  mustChangePassword Boolean               @default(false)
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-
-  lineBindings      AdminLineBinding[]
-  invitations       AdminInvitation[]      @relation("CreatedBy")
-}
-
-/// 管理員邀請
+/// 後台邀請：由擁有者建立，被邀請人以 LINE 登入接受後建立後台帳號並綁定。
+/// 只存邀請碼的雜湊值；邀請碼只在建立當下顯示一次。
 model AdminInvitation {
-  id               String     @id @default(cuid())
-  email            String
-  token            String     @unique
-  role             String
-  venueId          String?
-  status           String     @default("pending")
-  expiresAt        DateTime
-  usedAt           DateTime?
-  usedByAdminId    String?
-  createdByAdminId String
-  createdBy        AdminUser  @relation("CreatedBy", fields: [createdByAdminId], references: [id])
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@index([createdByAdminId])
-}
-
-/// 管理員 LINE 身份綁定
-model AdminLineBinding {
   id              String    @id @default(cuid())
-  adminId         String    @unique
-  admin           AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  lineUserId      String    @unique
-  lineEmail       String?
-  lineDisplayName String?
-  linePictureUrl  String?
-  linkedAt        DateTime  @default(now())
-  lastLoginAt     DateTime?
+  tokenHash       String    @unique
+  /// 可指派的角色（不可為 OWNER）
+  role            String
+  /// 授權場館（null = 全部場館）
+  venueId         String?
+  note            String?
+  /// PENDING 待使用／USED 已使用／REVOKED 已撤銷（是否過期依 expiresAt 判斷）
+  status          String    @default("PENDING")
+  expiresAt       DateTime
+  createdById     String
+  createdBy       String
+  usedAt          DateTime?
+  usedByAccountId String?
+  revokedAt       DateTime?
+  revokedBy       String?
+  createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@index([lineUserId])
+  @@index([status, expiresAt])
+}
+
+/// 後台帳號與 LINE 身分的綁定。只有在本系統綁定的 LINE 帳號能登入後台
+/// （LINE 官方帳號的管理員不等於本系統管理員）。解除綁定保留紀錄，重新綁定時沿用同一列。
+model AdminLineBinding {
+  id          String    @id @default(cuid())
+  accountId   String
+  lineUserId  String    @unique
+  displayName String
+  pictureUrl  String?
+  linkedAt    DateTime  @default(now())
+  linkedBy    String
+  lastLoginAt DateTime?
+  revokedAt   DateTime?
+  revokedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([accountId])
 }
 
 // ═══════════════════ 後台管理員系統 ═══════════════════
