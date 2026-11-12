@@ -14,8 +14,6 @@ import { syncPendingEventsToNeon } from '@/server/event-logger'
 export const maxDuration = 60 // 最長執行時間 60 秒
 
 export async function GET(req: NextRequest) {
-  // 驗證 Cron secret
-  const secret = req.nextUrl.searchParams.get('secret')
   const expectedSecret = process.env.CRON_SECRET
 
   if (!expectedSecret) {
@@ -25,7 +23,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  if (secret !== expectedSecret) {
+  if (req.headers.get('authorization') !== `Bearer ${expectedSecret}`) {
     return NextResponse.json(
       { error: '無效的 Cron secret' },
       { status: 401 },
