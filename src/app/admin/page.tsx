@@ -58,22 +58,19 @@ export default async function AdminDashboard() {
   const availableItems = GRID_ITEMS.filter(item => can(ctx.role, item.permission))
 
   return (
-    <div className="flex flex-col">
-      {/* 六宮格導航 */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 auto-rows-max">
-        {availableItems.map(({ id, label, href, icon: Icon }) => (
-          <Link
-            key={id}
-            href={href}
-            className="group relative flex flex-col items-center gap-4 rounded-3xl border border-zinc-200 bg-white px-6 py-8 transition-all hover:shadow-md hover:border-zinc-300 active:scale-95"
-          >
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-100 to-emerald-100 group-hover:from-green-200 group-hover:to-emerald-200 transition-colors">
-              <Icon className="h-8 w-8 text-emerald-700" aria-hidden />
-            </div>
-            <span className="text-center font-semibold text-zinc-900">{label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <nav aria-label="後台功能" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:h-[calc(100dvh-8.5rem)] lg:grid-rows-2">
+      {availableItems.map(({ id, label, href, icon: Icon }) => (
+        <Link
+          key={id}
+          href={href}
+          className="group flex aspect-square flex-col items-center justify-center gap-3 rounded-3xl border border-zinc-200/80 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:gap-4 lg:aspect-auto"
+        >
+          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 transition-colors group-hover:bg-emerald-100 sm:h-16 sm:w-16 lg:h-20 lg:w-20">
+            <Icon className="h-7 w-7 text-emerald-600 sm:h-8 sm:w-8 lg:h-10 lg:w-10" strokeWidth={1.75} aria-hidden />
+          </span>
+          <span className="text-[15px] font-semibold tracking-tight text-zinc-900 sm:text-base lg:text-lg">{label}</span>
+        </Link>
+      ))}
+    </nav>
   )
 }

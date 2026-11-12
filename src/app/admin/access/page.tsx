@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
-import { Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { DemoModeBanner, Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { AccessDevicesList } from '@/components/admin/access-devices-list'
 import { AccessGrantsManager } from '@/components/admin/access-grants-manager'
 import { AccessEventsLog } from '@/components/admin/access-events-log'
@@ -17,6 +17,8 @@ export default async function AccessPage() {
         title="門禁權限管理"
         desc="管理門禁設備、預約授權、使用者權限與進出紀錄。"
       />
+
+      <DemoModeBanner what="門禁控制器" />
 
       {/* 門禁設備列表 */}
       <section>

@@ -14,6 +14,18 @@ export function PageTitle({ title, desc, right }: { title: string; desc?: string
   )
 }
 
+/** 尚未串接真實硬體時，頁面上的狀態與操作都只是示意 */
+export function DemoModeBanner({ what }: { what: string }) {
+  return (
+    <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <Construction className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <p>
+        <strong className="font-semibold">Demo Mode</strong>：尚未串接真實{what}。以下的設備、連線狀態與數據皆為示意，不代表現場實況，操作也不會送出任何控制指令。
+      </p>
+    </div>
+  )
+}
+
 /** 尚未建置或未串接的功能：明確說明，不提供假操作 */
 export function NotOpen({ title, reason, needs, links }: { title: string; reason: string; needs?: string[]; links?: { href: string; label: string }[] }) {
   return (

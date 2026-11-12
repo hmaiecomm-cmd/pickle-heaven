@@ -25,82 +25,81 @@ export interface AdminNavGroup {
 }
 
 export const ADMIN_NAV: AdminNavGroup[] = [
-  { key: 'home', label: '今日總覽', href: '/admin', permission: 'dashboard' },
-  {
-    key: 'ai',
-    label: 'AI 營運中心',
-    items: [
-      { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
-      { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
-      { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
-      { label: '自動化規則', href: '/admin/automation', permission: 'settings', notOpen: true },
-    ],
-  },
   {
     key: 'courts',
-    label: '場地管理',
+    label: '場地與預約',
     items: [
       { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地與時段', href: '/admin/courts', permission: 'courts' },
       { label: '封場與維護', href: '/admin/maintenance?tab=manual', permission: 'courts.manage' },
+      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts.manage' },
     ],
   },
   {
+    key: 'monitor',
+    label: '即時監控',
+    items: [
+      { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
+      { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
+    ],
+  },
+  {
+    key: 'devices',
+    label: '智慧設備管理',
+    items: [
+      { label: '設備配置與電力迴路', href: '/admin/devices', permission: 'settings' },
+      { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
+      { label: '自動化規則', href: '/admin/automation', permission: 'settings', notOpen: true },
+    ],
+  },
+  {
+    key: 'access',
+    label: '門禁權限管理',
+    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'settings' }],
+  },
+  {
     key: 'orders',
-    label: '交易管理',
+    label: '訂單與財務',
     items: [
       { label: '訂場與活動訂單', href: '/admin/bookings', permission: 'bookings', exact: true },
       { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
       { label: '儲值單', href: '/admin/topup', permission: 'finance' },
       { label: '退款紀錄', href: '/admin/refunds', permission: 'finance' },
       { label: '發票管理', href: '/admin/invoices', permission: 'invoice' },
-    ],
-  },
-  {
-    key: 'activities',
-    label: '活動管理',
-    items: [
-      { label: '活動列表', href: '/admin/activities', permission: 'activities' },
-      { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities.view' },
-      { label: '報名與候補／通知名單', href: '/admin/registrations', permission: 'activities.view' },
-      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts.manage' },
-      { label: '教練', href: '/admin/events', permission: 'activities' },
+      { label: '收入與退款', href: '/admin/finance', permission: 'finance' },
+      { label: '費用與收據（申請與審核）', href: '/admin/expenses', permission: 'expenses.own' },
     ],
   },
   {
     key: 'members',
-    label: '人員管理',
+    label: '會員與活動',
     items: [
       { label: '人員列表', href: '/admin/members', permission: 'members', exact: true },
       { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'finance' },
       { label: '點數與票券', href: '/admin/members/points', permission: 'members' },
       { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members.restrict' },
-    ],
-  },
-  {
-    key: 'marketing',
-    label: '商城與行銷',
-    items: [
-      { label: '商品與庫存', href: '/admin/marketing/products', permission: 'marketing', notOpen: true },
+      { label: '活動列表', href: '/admin/activities', permission: 'activities' },
+      { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities.view' },
+      { label: '報名與候補／通知名單', href: '/admin/registrations', permission: 'activities.view' },
+      { label: '教練', href: '/admin/events', permission: 'activities' },
       { label: '優惠與票券方案', href: '/admin/marketing/vouchers', permission: 'marketing' },
+      { label: '商品與庫存', href: '/admin/marketing/products', permission: 'marketing', notOpen: true },
       { label: '行銷活動與通知', href: '/admin/marketing/campaigns', permission: 'marketing', notOpen: true },
     ],
   },
   {
     key: 'reports',
-    label: '營運報表',
+    label: '營運總覽',
     items: [
       { label: '營運概況（含帳務）', href: '/admin/reports', permission: 'finance', exact: true },
-      { label: '收入與退款', href: '/admin/finance', permission: 'finance' },
       { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' },
       { label: '活動參與', href: '/admin/reports/activities', permission: 'reports' },
       { label: '會員分析', href: '/admin/reports/members', permission: 'reports' },
-      { label: '費用與收據（申請與審核）', href: '/admin/expenses', permission: 'expenses.own' },
     ],
   },
   {
     key: 'settings',
-    label: '設定管理',
+    label: '系統設定',
     items: [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
       { label: '營業時間與預約規則', href: '/admin/pricing', permission: 'settings' },
@@ -140,6 +139,7 @@ export function activeHref(pathname: string): string | null {
 
 /** 目前路徑對應的功能名稱（AI 對話的頁面脈絡用） */
 export function sectionLabel(pathname: string): string {
+  if (pathname === '/admin') return '首頁'
   const href = activeHref(pathname)
   for (const g of ADMIN_NAV) {
     if (g.href && g.href === href) return g.label

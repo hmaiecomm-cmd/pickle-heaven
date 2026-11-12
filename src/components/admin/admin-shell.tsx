@@ -140,13 +140,18 @@ function SidebarNav({ user }: { user: ShellUser }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-[rgb(var(--border))] px-4 py-3.5">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-xs font-bold text-white">PH</span>
+      <Link
+        href="/admin"
+        aria-label="Pickle Heaven 後台首頁"
+        aria-current={pathname === '/admin' ? 'page' : undefined}
+        className="flex items-center gap-2 border-b border-[rgb(var(--border))] px-4 py-3.5 hover:bg-zinc-50"
+      >
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-xs font-bold text-white">PH</span>
         <div>
-          <p className="text-sm font-bold">匹克精靈</p>
+          <p className="text-sm font-bold">Pickle Heaven</p>
           <p className="text-[10px] text-muted">場館管理後台</p>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="後台選單">
         <ul className="space-y-0.5">
