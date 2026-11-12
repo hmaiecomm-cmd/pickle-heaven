@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('device.control'))) return unauthorized()
+    if (!(await requireAdminApi('access.grant'))) return unauthorized()
 
     // 提取 sessionId 或 reservationId
     const url = new URL(request.url)
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('device.control'))) return unauthorized()
+    if (!(await requireAdminApi('access.grant'))) return unauthorized()
 
     const body = await request.json()
     const { reservationId, bookingVersion = 1 } = body

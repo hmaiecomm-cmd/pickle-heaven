@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { DoorClosed, History, KeyRound, ListChecks, ShieldAlert } from 'lucide-react'
 import { pagePermission } from '@/lib/admin-auth'
+import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
 import { formatDateTime, now } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -45,7 +46,9 @@ const AUDIT_LABEL: Record<string, string> = {
 }
 
 export default async function AccessPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  if ((await pagePermission('device.control')) === 'forbidden') return <Forbidden />
+  const ctx = await pagePermission('access')
+  if (ctx === 'forbidden') return <Forbidden />
+  const canGrant = can(ctx.role, 'access.grant')
   const { tab: rawTab } = await searchParams
   const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : 'grants'
 
@@ -71,7 +74,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
 
-      {tab === 'grants' && <GrantsTab />}
+      {tab === 'grants' && <GrantsTab canGrant={canGrant} />}
       {tab === 'devices' && <DevicesTab />}
       {tab === 'logs' && (
         <Empty title="尚無進出紀錄" desc="進出紀錄由門禁控制器回報。目前尚未串接門禁控制器，因此沒有任何紀錄；串接後會在這裡顯示每次刷卡、密碼或開門的時間與結果。" />
@@ -93,7 +96,7 @@ function Empty({ title, desc }: { title: string; desc: string }) {
   )
 }
 
-async function GrantsTab() {
+async function GrantsTab({ canGrant }: { canGrant: boolean }) {
   const at = now()
   const [grants, members] = await Promise.all([
     listGrants(),
@@ -115,13 +118,19 @@ async function GrantsTab() {
           <li>訂單取消、逾時或待退款時自動撤銷；時間到自動失效。</li>
           <li>管理者手動撤銷的預約授權，不會被系統自動恢復。</li>
         </ol>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <ReconcileButton />
-          <span className="text-xs text-muted">若懷疑有訂單漏建或漏撤銷授權，可按此重新比對。</span>
-        </div>
+        {canGrant ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <ReconcileButton />
+            <span className="text-xs text-muted">若懷疑有訂單漏建或漏撤銷授權，可按此重新比對。</span>
+          </div>
+        ) : (
+          <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-muted">目前角色只能查看門禁授權；建立或撤銷授權需要「門禁授權」權限。</p>
+        )}
       </section>
 
-      <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
+      {canGrant && (
+        <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
+      )}
 
       <section className="rounded-2xl border border-zinc-200 bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-3">
@@ -158,7 +167,7 @@ async function GrantsTab() {
                     )}
                     {g.note && <p className="mt-1 text-[11px] text-muted">備註：{g.note}</p>}
                   </div>
-                  <div className="md:justify-self-end">{(phase === 'ACTIVE' || phase === 'UPCOMING') && <RevokeButton id={g.id} name={g.holderName} />}</div>
+                  <div className="md:justify-self-end">{canGrant && (phase === 'ACTIVE' || phase === 'UPCOMING') && <RevokeButton id={g.id} name={g.holderName} />}</div>
                 </li>
               )
             })}

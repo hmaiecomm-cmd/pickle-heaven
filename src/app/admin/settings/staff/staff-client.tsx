@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { Pill } from '@/components/admin/page-bits'
 import { createStaffAction, resetDemoDataAction, resetStaffPasswordAction, setStaffActiveAction, setStaffRoleAction } from '@/server/staff-actions'
+import { ASSIGNABLE_ROLES, ROLE_LABEL, type AdminRole } from '@/lib/admin-permissions'
 
 interface Account {
   id: string
@@ -24,7 +25,7 @@ const input = 'h-10 rounded-lg border border-zinc-300 px-2 text-sm'
 export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners, venues }: { accounts: Account[]; selfId: string; isOwner: boolean; demoReady: boolean; activeOwners: number; venues: { id: string; name: string }[] }) {
   const router = useRouter()
   const { toast } = useToast()
-  const [form, setForm] = React.useState({ username: '', displayName: '', role: 'STAFF' as 'STAFF' | 'MANAGER', password: '', venueId: venues[0]?.id ?? '' })
+  const [form, setForm] = React.useState({ username: '', displayName: '', role: 'FRONTDESK' as AdminRole, password: '', venueId: venues[0]?.id ?? '' })
   const [busy, setBusy] = React.useState(false)
 
   const done = (res: { ok: boolean; message?: string; error?: string }) => {
@@ -56,8 +57,8 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                     <select
                       value={a.role}
                       onChange={async (e) => {
-                        const role = e.target.value as 'OWNER' | 'MANAGER' | 'STAFF'
-                        if (!window.confirm(`將 ${a.username} 的角色改為「${{ OWNER: '擁有者', MANAGER: '管理員', STAFF: '工作人員' }[role]}」？對方既有登入會立即失效。`)) return
+                        const role = e.target.value as AdminRole
+                        if (!window.confirm(`將 ${a.username} 的角色改為「${ROLE_LABEL[role]}」？對方既有登入會立即失效。`)) return
                         done(await setStaffRoleAction(a.id, role))
                       }}
                       disabled={lastOwner}
@@ -65,9 +66,11 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                       className="h-8 rounded-lg border border-zinc-300 px-2 text-xs disabled:opacity-60"
                       aria-label={`${a.username} 的角色`}
                     >
-                      <option value="OWNER">擁有者</option>
-                      <option value="MANAGER">管理員</option>
-                      <option value="STAFF">工作人員</option>
+                      {(['OWNER', ...ASSIGNABLE_ROLES] as AdminRole[]).map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABEL[r]}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <Pill tone="blue">{a.roleLabel}</Pill>
@@ -108,13 +111,16 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">新增後台帳號</h2>
-        <p className="text-xs text-muted">可建立管理員或工作人員。擁有者只能由既有擁有者在上方列表轉移。</p>
+        <p className="text-xs text-muted">可建立管理員、營運人員、櫃台人員或只讀人員，並設定初始密碼；對方首次登入必須更換密碼。擁有者只能由既有擁有者在上方列表轉移。</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-5">
           <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="登入帳號（英數字）" className={input} aria-label="登入帳號" />
           <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="顯示名稱" className={input} aria-label="顯示名稱" />
-          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as 'STAFF' })} className={input} aria-label="角色">
-            <option value="STAFF">工作人員</option>
-            <option value="MANAGER">管理員</option>
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as AdminRole })} className={input} aria-label="角色">
+            {ASSIGNABLE_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
           </select>
           <select value={form.venueId} onChange={(e) => setForm({ ...form, venueId: e.target.value })} className={input} aria-label="授權場館">
             {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}

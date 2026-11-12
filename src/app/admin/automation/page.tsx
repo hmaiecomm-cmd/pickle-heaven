@@ -5,7 +5,7 @@ import { Forbidden, NotOpen } from '@/components/admin/page-bits'
 export const metadata: Metadata = { title: '自動化規則' }
 
 export default async function AutomationPage() {
-  if ((await pagePermission('monitor')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('device.automation')) === 'forbidden') return <Forbidden />
   return (
     <NotOpen
       title="自動化規則"

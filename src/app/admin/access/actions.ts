@@ -13,7 +13,7 @@ const NO_PERMISSION: R = { ok: false, error: '目前帳號沒有門禁授權的�
 /** 未登入時 requirePermission 會丟出導向登入頁的訊號，必須讓它往外傳，只攔「沒有權限」 */
 async function guard() {
   try {
-    return await requirePermission('device.control')
+    return await requirePermission('access.grant')
   } catch (err) {
     if (err instanceof PermissionError) return null
     throw err

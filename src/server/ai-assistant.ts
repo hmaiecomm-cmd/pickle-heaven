@@ -74,7 +74,7 @@ const TOOL_PERMISSION: Record<string, Permission> = {
 export async function runAdminChat(
   history: ChatTurn[],
   actor: string,
-  opts: { pageNote?: string; role: AdminRole } = { role: 'STAFF' },
+  opts: { pageNote?: string; role: AdminRole } = { role: 'VIEWER' },
 ): Promise<ChatResult> {
   // 工具依登入者權限開放；沒有權限的資料，模型根本拿不到
   const tools = AI_TOOLS.filter((t) => can(opts.role, TOOL_PERMISSION[t.name] ?? 'ai'))

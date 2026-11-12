@@ -92,21 +92,21 @@ async function main() {
 
   console.log('── 邀請')
   await rejects('邀請擁有者 → 拒絕', () => createInvitation({ role: 'OWNER' }, ownerCtx), /不能指派擁有者/)
-  await rejects('非擁有者建立邀請 → 拒絕', () => createInvitation({ role: 'STAFF' }, { ...ownerCtx, role: 'MANAGER' as never }), /只有擁有者/)
-  await rejects('有效期限超過 7 天 → 拒絕', () => createInvitation({ role: 'STAFF', hours: 200 }, ownerCtx), /168/)
-  const inv = await createInvitation({ role: 'STAFF', hours: 1, note: tag }, ownerCtx)
+  await rejects('非擁有者建立邀請 → 拒絕', () => createInvitation({ role: 'FRONTDESK' }, { ...ownerCtx, role: 'MANAGER' as never }), /只有擁有者/)
+  await rejects('有效期限超過 7 天 → 拒絕', () => createInvitation({ role: 'FRONTDESK', hours: 200 }, ownerCtx), /168/)
+  const inv = await createInvitation({ role: 'FRONTDESK', hours: 1, note: tag }, ownerCtx)
   created.invites.push(inv.invitation.id)
   check('資料庫只存邀請碼雜湊，不存原碼', inv.invitation.tokenHash !== inv.token && inv.invitation.tokenHash === createHash('sha256').update(inv.token).digest('hex'))
 
   const lineB = { lineUserId: lineId('B'), displayName: '測試乙', pictureUrl: null }
   const accepted = await acceptInvitation(inv.token, lineB, meta)
   created.accounts.push(accepted.account.id)
-  check('接受邀請 → 建立帳號，角色為邀請指定的工作人員', accepted.account.role === 'STAFF' && accepted.account.createdBy === `invite:${inv.invitation.id}`)
+  check('接受邀請 → 建立帳號，角色為邀請指定的櫃台人員', accepted.account.role === 'FRONTDESK' && accepted.account.createdBy === `invite:${inv.invitation.id}`)
   check('接受邀請 → 取得登入憑證', typeof accepted.token === 'string' && accepted.token.length > 20)
   check('邀請標記為已使用', (await db.adminInvitation.findUnique({ where: { id: inv.invitation.id } }))?.status === 'USED')
   await rejects('同一個邀請再次使用 → 拒絕', () => acceptInvitation(inv.token, { ...lineB, lineUserId: lineId('B2') }, meta), /使用過/)
 
-  const expired = await createInvitation({ role: 'STAFF', hours: 1, note: tag }, ownerCtx)
+  const expired = await createInvitation({ role: 'FRONTDESK', hours: 1, note: tag }, ownerCtx)
   created.invites.push(expired.invitation.id)
   await db.adminInvitation.update({ where: { id: expired.invitation.id }, data: { expiresAt: new Date(Date.now() - 1000) } })
   await rejects('過期邀請 → 拒絕', () => acceptInvitation(expired.token, { ...lineB, lineUserId: lineId('C') }, meta), /過期/)
@@ -116,7 +116,7 @@ async function main() {
   await revokeInvitation(revoked.invitation.id, ownerCtx)
   await rejects('已撤銷邀請 → 拒絕', () => acceptInvitation(revoked.token, { ...lineB, lineUserId: lineId('D') }, meta), /撤銷/)
 
-  const tampered = await createInvitation({ role: 'STAFF', hours: 1, note: tag }, ownerCtx)
+  const tampered = await createInvitation({ role: 'FRONTDESK', hours: 1, note: tag }, ownerCtx)
   created.invites.push(tampered.invitation.id)
   await db.adminInvitation.update({ where: { id: tampered.invitation.id }, data: { role: 'OWNER' } })
   await rejects('邀請角色被竄改為擁有者 → 拒絕（不能自行升級）', () => acceptInvitation(tampered.token, { ...lineB, lineUserId: lineId('E') }, meta), /角色/)
@@ -140,7 +140,7 @@ async function main() {
   await db.adminAccount.update({ where: { id: accepted.account.id }, data: { userId: null } })
 
   console.log('── 綁定與解除')
-  const staffCtx = { accountId: accepted.account.id, username: accepted.account.username, role: 'STAFF' as const }
+  const staffCtx = { accountId: accepted.account.id, username: accepted.account.username, role: 'FRONTDESK' as const }
   await rejects('已綁定的帳號再綁一次 → 拒絕', () => bindOwnLine(staffCtx, { lineUserId: lineId('G'), displayName: '丙', pictureUrl: null }), /先解除/)
   await rejects('LINE 已綁其他帳號 → 不能再綁到擁有者', () => bindOwnLine(ownerCtx, lineB), /已綁定其他/)
   const binding = await db.adminLineBinding.findUnique({ where: { lineUserId: lineB.lineUserId } })

@@ -41,7 +41,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
   const canRestrict = can(ctx.role, 'members.restrict')
   const canPoints = can(ctx.role, 'finance.adjust')
   const canVoucher = can(ctx.role, 'finance.adjust')
-  const canNote = can(ctx.role, 'members')
+  const canNote = can(ctx.role, 'members.note')
   const roles = [u.staff ? `${u.staff.roleLabel}（後台）` : null, u.isCoach || u.coach ? '教練' : null].filter(Boolean) as string[]
   const href = (t: MemberDetailTab) => `/admin/members/${u.id}?tab=${t}`
   const upcomingBookings = d.bookings.filter((b) => b.upcoming)

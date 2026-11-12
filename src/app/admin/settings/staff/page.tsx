@@ -1,7 +1,20 @@
 import type { Metadata } from 'next'
-import { Lock, LockOpen } from 'lucide-react'
+import { Check, Minus } from 'lucide-react'
 import { getAdminContext } from '@/lib/admin-auth'
-import { can, PERMISSION_LABEL, ROLE_LABEL, ROLE_PERMISSIONS, ROLE_SUMMARY, type AdminRole, type Permission } from '@/lib/admin-permissions'
+import {
+  ACTION_LABEL,
+  ACTION_MEANING,
+  MATRIX_ROLES,
+  MODULES,
+  MODULE_ACTIONS,
+  MODULE_LABEL,
+  ROLE_LABEL,
+  ROLE_MATRIX,
+  ROLE_SUMMARY,
+  can,
+  canDo,
+  type AdminRole,
+} from '@/lib/admin-permissions'
 import { isDemoConfigured, mainPrisma } from '@/lib/db'
 import { Forbidden, PageTitle, Pill } from '@/components/admin/page-bits'
 import { StaffClient } from './staff-client'
@@ -9,8 +22,6 @@ import { StaffClient } from './staff-client'
 export const metadata: Metadata = { title: '後台帳號與權限' }
 export const dynamic = 'force-dynamic'
 
-const MATRIX_ROLES: AdminRole[] = ['OWNER', 'MANAGER', 'STAFF']
-const MATRIX_PERMS = Object.keys(PERMISSION_LABEL) as Permission[]
 
 /**
  * 後台帳號與權限：只有擁有者（正式資料範圍）可操作。
@@ -51,28 +62,43 @@ export default async function StaffPage() {
       />
 
       <section className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">角色權限差異</h2>
+        <h2 className="text-sm font-semibold">管理權限設定（角色與權限）</h2>
         <ul className="mt-1 space-y-0.5 text-xs text-muted">
           {MATRIX_ROLES.map((r) => (
-            <li key={r}><span className="font-semibold text-[rgb(var(--fg))]">{ROLE_LABEL[r]}</span>：{ROLE_SUMMARY[r]}</li>
+            <li key={r}>
+              <span className="font-semibold text-[rgb(var(--fg))]">{ROLE_LABEL[r]}</span>：{ROLE_SUMMARY[r]}
+            </li>
           ))}
         </ul>
-        <table className="mt-3 w-full min-w-[32rem] text-xs">
+        <table className="mt-3 w-full min-w-[40rem] text-xs">
           <thead className="text-left text-muted">
             <tr>
-              <th className="py-1 font-medium">功能</th>
-              {MATRIX_ROLES.map((r) => <th key={r} className="py-1 text-center font-medium">{ROLE_LABEL[r]}</th>)}
+              <th className="py-2 font-medium">角色</th>
+              {MODULES.map((m) => (
+                <th key={m} className="py-2 text-center font-medium">
+                  {MODULE_LABEL[m]}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {MATRIX_PERMS.map((p) => (
-              <tr key={p}>
-                <td className="py-1">{PERMISSION_LABEL[p]}</td>
-                {MATRIX_ROLES.map((r) => {
-                  const ok = ROLE_PERMISSIONS[r].includes(p)
+            {MATRIX_ROLES.map((r) => (
+              <tr key={r}>
+                <td className="py-2 font-semibold">{ROLE_LABEL[r]}</td>
+                {MODULES.map((m) => {
+                  const granted = ROLE_MATRIX[r][m] ?? []
+                  const full = granted.length === MODULE_ACTIONS[m].length
                   return (
-                    <td key={r} className="py-1 text-center">
-                      {ok ? <LockOpen className="mx-auto h-3.5 w-3.5 text-emerald-600" aria-label="可用" /> : <Lock className="mx-auto h-3.5 w-3.5 text-zinc-300" aria-label="不可用" />}
+                    <td key={m} className="py-2 text-center align-top">
+                      {granted.length === 0 ? (
+                        <Minus className="mx-auto h-3.5 w-3.5 text-zinc-300" aria-label="無權限" />
+                      ) : full ? (
+                        <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-emerald-600 text-white" aria-label="完整權限">
+                          <Check className="h-3 w-3" strokeWidth={3} />
+                        </span>
+                      ) : (
+                        <span className="text-[11px] leading-tight text-emerald-800">{granted.map((a) => ACTION_LABEL[a]).join('・')}</span>
+                      )}
                     </td>
                   )
                 })}
@@ -80,7 +106,42 @@ export default async function StaffPage() {
             ))}
           </tbody>
         </table>
-        <p className="mt-2 text-[11px] text-muted">設備控制預設只有擁有者；能看到設備狀態不代表能控制設備。帳務、退款、點數調整與金流設定只限擁有者；AI、匯出與 API 套用同一套權限。</p>
+
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs font-semibold text-[#2f7d3b]">查看每個動作的細項（查看、新增、編輯、刪除、審核、匯出、遠端控制、門禁授權）</summary>
+          <table className="mt-2 w-full min-w-[40rem] text-xs">
+            <thead className="text-left text-muted">
+              <tr>
+                <th className="py-1 font-medium">模組／動作</th>
+                {MATRIX_ROLES.map((r) => (
+                  <th key={r} className="py-1 text-center font-medium">
+                    {ROLE_LABEL[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {MODULES.flatMap((m) =>
+                MODULE_ACTIONS[m].map((a) => (
+                  <tr key={`${m}.${a}`}>
+                    <td className="py-1">
+                      {MODULE_LABEL[m]}・{ACTION_LABEL[a]}
+                      {ACTION_MEANING[`${m}.${a}`] && <span className="ml-1 text-muted">（{ACTION_MEANING[`${m}.${a}`]}）</span>}
+                    </td>
+                    {MATRIX_ROLES.map((r) => (
+                      <td key={r} className="py-1 text-center">
+                        {canDo(r, m, a) ? <Check className="mx-auto h-3.5 w-3.5 text-emerald-600" aria-label="可用" /> : <Minus className="mx-auto h-3.5 w-3.5 text-zinc-300" aria-label="不可用" />}
+                      </td>
+                    ))}
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </details>
+        <p className="mt-2 text-[11px] text-muted">
+          權限一律在後端檢查（頁面、API、AI 助理套用同一份設定）。管理員邀請與角色變更只限擁有者；看得到設備狀態不代表能控制設備。
+        </p>
       </section>
       <p className="text-[11px] text-muted"><Pill>提醒</Pill> 密碼以雜湊保存，系統不會顯示或記錄任何密碼；既有密碼無法回看，只能重設。</p>
     </div>

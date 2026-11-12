@@ -3,12 +3,12 @@
  *
  *   npx tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-permissions.ts
  *
- * 檢查：角色權限矩陣符合規格、未知角色退回工作人員、金額遮罩、最後一位擁有者保護計數。
+ * 檢查：五種角色的權限矩陣符合最終版設計、未知角色退回只讀人員、金額遮罩、最後一位擁有者保護計數。
  * 會建立 TEST_perm_ 開頭的後台帳號並於結束時刪除。不要對正式庫執行。
  */
 import { mainPrisma } from '../src/lib/db'
 import { hashPassword } from '../src/lib/admin-auth'
-import { can, permissionsOf, ROLE_PERMISSIONS, type Permission } from '../src/lib/admin-permissions'
+import { ALL_PERMISSIONS, ASSIGNABLE_ROLES, can, canDo, permissionsOf, ROLE_PERMISSIONS, type Permission } from '../src/lib/admin-permissions'
 import { maskOrderDetailAmounts, maskOrderListAmounts, type OrderDetail, type OrderListResult } from '../src/server/admin-orders'
 import { countOtherActiveOwners } from '../src/server/staff-actions'
 
@@ -19,18 +19,27 @@ const check = (name: string, ok: boolean, detail = '') => {
 }
 
 async function main() {
-  // 1. 財務相關權限只有擁有者
-  const financeOnly: Permission[] = ['finance', 'finance.adjust', 'refund', 'invoice', 'expenses.review', 'settings', 'staff', 'members.restrict', 'device.control']
-  check('管理員沒有任何帳務／退款／點數／角色／金流／設備控制權限', financeOnly.every((p) => !can('MANAGER', p)))
-  check('工作人員沒有任何帳務／退款／點數／角色／金流／設備控制權限', financeOnly.every((p) => !can('STAFF', p)))
-  check('擁有者擁有全部權限', (Object.keys(ROLE_PERMISSIONS.OWNER).length > 0) && financeOnly.every((p) => can('OWNER', p)))
-  // 2. 管理員：可改預約、管活動、商城行銷、非財務報表、本人費用
-  check('管理員可修改客人預約、管理活動與商城行銷、看非財務報表、提本人費用', (['bookings.manage', 'courts.manage', 'activities', 'marketing', 'reports', 'expenses.own', 'checkin'] as Permission[]).every((p) => can('MANAGER', p)))
-  // 3. 工作人員：只查詢、報到、本人費用；不能改預約、改活動、行銷
-  check('工作人員可查預約、報到、查會員、提本人費用', (['bookings', 'checkin', 'members', 'activities.view', 'expenses.own', 'monitor', 'courts'] as Permission[]).every((p) => can('STAFF', p)))
-  check('工作人員不能新增／改期／取消預約、不能改活動、行銷、封場、非財務報表', (['bookings.manage', 'activities', 'marketing', 'courts.manage', 'reports'] as Permission[]).every((p) => !can('STAFF', p)))
-  // 4. 未知角色退回工作人員
-  check('未知角色字串退回工作人員權限', permissionsOf('HACKER').join() === ROLE_PERMISSIONS.STAFF.join())
+  const all = (r: string, ps: Permission[]) => ps.every((p) => can(r, p))
+  const none = (r: string, ps: Permission[]) => ps.every((p) => !can(r, p))
+  const sensitive: Permission[] = ['staff', 'refund', 'camera.export', 'access.grant', 'access.remote', 'device.control', 'device.automation']
+  const five = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER'] as const
+  check('擁有者擁有全部權限', all('OWNER', ALL_PERMISSIONS))
+  check('管理員可管理預約、設備、門禁授權、訂單財務（含退款核准與匯出）、報表、系統設定', all('MANAGER', ['bookings.manage', 'device.control', 'device.automation', 'access.grant', 'finance', 'refund', 'finance.export', 'reports', 'settings']))
+  check('管理員不能邀請管理員或變更角色', !can('MANAGER', 'staff'))
+  check('營運人員可管理預約、看監控、遠端控制設備', all('OPERATOR', ['bookings.manage', 'courts.manage', 'checkin', 'monitor', 'device', 'device.control']))
+  check('營運人員門禁只能看、不能授權或遠端開門', can('OPERATOR', 'access') && none('OPERATOR', ['access.grant', 'access.remote']))
+  check('營運人員不碰財務、報表、設定、帳號', none('OPERATOR', ['finance', 'refund', 'finance.export', 'reports', 'settings', 'staff']))
+  check('櫃台人員可新增／修改預約、報到、查會員', all('FRONTDESK', ['bookings', 'bookings.manage', 'checkin', 'members', 'activities.view']))
+  check('櫃台人員不碰監控、設備、門禁、財務、報表、設定', none('FRONTDESK', ['monitor', 'device', 'device.control', 'access', 'access.grant', 'finance', 'refund', 'reports', 'settings', 'staff']))
+  check('只讀人員各區可查看', all('VIEWER', ['bookings', 'courts', 'monitor', 'device', 'access', 'finance', 'reports']))
+  check('只讀人員不能新增、修改、匯出、控制、授權或使用 AI', none('VIEWER', ['bookings.manage', 'courts.manage', 'checkin', 'activities', 'device.control', 'access.grant', 'finance.export', 'reports.export', 'camera.export', 'expenses.own', 'ai', 'settings', 'staff']))
+  check('敏感操作：除擁有者與管理員外，只有營運人員能遠端控制設備', ASSIGNABLE_ROLES.filter((r) => r !== 'MANAGER').every((r) => sensitive.every((p) => !can(r, p) || (r === 'OPERATOR' && p === 'device.control'))))
+  check('展示帳號不能邀請管理員或變更角色', !can('DEMO', 'staff'))
+  check('可指派角色不含擁有者與展示帳號', !ASSIGNABLE_ROLES.includes('OWNER') && !ASSIGNABLE_ROLES.includes('DEMO'))
+  check('門禁授權 = 門禁權限模組的「門禁授權」動作', five.every((r) => can(r, 'access.grant') === canDo(r, 'access', 'door')))
+  check('退款核准 = 訂單財務模組的「審核」動作', five.every((r) => can(r, 'refund') === canDo(r, 'finance', 'approve')))
+  check('未知角色字串退回只讀人員權限', permissionsOf('HACKER').join() === ROLE_PERMISSIONS.VIEWER.join())
+  check('舊的 STAFF 角色不再有任何修改權限', none('STAFF', ['bookings.manage', 'device.control', 'access.grant', 'refund', 'staff']))
   // 5. 金額遮罩
   const list = { query: {}, total: 1, pages: 1, queriedAt: '', amountsHidden: false, rows: [{ id: 'x', total: 1200, refundedAmount: 300 }] } as unknown as OrderListResult
   const masked = maskOrderListAmounts(list)

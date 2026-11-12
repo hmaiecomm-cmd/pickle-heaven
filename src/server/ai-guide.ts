@@ -53,14 +53,14 @@ export const GUIDES: GuideEntry[] = [
   {
     id: 'modify_booking',
     question: '如何修改客人的預約？',
-    answer: '只有管理員與擁有者可以修改。先在「交易管理」開啟預約明細，取消或重新安排新日期、時間及場地並確認無衝突；涉及付款差額（退款或補款）時交由擁有者處理，不自行退款或補扣款。工作人員不能新增、改期或取消客人的預約。',
+    answer: '擁有者、管理員、營運人員與櫃台人員可以修改；只讀人員只能查看。先在「訂單與財務 → 訂場與活動訂單」開啟預約明細，取消或重新安排新日期、時間及場地並確認無衝突；涉及付款差額（退款或補款）時交由有退款核准權限的擁有者或管理員處理。',
     links: [{ label: '交易管理', href: '/admin/bookings', permission: 'bookings' }, { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' }],
     patterns: [/(修改|改期|更改|變更|取消).*(預約|訂單|訂場)/, /(預約|訂單).*(修改|改期|取消)/, /改期|改時間|換時段/],
   },
   {
     id: 'complaint',
-    question: '工作人員如何處理客訴？',
-    answer: '先在「人員管理」搜尋會員，或在「交易管理」找到預約，查看服務所需的資料；把客訴內容記在會員的「內部備註」並通知管理員處理。工作人員不能直接修改訂單、退款或調整點數。獨立的客訴單與指派功能尚未開放。',
+    question: '櫃台人員如何處理客訴？',
+    answer: '先在「會員與活動」搜尋會員，或在「訂單與財務」找到預約，查看服務所需的資料；把客訴內容記在會員的「內部備註」並通知管理員處理。櫃台人員與營運人員不能退款或調整點數，需由擁有者或管理員核准。獨立的客訴單與指派功能尚未開放。',
     links: [{ label: '人員列表', href: '/admin/members', permission: 'members' }, { label: '交易管理', href: '/admin/bookings', permission: 'bookings' }, { label: '客訴單與指派', href: null, notOpen: true }],
     patterns: [/客訴|投訴|抱怨|申訴/],
   },
@@ -95,7 +95,7 @@ export const GUIDES: GuideEntry[] = [
   {
     id: 'finance_hidden',
     question: '為什麼我看不到財務報表？',
-    answer: '完整帳務（營收、金流明細、退款、財務報表、匯出）只開放擁有者。管理員與工作人員依職務查看非財務營運資料（場地使用率、報到、名額）；AI、匯出與 API 套用同一套權限，不能透過我取得被限制的數據。',
+    answer: '帳務（營收、金流明細、財務報表）開放擁有者、管理員與只讀人員查看；退款核准與匯出只限擁有者與管理員。營運人員與櫃台人員看不到帳務。AI、匯出與 API 套用同一套權限，不能透過我取得被限制的數據。',
     links: [{ label: '營運報表（含帳務）', href: '/admin/reports', permission: 'finance' }, { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' }],
     patterns: [/財務|報表|營收|收入|看不到/],
   },
@@ -109,8 +109,8 @@ export const GUIDES: GuideEntry[] = [
   },
   {
     id: 'staff_account',
-    question: '如何建立工作人員帳號？',
-    answer: '由擁有者到「設定管理 → 後台帳號與權限」新增，指定顯示名稱、登入帳號、初始密碼、角色（管理員或工作人員）及授權場館。對方首次登入後必須更換初始密碼。管理員不能自行新增帳號或修改自己的角色。',
+    question: '如何建立後台帳號？',
+    answer: '由擁有者到「系統設定 → 後台帳號與權限」新增，指定顯示名稱、登入帳號、初始密碼、角色（管理員、營運人員、櫃台人員或只讀人員）及授權場館；也可以在「LINE 登入與邀請」用邀請連結讓對方以 LINE 加入。對方首次登入後必須更換初始密碼。只有擁有者能新增帳號或變更角色。',
     links: [{ label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' }],
     patterns: [/(建立|新增|開).*(帳號|工作人員|管理員)/, /帳號.*(建立|新增)/],
   },

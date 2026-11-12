@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getAdminContext, hashPassword, normalizeUsername, verifyPassword } from '@/lib/admin-auth'
-import { can } from '@/lib/admin-permissions'
+import { ASSIGNABLE_ROLES, can, type AdminRole } from '@/lib/admin-permissions'
 import { clientFor, isDemoConfigured, mainPrisma } from '@/lib/db'
 import { seedDemoData } from './demo-seed'
 
@@ -29,7 +29,7 @@ export async function countOtherActiveOwners(exceptAccountId: string): Promise<n
 const createSchema = z.object({
   username: z.string().trim().min(3, '帳號至少 3 個字').max(32).regex(/^[A-Za-z0-9._-]+$/, '帳號只能用英數字與 . _ -'),
   displayName: z.string().trim().min(1, '請填寫顯示名稱').max(40),
-  role: z.enum(['MANAGER', 'STAFF']),
+  role: z.enum(ASSIGNABLE_ROLES as [AdminRole, ...AdminRole[]]),
   password: z.string().min(10, '初始密碼至少 10 個字').max(100),
   venueId: z.string().nullable().default(null),
 })
@@ -81,10 +81,12 @@ export async function setStaffActiveAction(accountId: string, active: boolean): 
   return { ok: true, message: active ? '已啟用' : '已停用，該帳號的登入即刻失效' }
 }
 
-/** 指派角色：擁有者可將帳號設為管理員／工作人員，或轉移擁有者；不能改自己的角色 */
-export async function setStaffRoleAction(accountId: string, role: 'OWNER' | 'MANAGER' | 'STAFF'): Promise<R> {
+/** 指派角色：擁有者可將帳號設為可指派的角色，或轉移擁有者；不能改自己的角色 */
+export async function setStaffRoleAction(accountId: string, role: AdminRole): Promise<R> {
   const ctx = await owner()
   if (!ctx || ctx.role !== 'OWNER') return { ok: false, error: '只有擁有者可以指派角色' }
+  // 角色由瀏覽器送來，必須在伺服器端白名單檢查（不能指派展示帳號或不存在的角色）
+  if (role !== 'OWNER' && !ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: '角色不正確' }
   if (accountId === ctx.accountId) return { ok: false, error: '不能修改自己的角色；請由另一位擁有者操作' }
   const target = await mainPrisma.adminAccount.findUnique({ where: { id: accountId } })
   if (!target || target.tenant !== 'main') return { ok: false, error: '找不到帳號' }

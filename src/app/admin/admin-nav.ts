@@ -54,16 +54,16 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '智慧設備管理',
     icon: 'devices',
     items: [
-      { label: '設備配置與電力迴路', href: '/admin/devices', permission: 'settings' },
+      { label: '設備配置與電力迴路', href: '/admin/devices', permission: 'device' },
       { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
-      { label: '自動化規則', href: '/admin/automation', permission: 'settings', notOpen: true },
+      { label: '自動化規則', href: '/admin/automation', permission: 'device.automation', notOpen: true },
     ],
   },
   {
     key: 'access',
     label: '門禁權限管理',
     icon: 'access',
-    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'device.control' }],
+    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'access' }],
   },
   {
     key: 'orders',

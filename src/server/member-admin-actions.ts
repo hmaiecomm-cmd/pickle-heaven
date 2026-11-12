@@ -191,7 +191,7 @@ export async function revokeVoucherAction(voucherId: string, reason: string): Pr
 
 export async function setAdminNoteAction(userId: string, note: string): Promise<R> {
   try {
-    const ctx = await requirePermission('members')
+    const ctx = await requirePermission('members.note')
     const u = await prisma.user.update({ where: { id: userId }, data: { adminNote: note.trim().slice(0, 1000) || null }, select: { displayName: true } })
     await prisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: 'MEMBER_NOTE', target: userId, detail: { name: u.displayName, length: note.trim().length } } })
     refresh(userId)

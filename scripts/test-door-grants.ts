@@ -133,9 +133,9 @@ async function main() {
   check('會員手動授權 → 自動帶入會員姓名', mm.holderName === user.displayName && mm.userId === user.id)
 
   console.log('── 權限（後端檢查）')
-  check('擁有者可以操作門禁', can('OWNER', 'device.control'))
-  check('管理員不可以', !can('MANAGER', 'device.control'))
-  check('工作人員不可以', !can('STAFF', 'device.control'))
+  check('擁有者、管理員可以建立與撤銷門禁授權', can('OWNER', 'access.grant') && can('MANAGER', 'access.grant'))
+  check('營運人員、只讀人員可以查看門禁但不能授權', can('OPERATOR', 'access') && can('VIEWER', 'access') && !can('OPERATOR', 'access.grant') && !can('VIEWER', 'access.grant'))
+  check('櫃台人員看不到門禁', !can('FRONTDESK', 'access') && !can('FRONTDESK', 'access.grant'))
 }
 
 main()

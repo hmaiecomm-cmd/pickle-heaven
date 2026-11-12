@@ -8,7 +8,7 @@
 import sharp from 'sharp'
 import { prisma } from '../src/lib/db'
 import type { AdminContext } from '../src/lib/admin-auth'
-import { permissionsOf } from '../src/lib/admin-permissions'
+import { permissionsOf, type AdminRole } from '../src/lib/admin-permissions'
 import { createExpense, deleteLooseAttachment, ExpenseError, findDuplicateHints, loadAttachment, rotateAttachment, setExpenseStatus, storeAttachment, updateExpense } from '../src/server/expense-service'
 
 const results: { name: string; ok: boolean; detail: string }[] = []
@@ -16,10 +16,11 @@ const check = (name: string, ok: boolean, detail = '') => {
   results.push({ name, ok, detail })
   console.log(`${ok ? '✅' : '❌'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
-const ctxOf = (username: string, role: 'OWNER' | 'MANAGER' | 'STAFF'): AdminContext => ({ accountId: `acc-${username}`, username, displayName: username, role, tenant: 'main', sessionId: 's', permissions: permissionsOf(role), mustChangePassword: false, venueId: null })
+const ctxOf = (username: string, role: AdminRole): AdminContext => ({ accountId: `acc-${username}`, username, displayName: username, role, tenant: 'main', sessionId: 's', permissions: permissionsOf(role), mustChangePassword: false, venueId: null })
 const owner = ctxOf('TEST_exp_owner', 'OWNER')
-const staff = ctxOf('TEST_exp_staff', 'STAFF')
-const other = ctxOf('TEST_exp_other', 'MANAGER')
+const staff = ctxOf('TEST_exp_staff', 'FRONTDESK')
+// 沒有費用審核權的其他人（營運人員）；管理員依最終版設計有審核權
+const other = ctxOf('TEST_exp_other', 'OPERATOR')
 const errCode = async (fn: () => Promise<unknown>) => { try { await fn(); return 0 } catch (e) { return e instanceof ExpenseError ? e.status : -1 } }
 
 async function pngFile(w: number, h: number, name = 'receipt.png'): Promise<File> {
@@ -40,7 +41,7 @@ async function main() {
   const full = await loadAttachment(a1.id, staff, 'full')
   const thumb = await loadAttachment(a1.id, owner, 'thumb')
   check('上傳者本人與擁有者可讀附件（含縮圖）', full.mime === 'image/webp' && full.data.length > 0 && thumb.data.length < full.data.length)
-  check('其他管理員讀取他人附件被拒（403）', (await errCode(() => loadAttachment(a1.id, other, 'full'))) === 403)
+  check('沒有審核權的其他人讀取他人附件被拒（403）', (await errCode(() => loadAttachment(a1.id, other, 'full'))) === 403)
   // 3. 旋轉
   const rot = await rotateAttachment(a1.id, staff, 90)
   check('旋轉 90 度後寬高互換', rot.width === 1800 && rot.height === 1200)
@@ -48,7 +49,7 @@ async function main() {
   const key = `TEST_exp_${Date.now()}`
   const base = { category: 'SUPPLIES' as const, amount: 860, description: 'TEST_exp_耗材', vendorName: 'TEST_exp_商店', expenseDate: new Date('2026-10-01T00:00:00Z'), docNumber: 'TEST-0001' }
   const c1 = await createExpense({ ...base, attachmentIds: [a1.id], status: 'SUBMITTED', idempotencyKey: key }, staff)
-  check('工作人員建立費用（提交審核）並綁定附件', c1.expense.status === 'SUBMITTED' && c1.expense.attachments.length === 1 && c1.expense.submittedBy === 'admin:TEST_exp_staff' && /^EXP-\d{4}-\d{4}$/.test(c1.expense.expenseNumber))
+  check('櫃台人員建立費用（提交審核）並綁定附件', c1.expense.status === 'SUBMITTED' && c1.expense.attachments.length === 1 && c1.expense.submittedBy === 'admin:TEST_exp_staff' && /^EXP-\d{4}-\d{4}$/.test(c1.expense.expenseNumber))
   const c2 = await createExpense({ ...base, attachmentIds: [a1.id], status: 'SUBMITTED', idempotencyKey: key }, staff)
   check('同一 idempotencyKey 重複送出不建立第二筆', c2.duplicateSubmit && c2.expense.id === c1.expense.id && (await prisma.expense.count({ where: { description: 'TEST_exp_耗材' } })) === 1)
   const a2 = await storeAttachment(await pngFile(800, 600, 'r2.png'), other)
@@ -63,9 +64,10 @@ async function main() {
   const h3 = await findDuplicateHints({ amount: 860, vendorName: '別家', expenseDate: new Date('2026-10-02T00:00:00Z') }, owner)
   check('重複提醒：同單據號碼／同商家＋日期＋金額 → 提醒；僅金額相同 → 不提醒', h1.length === 1 && h1[0].reason === '相同單據號碼' && h2.length === 1 && h3.length === 0)
   // 6. 可見性：他人看不到；擁有者看得到
-  check('其他管理員看不到別人的申請（404）', (await errCode(() => updateExpense(c1.expense.id, { amount: 1 }, other))) === 404)
+  check('沒有審核權的其他人看不到別人的申請（404）', (await errCode(() => updateExpense(c1.expense.id, { amount: 1 }, other))) === 404)
+  check('管理員有費用審核權，營運人員與櫃台人員沒有', permissionsOf('MANAGER').includes('expenses.review') && !permissionsOf('OPERATOR').includes('expenses.review') && !permissionsOf('FRONTDESK').includes('expenses.review'))
   // 7. 狀態：工作人員不能核准；擁有者退回需原因；退回後本人可改回草稿並修改（留歷史）
-  check('工作人員不能核准（403）', (await errCode(() => setExpenseStatus(c1.expense.id, 'APPROVED', staff))) === 403)
+  check('櫃台人員不能核准（403）', (await errCode(() => setExpenseStatus(c1.expense.id, 'APPROVED', staff))) === 403)
   check('退回未填原因被拒', (await errCode(() => setExpenseStatus(c1.expense.id, 'REJECTED', owner, ''))) === 400)
   const rejected = await setExpenseStatus(c1.expense.id, 'REJECTED', owner, '金額與收據不符')
   check('擁有者退回並留下說明', rejected.status === 'REJECTED' && rejected.reviewNote === '金額與收據不符')

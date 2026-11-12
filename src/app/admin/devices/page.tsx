@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: '智慧設備管理' }
 export const dynamic = 'force-dynamic'
 
 export default async function DevicesPage() {
-  if ((await pagePermission('settings')) === 'forbidden') return <Forbidden />
+  if ((await pagePermission('device')) === 'forbidden') return <Forbidden />
 
   return (
     <div className="space-y-5">
