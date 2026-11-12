@@ -14,7 +14,9 @@
  */
 
 import crypto from 'crypto'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { hashPassword } from '@/lib/admin-auth'
 
 export interface AdminInvitation {
   id: string
@@ -136,7 +138,6 @@ export async function getInvitationByEmail(email: string): Promise<any | null> {
  * 使用邀請建立新管理員帳號
  */
 export async function redeemInvitation(options: {
-  invitationId: string
   invitationToken: string
   email: string
   lineUserId: string
@@ -146,7 +147,7 @@ export async function redeemInvitation(options: {
   try {
     // 1. 查詢邀請
     const invitation = await prisma.adminInvitation.findUnique({
-      where: { id: options.invitationId },
+      where: { token: options.invitationToken },
     })
 
     if (!invitation) {
@@ -164,7 +165,7 @@ export async function redeemInvitation(options: {
     const adminUser = await prisma.adminUser.create({
       data: {
         username: `admin_${crypto.randomBytes(4).toString('hex')}`,
-        passwordHash: tempPassword, // TODO: 使用 bcrypt 加密
+        passwordHash: await hashPassword(tempPassword),
         displayName: options.displayName,
         role: invitation.role as any,
         mustChangePassword: true,
@@ -183,7 +184,7 @@ export async function redeemInvitation(options: {
 
     // 5. 標記邀請為已使用
     await prisma.adminInvitation.update({
-      where: { id: options.invitationId },
+      where: { id: invitation.id },
       data: {
         status: 'accepted',
         usedAt: new Date(),
@@ -194,11 +195,10 @@ export async function redeemInvitation(options: {
     // 6. 建立 Audit Log
     await prisma.auditLog.create({
       data: {
-        adminId: adminUser.id,
+        actor: adminUser.id ?? "unknown",
         action: 'admin_signup',
-        resourceType: 'admin_user',
-        resourceId: adminUser.id,
-        details: {
+        target: `admin_user:${adminUser.id}`,
+        detail: {
           email: options.email,
           lineUserId: options.lineUserId,
         },
@@ -280,10 +280,9 @@ export async function revokeInvitation(invitationId: string, revokedByAdminId: s
 
   await prisma.auditLog.create({
     data: {
-      adminId: revokedByAdminId,
+      actor: revokedByAdminId ?? "unknown",
       action: 'invitation_revoke',
-      resourceType: 'admin_invitation',
-      resourceId: invitationId,
+      target: `admin_invitation:${invitationId}`,
     },
   })
 }
@@ -299,10 +298,9 @@ export async function disableAdmin(adminId: string, disabledByAdminId: string): 
 
   await prisma.auditLog.create({
     data: {
-      adminId: disabledByAdminId,
+      actor: disabledByAdminId ?? "unknown",
       action: 'admin_disable',
-      resourceType: 'admin_user',
-      resourceId: adminId,
+      target: `admin_user:${adminId}`,
     },
   })
 }
@@ -317,10 +315,9 @@ export async function revokeLineBinding(adminId: string, revokedByAdminId: strin
 
   await prisma.auditLog.create({
     data: {
-      adminId: revokedByAdminId,
+      actor: revokedByAdminId ?? "unknown",
       action: 'line_binding_revoke',
-      resourceType: 'admin_line_binding',
-      resourceId: adminId,
+      target: `admin_line_binding:${adminId}`,
     },
   })
 }
@@ -339,13 +336,10 @@ export async function createAuditLog(options: {
 }): Promise<void> {
   await prisma.auditLog.create({
     data: {
-      adminId: options.adminId,
+      actor: options.adminId ?? "unknown",
       action: options.action,
-      resourceType: options.resourceType,
-      resourceId: options.resourceId,
-      details: options.details || null,
-      ipAddress: options.ipAddress,
-      userAgent: options.userAgent,
+      target: `${options.resourceType}:${options.resourceId}`,
+      detail: { ...(options.details ?? {}), ipAddress: options.ipAddress, userAgent: options.userAgent } as Prisma.InputJsonValue,
     },
   })
 }

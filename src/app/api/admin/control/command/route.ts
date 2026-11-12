@@ -20,7 +20,7 @@ import { addMinutes } from '@/lib/time'
 
 export async function POST(req: NextRequest) {
   // 驗證管理員權限
-  const ctx = await pagePermission('control')
+  const ctx = await pagePermission('device.control')
   if (ctx === 'forbidden') {
     return NextResponse.json({ error: '權限不足' }, { status: 403 })
   }

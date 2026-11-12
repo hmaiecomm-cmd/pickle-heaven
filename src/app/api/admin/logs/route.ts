@@ -23,7 +23,7 @@ import { queryEvents, getEventStats, getEventTimeline } from '@/server/event-log
 
 export async function GET(req: NextRequest) {
   // 驗證管理員權限
-  const ctx = await pagePermission('logs')
+  const ctx = await pagePermission('audit')
   if (ctx === 'forbidden') {
     return NextResponse.json({ error: '權限不足' }, { status: 403 })
   }
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
  * GET /api/admin/logs/stats — 日誌統計
  */
 export async function POST(req: NextRequest) {
-  const ctx = await pagePermission('logs')
+  const ctx = await pagePermission('audit')
   if (ctx === 'forbidden') {
     return NextResponse.json({ error: '權限不足' }, { status: 403 })
   }

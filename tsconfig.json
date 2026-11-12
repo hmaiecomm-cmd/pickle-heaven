@@ -36,6 +36,10 @@
     "../../pickle-heaven-build/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "rpi-sdk",
+    "iot",
+    "**/*.test.ts",
+    "**/__tests__/**"
   ]
 }

@@ -17,7 +17,7 @@
  * 13. 撤銷未確認
  */
 
-import { db } from '@/lib/db'
+import { prisma as db } from '@/lib/db'
 import {
   TIME_CONSTANTS,
   isClockDriftCritical,
@@ -402,7 +402,7 @@ export class DoorWatchdogExtension {
         where: { venueId, enabled: true },
       })
 
-      const driftedAdapters = []
+      const driftedAdapters: { id: string; macId: string }[] = []
 
       for (const adapter of adapters) {
         // TODO: 查詢控制器時間

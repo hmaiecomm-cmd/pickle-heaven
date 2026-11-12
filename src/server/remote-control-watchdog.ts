@@ -246,7 +246,7 @@ async function sendHeartbeat(deviceId: string, clientId: string): Promise<boolea
         clientId,
         timestamp: now().toISOString(),
       }),
-      timeout: RECONNECT_CONFIG.HEARTBEAT_TIMEOUT_SECONDS * 1000,
+      signal: AbortSignal.timeout(RECONNECT_CONFIG.HEARTBEAT_TIMEOUT_SECONDS * 1000),
     })
 
     return response.ok
@@ -270,7 +270,7 @@ async function attemptRemoteControlReconnect(deviceId: string, clientId: string)
         clientId,
         timestamp: now().toISOString(),
       }),
-      timeout: 10000,
+      signal: AbortSignal.timeout(10000),
     })
 
     return response.ok
@@ -314,8 +314,11 @@ async function processRemoteControlResult(result: RemoteControlHealthCheckResult
 
     if (!alertId) {
       // 建立新告警
+      const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true } })
+      if (!venue) return
       const alert = await prisma.watchdogAlert.create({
         data: {
+          venueId: venue.id,
           alertType: 'REMOTE_CONTROL_DISCONNECTED',
           severity,
           title: `【${severity}】Remote Control 斷訊 - ${result.deviceId}`,
@@ -323,7 +326,7 @@ async function processRemoteControlResult(result: RemoteControlHealthCheckResult
           detectionSource: 'REMOTE_CONTROL_WATCHDOG',
           detectionCount: 1,
           status: 'OPEN',
-          detailsJson: result.detailsJson,
+          actualValue: result.detailsJson ? JSON.stringify(result.detailsJson) : null,
         },
       })
       alertId = alert.id
@@ -343,7 +346,7 @@ async function processRemoteControlResult(result: RemoteControlHealthCheckResult
         data: {
           description: result.message,
           detectionCount: { increment: 1 },
-          detailsJson: result.detailsJson,
+          actualValue: result.detailsJson ? JSON.stringify(result.detailsJson) : null,
         },
       })
     }

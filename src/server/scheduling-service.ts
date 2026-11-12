@@ -32,7 +32,7 @@ export async function calculateCircuitStates(
   venueId: string,
   atTime: Date,
 ): Promise<Record<CircuitNumber, CircuitState>> {
-  const states: Record<CircuitNumber, CircuitState> = {}
+  const states = {} as Record<CircuitNumber, CircuitState>
 
   // 初始化所有回路為 OFF
   for (const num of Object.keys(CIRCUIT_DEFINITIONS) as CircuitNumber[]) {

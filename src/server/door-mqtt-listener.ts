@@ -9,7 +9,8 @@
  */
 
 import mqtt from 'mqtt'
-import { db } from '@/lib/db'
+import type { RS485Config } from '@/lib/door-access-types'
+import { prisma as db } from '@/lib/db'
 import { RaspberryPiAdapter } from './raspberry-pi-adapter'
 
 let mqttClient: mqtt.MqttClient | null = null
@@ -55,9 +56,9 @@ export async function initializeDoorMqttListener(): Promise<void> {
 
     // 初始化 Raspberry Pi 適配器
     // TODO: 從配置取得 RS-485 設置
-    const rs485Config = {
+    const rs485Config: RS485Config = {
       portName: '/dev/ttyUSB0',
-      baudRate: 9600,
+      baudRate: 9600 as const,
       dataBits: 8,
       stopBits: 1,
       parity: 'none' as const,

@@ -5,7 +5,7 @@
  * 或單獨執行: tsx prisma/seed-control-system.ts
  */
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { CIRCUIT_DEFINITIONS } from '../src/lib/control-types'
 import { SIMULATION_DEVICE_CONFIG, SIMULATION_CIRCUIT_TO_RELAY_MAPPING } from '../src/lib/device-config'
 
@@ -58,7 +58,7 @@ async function seedControlSystem() {
               onValue: mapping.onValue,
               offValue: mapping.offValue,
             }
-          : null,
+          : Prisma.JsonNull,
         expectedState: null,
         actualState: null,
       },

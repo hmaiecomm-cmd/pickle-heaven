@@ -8,8 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { db } from '@/lib/db'
+import { requireAdminApi, unauthorized } from '@/lib/admin-api'
+import { prisma as db } from '@/lib/db'
 import { DoorAccessService } from '@/server/door-access-service'
 
 export const dynamic = 'force-dynamic'
@@ -20,10 +20,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session || !session.user) {
-      return NextResponse.json({ error: '未授權' }, { status: 401 })
-    }
+    if (!(await requireAdminApi('device.control'))) return unauthorized()
 
     // 提取 sessionId 或 reservationId
     const url = new URL(request.url)
@@ -107,10 +104,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session || !session.user) {
-      return NextResponse.json({ error: '未授權' }, { status: 401 })
-    }
+    if (!(await requireAdminApi('device.control'))) return unauthorized()
 
     const body = await request.json()
     const { reservationId, bookingVersion = 1 } = body

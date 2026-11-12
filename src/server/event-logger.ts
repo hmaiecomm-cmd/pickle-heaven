@@ -9,6 +9,7 @@
  * 5. 事件查詢與篩選
  */
 
+import { Prisma } from '@prisma/client'
 import 'server-only'
 import { prisma } from '@/lib/db'
 import { now } from '@/lib/time'
@@ -97,7 +98,7 @@ export async function logEvent(options: LogEventOptions): Promise<string> {
         environment,
         title,
         description,
-        data: data ? sanitizeData(data) : null,
+        data: data ? (sanitizeData(data) as Prisma.InputJsonValue) : Prisma.JsonNull,
         correlationId,
         syncedToNeon: false,
       },

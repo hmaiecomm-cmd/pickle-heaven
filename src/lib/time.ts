@@ -140,3 +140,11 @@ export function isValidDateString(dateStr: string): boolean {
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
+
+export function addMinutes(d: Date, minutes: number): Date {
+  return new Date(d.getTime() + minutes * 60_000)
+}
+
+export function addSeconds(d: Date, seconds: number): Date {
+  return new Date(d.getTime() + seconds * 1000)
+}

@@ -237,7 +237,7 @@ export async function publishCredentialCommand(command: any) {
     where: { id: command.id },
     data: {
       mqttTopic: `Advantech/00-0E-4C-12-34-56/ctl/user`,
-      mqttPayload: payload,
+      mqttPayload: payload as unknown as Prisma.InputJsonValue,
       sentAt: new Date(),
       status: 'SENT',
     },
@@ -433,7 +433,7 @@ async function logAccessEvent(
           ? 'SIMULATION'
           : 'PRODUCTION',
       title,
-      data: data || {},
+      data: (data || {}) as Prisma.InputJsonValue,
     },
   })
 }

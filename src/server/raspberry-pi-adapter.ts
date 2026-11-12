@@ -10,7 +10,8 @@
  * 6. 離線模式管理
  */
 
-import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
+import { prisma as db } from '@/lib/db'
 import {
   RS485Config,
   ControllerResponse,
@@ -336,7 +337,7 @@ export class RaspberryPiAdapter {
       data: {
         ackedAt: new Date(),
         deviceStatus: result.success ? 'ACCEPTED' : 'REJECTED',
-        deviceResponse: result,
+        deviceResponse: result as unknown as Prisma.InputJsonValue,
         status: result.success ? 'ACKED' : 'FAILED',
         error: result.success ? null : result.resultMessage,
       },

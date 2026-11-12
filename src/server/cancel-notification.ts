@@ -115,7 +115,7 @@ export function buildCancellationEmailContent(
 
         <p style="margin-top: 15px; padding: 10px; background: #e8f4f8; border-radius: 4px;">
           <strong>預計入帳：</strong>
-          ${processingDays === 1 ? '立即入帳' : `${processingDays}-${processingDays + 2} 個工作日'}
+          ${processingDays === 1 ? '立即入帳' : `${processingDays}-${processingDays + 2} 個工作日`}
         </p>
       </div>
 
@@ -209,7 +209,7 @@ export async function sendCancellationLineNotification(
  * TODO: 整合郵件服務（SendGrid、AWS SES 等）
  */
 export async function sendCancellationEmail(
-  booking: Booking,
+  booking: Booking & { user?: { email?: string | null } | null },
   refund: Refund,
   eligibility: RefundEligibilityResult
 ): Promise<{ success: boolean; error?: string }> {

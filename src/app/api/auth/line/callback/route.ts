@@ -177,7 +177,7 @@ export async function GET(req: NextRequest) {
 
       const admin = await prisma.adminUser.findUnique({
         where: { id: adminId },
-        select: { id: true, role: true, email: true, status: true },
+        select: { id: true, role: true, status: true },
       })
 
       if (!admin || admin.status === 'disabled') {
@@ -190,7 +190,7 @@ export async function GET(req: NextRequest) {
       // 建立 session
       const token = await createAdminSession({
         adminId: admin.id,
-        email: admin.email || email,
+        email,
         role: admin.role || 'STAFF',
       })
 
@@ -220,14 +220,14 @@ export async function GET(req: NextRequest) {
 
         const admin = await prisma.adminUser.findUnique({
           where: { id: adminId },
-          select: { id: true, role: true, email: true },
+          select: { id: true, role: true },
         })
 
         if (admin) {
           // 建立 session
           const token = await createAdminSession({
             adminId: admin.id,
-            email: admin.email || email,
+            email,
             role: admin.role || 'STAFF',
           })
 

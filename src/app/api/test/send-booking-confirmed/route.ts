@@ -68,7 +68,8 @@ export async function GET(req: Request) {
 
     // 活動報名通知（文字訊息）
     if (booking.activityItems.length > 0) {
-      const { taipeiDateString, activityTimeLabel } = await import('@/lib/time')
+      const { taipeiDateString } = await import('@/lib/time')
+      const { activityTimeLabel } = await import('@/lib/activity-shared')
       const lines = booking.activityItems.map((it) => {
         const d = taipeiDateString(it.startsAt)
         const base = taipeiToUtc(d, 0).getTime()

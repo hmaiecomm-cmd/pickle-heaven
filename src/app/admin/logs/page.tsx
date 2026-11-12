@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: '日誌檢視' }
 export const dynamic = 'force-dynamic'
 
 export default async function LogsPage() {
-  const ctx = await pagePermission('logs')
+  const ctx = await pagePermission('audit')
   if (ctx === 'forbidden') return <Forbidden />
 
   return (

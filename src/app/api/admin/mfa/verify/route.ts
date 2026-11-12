@@ -26,16 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 啟用 MFA
-    await enableMFA(admin.id, secret, backupCodes);
+    await enableMFA(admin.adminId, secret, backupCodes);
 
     // 審計日誌
-    await logAuditEvent({
-      adminId: admin.id,
-      action: 'mfa_enabled',
-      resource: 'admin_mfa',
-      status: 'success',
-      changes: JSON.stringify({ method: 'totp' }),
-    });
+    await logAuditEvent(admin.username, 'mfa_enabled', 'admin_mfa', admin.adminId, { method: 'totp' });
 
     return NextResponse.json({
       success: true,

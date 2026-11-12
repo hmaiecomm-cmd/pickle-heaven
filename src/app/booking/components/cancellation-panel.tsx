@@ -150,7 +150,7 @@ export function CancellationPanel({
                   <Button
                     onClick={() => setConfirmOpen(false)}
                     disabled={isPending}
-                    variant="outline"
+                    variant="secondary"
                     className="flex-1"
                     size="lg"
                   >
@@ -217,7 +217,7 @@ export function CancellationPanel({
           <div className="space-y-2">
             <Button
               onClick={onContactSupport}
-              variant="outline"
+              variant="secondary"
               className="w-full"
               size="lg"
             >
@@ -261,7 +261,7 @@ export function CancellationPanel({
 
           <Button
             onClick={onContactSupport}
-            variant="outline"
+            variant="secondary"
             className="w-full"
             size="lg"
           >

@@ -125,7 +125,7 @@ export function LogsClient() {
         log.syncedToNeon ? '✓ 已同步' : '⏳ 待同步',
       ])
 
-      const csv = [headers, ...rows].map((row) => row.map((v) => `"${v}"`).join(',')).join('\n')
+      const csv = [headers, ...rows].map((row) => row.map((v: unknown) => `"${v}"`).join(',')).join('\n')
 
       // 下載
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })

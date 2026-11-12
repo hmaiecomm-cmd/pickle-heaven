@@ -52,6 +52,7 @@ async function createPointsLedgerEntry(
       kind: 'REFUND',
       reason: `訂單取消退款 (${bookingId})`,
       actor: 'SYSTEM',
+      idempotencyKey: `refund:${bookingId}`,
       bookingId,
     },
   })

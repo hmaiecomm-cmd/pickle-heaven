@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requirePermission, logAuditEvent } from '@/lib/admin-auth'
+import { requireApiPermission, logAuditEvent } from '@/lib/admin-auth'
 import { createInvitation, revokeInvitation } from '@/server/admin-invitation-service'
 import { sendInvitationEmail } from '@/lib/email-service'
 
@@ -9,7 +9,7 @@ import { sendInvitationEmail } from '@/lib/email-service'
  */
 export async function POST(req: NextRequest) {
   try {
-    const result = await requirePermission(req, 'manage_admins')
+    const result = await requireApiPermission(req, 'manage_admins')
     if ('error' in result) return result.error
 
     const { email, role, expirationDays = 7 } = await req.json()
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const result = await requirePermission(req, 'manage_admins')
+    const result = await requireApiPermission(req, 'manage_admins')
     if ('error' in result) return result.error
 
     const url = new URL(req.url)

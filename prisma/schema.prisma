@@ -692,16 +692,13 @@ model Voucher {
 /// 後台操作稽核
 model AuditLog {
   id        String   @id @default(cuid())
-  actor     String?
-  adminId   String?
-  admin     AdminUser? @relation("AdminActor", fields: [adminId], references: [id], onDelete: SetNull)
+  actor     String
   action    String
   target    String?
   detail    Json?
   createdAt DateTime @default(now())
 
   @@index([createdAt])
-  @@index([adminId])
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2140,7 +2137,6 @@ model AdminUser {
 
   lineBindings      AdminLineBinding[]
   invitations       AdminInvitation[]      @relation("CreatedBy")
-  auditLogs         AuditLog[]             @relation("AdminActor")
 }
 
 /// 管理員邀請

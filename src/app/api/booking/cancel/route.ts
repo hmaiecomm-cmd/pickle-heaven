@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth'
+import { getSessionUser } from '@/lib/session'
 import { RefundRuleEngine, getPlayDateTime } from '@/lib/refund-rule-engine'
 import { differenceInMinutes, parseISO } from 'date-fns'
 
@@ -25,7 +25,7 @@ interface CancelRequest {
 export async function POST(req: NextRequest) {
   try {
     // 1️⃣ 驗證使用者身份
-    const userId = await verifyAuth()
+    const userId = (await getSessionUser())?.id
     if (!userId) {
       return NextResponse.json(
         { error: '未授權' },

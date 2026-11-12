@@ -324,9 +324,12 @@ function sleep(ms: number): Promise<void> {
  */
 async function createProcessAlert(message: string): Promise<void> {
   try {
+    const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true } })
+    if (!venue) return
     await prisma.watchdogAlert.create({
       data: {
-        alertType: 'PROCESS_CRASH',
+        venueId: venue.id,
+        alertType: "PROCESS_CRASH",
         severity: 'ERROR',
         title: '【ERROR】Claude Code 進程崩潰',
         description: message,

@@ -6,9 +6,11 @@
 import { jwtVerify, SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 
-const SECRET = new TextEncoder().encode(
-  process.env.ADMIN_JWT_SECRET || 'fallback-secret-do-not-use-in-production'
-)
+function secretKey(): Uint8Array {
+  const s = process.env.ADMIN_JWT_SECRET
+  if (!s || s.length < 32) throw new Error('缺少 ADMIN_JWT_SECRET 環境變數（至少 32 字元）')
+  return new TextEncoder().encode(s)
+}
 
 export interface AdminSessionPayload {
   adminId: string
@@ -36,7 +38,7 @@ export async function createAdminSession(payload: AdminSessionPayload): Promise<
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expiresAt)
-    .sign(SECRET)
+    .sign(secretKey())
 
   return token
 }
@@ -46,8 +48,8 @@ export async function createAdminSession(payload: AdminSessionPayload): Promise<
  */
 export async function verifyAdminSession(token: string): Promise<AdminSessionPayload | null> {
   try {
-    const verified = await jwtVerify(token, SECRET)
-    return verified.payload as AdminSessionPayload
+    const verified = await jwtVerify(token, secretKey())
+    return verified.payload as unknown as AdminSessionPayload
   } catch (error) {
     console.error('Session verification failed:', error)
     return null

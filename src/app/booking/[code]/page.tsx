@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { AlertCircle, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,11 +18,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { CancellationPanel } from '../components/cancellation-panel'
 import type { RefundEligibilityResult } from '@/lib/refund-rule-engine'
 
-export default function BookingDetailPage({
-  params,
-}: {
-  params: { code: string }
-}) {
+export default function BookingDetailPage() {
+  const params = useParams<{ code: string }>()
   const router = useRouter()
   const [booking, setBooking] = useState<any>(null)
   const [eligibility, setEligibility] = useState<RefundEligibilityResult | null>(null)
@@ -306,7 +303,7 @@ export default function BookingDetailPage({
 
       {/* 返回按鈕 */}
       <div className="mt-8">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="secondary" onClick={() => router.back()}>
           ← 返回
         </Button>
       </div>
