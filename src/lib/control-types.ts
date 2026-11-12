@@ -47,12 +47,12 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     description: '球場 B 的冷卻風扇',
   },
   '05': {
-    name: '大門及 Pro Shop 招牌',
+    name: '大門與 Pro Shop 招牌',
     category: 'OPERATING_HOURS',
     defaultEnabled: true,
     remoteControlEnabled: true,
     scheduleControlEnabled: true,
-    description: '入口大門與專業店面招牌照明',
+    description: '入口大門與 Pro Shop 招牌照明',
   },
   '06': {
     name: 'Pro Shop 室內照明',
@@ -60,7 +60,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: true,
     scheduleControlEnabled: true,
-    description: '專業店面內部照明',
+    description: 'Pro Shop 室內照明',
   },
   '07': {
     name: 'Pro Shop 室內插座',
@@ -68,10 +68,10 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: true,
     scheduleControlEnabled: true,
-    description: '專業店面內部電源插座',
+    description: 'Pro Shop 室內電源插座',
   },
   '08': {
-    name: '休息區壁挂扇',
+    name: '休息區壁掛扇',
     category: 'OPERATING_HOURS',
     defaultEnabled: true,
     remoteControlEnabled: true,
@@ -87,7 +87,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     description: '浴室的熱水器加熱系統',
   },
   '10': {
-    name: '環境氣氛燈／露營燈',
+    name: '環境氣氛燈－露營燈',
     category: 'NIGHT_AMBIENT',
     defaultEnabled: true,
     remoteControlEnabled: true,
@@ -95,7 +95,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     description: '夜間環境氣氛營造用露營燈',
   },
   '11': {
-    name: '環境氣氛燈／地燈',
+    name: '環境氣氛燈－地燈',
     category: 'NIGHT_AMBIENT',
     defaultEnabled: true,
     remoteControlEnabled: true,
@@ -103,20 +103,20 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     description: '夜間環境地面裝飾燈',
   },
   '12': {
-    name: '大門監控及門鎖',
+    name: '大門監控與門鎖供電',
     category: 'ALWAYS_ON',
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: '入口門禁監控與磁力鎖 — 24 小時供電，不納入排程切換',
+    description: '大門監控與門鎖的供電 — 24 小時供電，不納入預約自動斷電',
   },
   '13': {
-    name: 'Pro Shop 冷氣（3 台）',
+    name: 'Pro Shop 冷氣供電',
     category: 'ALWAYS_ON',
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: '專業店面冷氣系統 — 24 小時供電，不納入排程切換',
+    description: 'Pro Shop 冷氣的供電（台數待確認）— 24 小時供電，不納入預約自動斷電',
   },
   '14': {
     name: '辦公室弱電箱專用插座',
@@ -124,7 +124,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: '辦公室控制設備電源 — 24 小時供電，不納入排程切換',
+    description: '辦公室控制設備電源 — 24 小時供電，不納入預約自動斷電',
   },
   '15': {
     name: '辦公室電器',
@@ -132,7 +132,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: '辦公室通用電源 — 24 小時供電，不納入排程切換',
+    description: '辦公室通用電源 — 24 小時供電，不納入預約自動斷電',
   },
   '16': {
     name: '販賣機專用插座',
@@ -140,7 +140,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: '自動販賣機電源 — 24 小時供電，不納入排程切換',
+    description: '自動販賣機電源 — 24 小時供電，不納入預約自動斷電',
   },
   '17': {
     name: '預留迴路 1',
