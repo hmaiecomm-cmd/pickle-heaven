@@ -1,0 +1,120 @@
+{
+  "siteId": "pickle-heaven-001",
+  "timezone": "Asia/Taipei",
+  "mqtt": {
+    "brokerUrl": "localhost",
+    "port": 1883,
+    "useTls": false,
+    "username": "local_agent",
+    "password": "${MQTT_PASSWORD}"
+  },
+  "rs485": {
+    "port": "/dev/ttyUSB0",
+    "baudRate": 9600,
+    "dataBits": 8,
+    "stopBits": 1,
+    "parity": "none",
+    "timeout": 2000
+  },
+  "devices": {
+    "RELAY_001": {
+      "name": "主 Relay — 球場 A、B 燈光與風扇",
+      "macId": "aa:bb:cc:dd:ee:01",
+      "protocol": "MODBUS_RTU",
+      "baseAddress": 1,
+      "description": "控制迴路 01-04（球場 A、B 主燈與風扇）",
+      "channels": {
+        "1": {
+          "circuitId": "01",
+          "circuitName": "球場 A 主燈",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "2": {
+          "circuitId": "02",
+          "circuitName": "球場 A 涼風扇",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "3": {
+          "circuitId": "03",
+          "circuitName": "球場 B 主燈",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "4": {
+          "circuitId": "04",
+          "circuitName": "球場 B 涼風扇",
+          "onValue": 1,
+          "offValue": 0
+        }
+      }
+    },
+    "RELAY_002": {
+      "name": "副 Relay — Pro Shop 與公共區域",
+      "macId": "aa:bb:cc:dd:ee:02",
+      "protocol": "MODBUS_RTU",
+      "baseAddress": 2,
+      "description": "控制迴路 05-11（Pro Shop、休息區、浴室、氣氛燈）",
+      "channels": {
+        "1": {
+          "circuitId": "05",
+          "circuitName": "大門及 Pro Shop 招牌",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "2": {
+          "circuitId": "06",
+          "circuitName": "Pro Shop 室內照明",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "3": {
+          "circuitId": "07",
+          "circuitName": "Pro Shop 室內插座",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "4": {
+          "circuitId": "08",
+          "circuitName": "休息區壁掛扇",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "5": {
+          "circuitId": "09",
+          "circuitName": "浴室熱水器",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "6": {
+          "circuitId": "10",
+          "circuitName": "環境氣氛燈／露營燈",
+          "onValue": 1,
+          "offValue": 0
+        },
+        "7": {
+          "circuitId": "11",
+          "circuitName": "環境氣氛燈／地燈",
+          "onValue": 1,
+          "offValue": 0
+        }
+      }
+    }
+  },
+  "simulation": {
+    "enabled": false,
+    "mockRS485": false,
+    "mockMqttBroker": false,
+    "delayMs": 100
+  },
+  "notes": {
+    "instruction": "根據現場實際 Relay 設備和 RS-485 配置修改此檔案",
+    "relay_setup": "確認以下信息：",
+    "protocol": "- Relay 設備型號與協議（Modbus RTU / 自訂）",
+    "address": "- 設備 RS-485 地址（通常是 1-247）",
+    "baudrate": "- 波特率（通常 9600 或 19200）",
+    "circuit_mapping": "- 每個通道映射到的迴路編號（01-18）",
+    "testing": "安裝後測試："
+  }
+}

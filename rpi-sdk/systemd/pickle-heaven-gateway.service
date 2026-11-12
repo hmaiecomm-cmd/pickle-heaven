@@ -1,0 +1,50 @@
+[Unit]
+Description=Pickle Heaven Gateway Agent
+Documentation=https://github.com/pickle-heaven/gateway-agent
+After=network-online.target mosquitto.service
+Wants=network-online.target mosquitto.service
+ConditionPathExists=/opt/pickle-heaven-gateway/config/device-mapping.json
+
+[Service]
+# 基本設定
+Type=simple
+User=pi
+Group=dialout
+WorkingDirectory=/opt/pickle-heaven-gateway
+
+# 執行命令
+ExecStart=/usr/bin/node dist/index.js
+
+# 自動重啟
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# 輸出
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pickle-heaven-gateway
+
+# 環境與安全
+Environment="NODE_ENV=production"
+Environment="NODE_OPTIONS=--max-old-space-size=256"
+EnvironmentFile=/etc/pickle-heaven/gateway.env
+EnvironmentFile=-/etc/pickle-heaven/secrets.env
+
+# 權限限制
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/pickle-heaven-gateway/data /var/log/pickle-heaven
+
+# 資源限制
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=20
+
+# 日誌
+SyslogLevel=info
+
+[Install]
+WantedBy=multi-user.target

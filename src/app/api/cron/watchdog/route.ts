@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { runWatchdogCheck } from '@/server/watchdog-service'
+import { runRemoteControlWatchdog } from '@/server/remote-control-watchdog'
 import { syncPendingEventsToNeon } from '@/server/event-logger'
 
 export const maxDuration = 60 // 最長執行時間 60 秒
@@ -34,10 +35,13 @@ export async function GET(req: NextRequest) {
   try {
     console.log('[Cron] Watchdog 監控開始...')
 
-    // 1. 執行 Watchdog 檢測
+    // 1. 執行系統 Watchdog 檢測
     const checkResults = await runWatchdogCheck()
 
-    // 統計檢測結果
+    // 2. 執行 Remote Control Watchdog 檢測
+    const remoteControlResults = await runRemoteControlWatchdog()
+
+    // 統計系統 Watchdog 檢測結果
     const summary = {
       healthy: checkResults.filter((r) => r.status === 'HEALTHY').length,
       degraded: checkResults.filter((r) => r.status === 'DEGRADED').length,
@@ -45,9 +49,18 @@ export async function GET(req: NextRequest) {
       error: checkResults.filter((r) => r.status === 'ERROR').length,
     }
 
-    console.log('[Cron] Watchdog 檢測結果:', summary)
+    // 統計 Remote Control Watchdog 檢測結果
+    const remoteControlSummary = {
+      connected: remoteControlResults.filter((r) => r.status === 'CONNECTED').length,
+      disconnected: remoteControlResults.filter((r) => r.status === 'DISCONNECTED').length,
+      reconnecting: remoteControlResults.filter((r) => r.status === 'RECONNECTING').length,
+      error: remoteControlResults.filter((r) => r.status === 'ERROR').length,
+    }
 
-    // 2. 嘗試同步待同步的事件到 Neon（非同步）
+    console.log('[Cron] 系統 Watchdog 檢測結果:', summary)
+    console.log('[Cron] Remote Control Watchdog 檢測結果:', remoteControlSummary)
+
+    // 3. 嘗試同步待同步的事件到 Neon（非同步）
     const syncedCount = await syncPendingEventsToNeon(100)
 
     return NextResponse.json(
@@ -55,9 +68,13 @@ export async function GET(req: NextRequest) {
         success: true,
         message: 'Watchdog 監控完成',
         timestamp: new Date().toISOString(),
-        checks: {
+        systemWatchdog: {
           total: checkResults.length,
           ...summary,
+        },
+        remoteControlWatchdog: {
+          total: remoteControlResults.length,
+          ...remoteControlSummary,
         },
         eventSync: {
           synced: syncedCount,

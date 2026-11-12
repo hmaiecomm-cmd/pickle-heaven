@@ -14,6 +14,7 @@ import 'server-only'
 import { prisma } from '@/lib/db'
 import { now, addSeconds, addMinutes } from '@/lib/time'
 import { randomUUID } from 'crypto'
+import { sendConnectionAlertEmail } from '@/server/email-service'
 
 type RemoteControlStatus = 'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING' | 'ERROR'
 
@@ -327,6 +328,14 @@ async function processRemoteControlResult(result: RemoteControlHealthCheckResult
       })
       alertId = alert.id
       storedState.alertId = alertId
+
+      // 發送告警郵件
+      await sendConnectionAlertEmail({
+        deviceId: result.deviceId,
+        status: result.status,
+        message: result.message,
+        reconnectAttempts: result.detailsJson?.reconnectAttempts || 0,
+      }).catch((e) => console.error('[RemoteControl-Watchdog] 郵件發送失敗:', e))
     } else {
       // 更新現有告警
       await prisma.watchdogAlert.update({

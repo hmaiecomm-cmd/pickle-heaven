@@ -15,6 +15,7 @@ import 'server-only'
 import { prisma } from '@/lib/db'
 import { now, addMinutes } from '@/lib/time'
 import { randomUUID } from 'crypto'
+import { sendWatchdogAlertEmail } from '@/server/email-service'
 
 type WatchdogAlertSeverity = 'HEALTHY' | 'DEGRADED' | 'OFFLINE' | 'ERROR'
 
@@ -309,6 +310,16 @@ async function processCheckResults(results: HealthCheckResult[]): Promise<void> 
             resolveNote: '自動恢復',
           },
         })
+
+        // 發送恢復郵件通知
+        await sendWatchdogAlertEmail({
+          type: alert.alertType,
+          severity: 'HEALTHY',
+          title: `✅ 問題已解決: ${alert.title.replace(/【.*?】/, '')}`,
+          description: '系統已恢復正常運行',
+          component: componentMatch,
+          timestamp: new Date(),
+        }).catch((e) => console.error('[Watchdog] 郵件發送失敗:', e))
       }
 
       continue
@@ -342,7 +353,7 @@ async function processCheckResults(results: HealthCheckResult[]): Promise<void> 
       })
 
       if (venue) {
-        await prisma.watchdogAlert.create({
+        const newAlert = await prisma.watchdogAlert.create({
           data: {
             venueId: venue.id,
             alertType: mapComponentToAlertType(result.component),
@@ -354,6 +365,16 @@ async function processCheckResults(results: HealthCheckResult[]): Promise<void> 
             status: 'OPEN',
           },
         })
+
+        // 發送告警郵件通知
+        await sendWatchdogAlertEmail({
+          type: newAlert.alertType,
+          severity: result.status,
+          title: newAlert.title,
+          description: result.message,
+          component: result.component,
+          timestamp: new Date(),
+        }).catch((e) => console.error('[Watchdog] 郵件發送失敗:', e))
       }
     }
   }
