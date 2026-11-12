@@ -105,6 +105,82 @@ enum BookingStatus {
   REFUND_PENDING // 款項已收但時段／名額已失效（逾時後才付款成功、場次已取消），待退款
 }
 
+enum ControlCategory {
+  RESERVATION_DYNAMIC // 01-04：預約動態控制
+  OPERATING_HOURS // 05-09：營業時間控制
+  NIGHT_AMBIENT // 10-11：環境夜間控制
+  ALWAYS_ON // 12-16：24 小時供電（不納入排程）
+  RESERVED // 17-18：預留回路（停用）
+}
+
+enum CommandStatus {
+  PENDING // 等待發送
+  SENT // 已發送給 MQTT Broker
+  ACKED // 設備已確認
+  FAILED // 設備執行失敗
+  TIMEOUT // 等待確認逾時
+  EXPIRED // 命令已過期（離線期間產生）
+}
+
+enum ControlEventType {
+  RESERVATION_CREATED // 預約建立
+  RESERVATION_CONFIRMED // 預約確認
+  RESERVATION_CANCELLED // 預約取消
+  RESERVATION_MODIFIED // 預約改期
+  SCHEDULE_RECALCULATED // 排程重新計算
+  SCHEDULE_EXECUTED // 排程執行
+  COMMAND_SENT // 命令發送
+  COMMAND_ACKED // 設備確認
+  COMMAND_FAILED // 命令失敗
+  OPERATING_HOURS_CHANGED // 營業時間變更
+  NIGHT_SCHEDULE_CHANGED // 夜間排程變更
+  MANUAL_OVERRIDE // 人工覆寫
+  OVERRIDE_EXPIRED // 覆寫過期
+  DEVICE_ONLINE // 設備上線
+  DEVICE_OFFLINE // 設備離線
+  STATUS_MISMATCH // 狀態不一致
+  MQTT_CONNECTED // MQTT 已連接
+  MQTT_DISCONNECTED // MQTT 已斷線
+  WATCHDOG_ALERT // Watchdog 告警
+  SYSTEM_ERROR // 系統錯誤
+}
+
+enum WatchdogAlertSeverity {
+  HEALTHY // 正常
+  DEGRADED // 降級（暫時延遲或部分功能受影響）
+  OFFLINE // 設備\/服務離線
+  ERROR // 錯誤（需要人工介入）
+}
+
+enum EventEnvironment {
+  SIMULATION // 模擬環境
+  PRODUCTION // 正式環境
+}
+
+enum CredentialState {
+  CREATED // 雲端已建立要求
+  APPLIED // 設備已套用
+  FAILED // 設備拒絕或失敗
+  UNKNOWN // 無法確認
+  REVOKED // 已撤銷
+  REVOKE_PENDING // 撤銷命令已發，待確認
+}
+
+enum AccessStatus {
+  GRANTED // 通行已授予
+  DENIED // 拒絕通行
+  UNKNOWN // 結果未知（離線）
+  NOT_USED // 憑證未使用
+}
+
+enum DoorAccessCommandType {
+  PROVISION_CREDENTIAL // 設定憑證
+  REVOKE_CREDENTIAL // 撤銷憑證
+  QUERY_STATUS // 查詢狀態
+  SYNC_CLOCK // 校時
+  REMOTE_UNLOCK // 遠端開門
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -210,6 +286,11 @@ model Venue {
   activities       Activity[]
   hosts            Host[]
   maintenancePlans MaintenancePlan[]
+  circuits          Circuit[]
+  operatingHours    OperatingHours?
+  deviceAdapters    DeviceAdapter[]
+  controlEvents     ControlEvent[]
+  watchdogAlerts    WatchdogAlert[]
 }
 
 /// 場地（球場）
@@ -444,6 +525,9 @@ model Reservation {
   booking          Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   session          Session?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   maintenanceEvent MaintenanceEvent? @relation(fields: [maintenanceEventId], references: [id], onDelete: Cascade)
+  commands          ControlCommand[]
+  events            ControlEvent[]
+  accessSession     AccessSession?
 
   @@unique([courtId, startsAt])
   @@index([startsAt])
@@ -1503,4 +1587,468 @@ model ExpenseRevision {
   expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   @@index([expenseId, createdAt])
+}
+
+/**
+ * ─────────────────────────── 無人化電力控制系統 ───────────────────────────
+ */
+
+/// 18 路回路定義與映射
+model Circuit {
+  id                String          @id @default(cuid())
+  venueId           String
+  /// 01-18
+  circuitNumber     String          @unique
+  name              String
+  description       String?
+  category          ControlCategory
+
+  /// 啟用狀態（17-18 預設停用）
+  enabled           Boolean         @default(true)
+  /// 是否允許遠端控制（12-16 默認 false）
+  remoteControlEnabled Boolean       @default(true)
+  /// 是否允許排程控制（12-16 默認 false）
+  scheduleControlEnabled Boolean     @default(true)
+
+  /// 關聯的設備 MAC ID 與通道（JSON：{ deviceMacId: "...", channel: 1, onValue: 1, offValue: 0 }）
+  deviceMapping     Json?
+
+  /// 預約控制：提前開啟（分鐘）
+  reservationAdvanceMinutes Int?
+  /// 預約控制：延遲關閉（分鐘）
+  reservationDelayMinutes Int?
+
+  /// 目前預期狀態（ON / OFF）
+  expectedState     String?
+  /// 目前設備回報狀態（ON / OFF）
+  actualState       String?
+  /// 最後狀態更新時間
+  lastStateChange   DateTime?
+  /// 最後設備回報時間
+  lastDeviceReport  DateTime?
+
+  /// 最後一條命令的結果（成功 / 失敗 / 等待 / 超時）
+  lastCommandStatus String?
+  lastCommandAt     DateTime?
+  lastCommandError  String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  commands          ControlCommand[]
+  events            ControlEvent[]
+
+  @@index([venueId])
+  @@index([category])
+  @@index([enabled])
+}
+
+/// MQTT 命令追蹤與確認
+model ControlCommand {
+  id                String          @id @default(cuid())
+  /// 跨日誌追蹤用
+  commandId         String          @unique
+  circuitId         String
+
+  /// 命令來源：SCHEDULE / MANUAL_OVERRIDE / EMERGENCY
+  source            String          @default("SCHEDULE")
+  /// 命令目標狀態：ON / OFF
+  targetState       String
+  status            CommandStatus   @default(PENDING)
+
+  /// 排程 ID（若來自排程）
+  scheduleId        String?
+  /// 預約 ID（若與預約關聯）
+  reservationId     String?
+  /// 操作人（若為人工命令）
+  requestedBy       String?
+
+  /// MQTT topic 與 payload
+  mqttTopic         String?
+  mqttPayload       Json?
+
+  /// 命令發送時間
+  sentAt            DateTime?
+  /// 設備確認時間（ACKED 時填入）
+  ackedAt           DateTime?
+  /// 命令失敗 / 超時時的錯誤說明
+  error             String?
+
+  /// 命令有效期限（過期後離線復出不執行）
+  expiresAt         DateTime
+
+  /// 是否為模擬命令
+  simulated         Boolean         @default(false)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  circuit           Circuit         @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  reservation       Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  events            ControlEvent[]
+
+  @@index([circuitId, createdAt])
+  @@index([status, createdAt])
+  @@index([commandId])
+  @@index([expiresAt])
+  @@index([reservationId])
+}
+
+/// 營業時間與夜間排程
+model OperatingHours {
+  id                String          @id @default(cuid())
+  venueId           String          @unique
+
+  /// 營業時間（預設 08:00-22:00）
+  businessStartMinute Int           @default(480)
+  businessEndMinute Int             @default(1320)
+
+  /// 夜間環境氣氛燈時段（預設 18:00-22:00）
+  nightStartMinute  Int             @default(1080)
+  nightEndMinute    Int             @default(1320)
+
+  /// 禁用日期（逗號分隔 YYYY-MM-DD）
+  disabledDates     String          @default("")
+  /// 適用星期（逗號分隔 0-6；空 = 每日）
+  applicableWeekdays String         @default("0,1,2,3,4,5,6")
+
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+}
+
+/// 設備配置與連接資訊
+model DeviceAdapter {
+  id                String          @id @default(cuid())
+  venueId           String
+
+  /// 設備名稱（例如「Relay-001」）
+  name              String
+  /// 設備類型（例如「ADVANTECH_ADAM_4019」）
+  deviceType        String
+  /// 設備 MAC ID
+  macId             String
+
+  /// MQTT Broker 設定
+  mqttBrokerUrl     String?
+  mqttPort          Int             @default(1883)
+  mqttUseTls        Boolean         @default(false)
+  mqttUsername      String?
+  mqttPassword      String?
+
+  /// 設備 MQTT topic 前綴（例如「Advantech/{MAC_ID}」）
+  mqttTopicPrefix   String
+
+  /// 設備輸出通道總數
+  totalChannels     Int             @default(18)
+
+  /// 控制與狀態 topic 映射（JSON）
+  mqttControlTopic  String
+  mqttStatusTopic   String
+
+  /// 設備回報解析規則（JSON：{ valueField: "v", onValue: 1, offValue: 0 }）
+  deviceStateMapping Json?
+
+  /// 連線狀態：ONLINE / OFFLINE / UNKNOWN
+  connectionStatus  String          @default("UNKNOWN")
+  lastHeartbeat     DateTime?
+
+  /// 簽署的 TLS 憑證（存儲路徑或 reference，不直接存密鑰）
+  tlsCertReference  String?
+
+  enabled           Boolean         @default(true)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([macId])
+  @@index([enabled])
+}
+
+/// 控制事件日誌
+model ControlEvent {
+  id                String          @id @default(cuid())
+  /// 跨系統追蹤用
+  eventId           String          @unique
+
+  venueId           String
+  circuitId         String?
+  commandId         String?
+  reservationId     String?
+  userId            String?
+
+  eventType         ControlEventType
+  severity          String          @default("INFO") // INFO / WARNING / ERROR
+  environment       EventEnvironment @default("PRODUCTION")
+
+  /// 可讀說明
+  title             String
+  description       String?
+
+  /// 結構化資料（脫敏後）
+  data              Json?
+
+  /// 相關聯的 commandId、scheduleId、reservationId（關聯時間線）
+  correlationId     String?
+
+  /// 日誌是否已同步到 Neon
+  syncedToNeon      Boolean         @default(false)
+  syncedAt          DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  circuit           Circuit?        @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+  command           ControlCommand? @relation(fields: [commandId], references: [id], onDelete: SetNull)
+  reservation       Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([severity])
+  @@index([environment])
+  @@index([syncedToNeon])
+  @@index([correlationId])
+}
+
+/// Watchdog 告警與監控事件
+model WatchdogAlert {
+  id                String          @id @default(cuid())
+  venueId           String
+
+  /// 告警類型：HEARTBEAT_LOST / MQTT_DOWN / RELAY_OFFLINE / COMMAND_TIMEOUT / STATUS_MISMATCH / SCHEDULE_FAILED / SYNC_FAILED
+  alertType         String
+  severity          WatchdogAlertSeverity
+
+  /// 受影響的元件：SERVICE_LOCAL / SERVICE_MQTT / DEVICE_RELAY / CIRCUIT / COMMAND
+  component         String?
+  componentId       String?
+
+  title             String
+  description       String?
+
+  /// 檢測源
+  detectionSource   String?
+  detectionCount    Int             @default(1)
+
+  /// 預期值 vs. 實際值
+  expectedValue     String?
+  actualValue       String?
+
+  /// 恢復狀態：OPEN / ACKNOWLEDGED / RESOLVED
+  status            String          @default("OPEN")
+
+  acknowledgedBy    String?
+  acknowledgedAt    DateTime?
+  acknowledgedNote  String?
+
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  resolveNote       String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, status])
+  @@index([alertType])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+/**
+ * ─────────────────────────── 門禁控制系統（Phase 6） ───────────────────────────
+ */
+
+/// 門禁訪問會話：綁定預約與門禁憑證
+model AccessSession {
+  id                String          @id @default(cuid())
+  venueId           String
+  reservationId     String          @unique
+
+  /// 版本號（單調遞增，取消改期時遞增）
+  bookingVersion    Int             @default(1)
+
+  /// 憑證狀態
+  credentialState   CredentialState @default(CREATED)
+
+  /// 門禁設備 (AR-721) MAC ID
+  controllerMacId   String
+
+  /// 預留的使用者位置編號（控制器端）
+  userSlotNumber    Int?
+
+  /// PIN / 卡號（僅存 hash，不存明文）
+  credentialHash    String?
+  credentialType    String          @default("PIN") // PIN / CARD / BIOMETRIC
+
+  /// 有效期限（秒級精度）
+  validFromUtc      DateTime
+  validUntilUtc     DateTime
+
+  /// 最後一次確認的狀態
+  lastAppliedAt     DateTime?
+  lastRevokedAt     DateTime?
+
+  status            String          @default("ACTIVE") // ACTIVE / REVOKED / EXPIRED
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  reservation       Reservation     @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  commands          DoorAccessCommand[]
+  accessLogs        AccessLog[]
+
+  @@index([venueId, reservationId])
+  @@index([controllerMacId, userSlotNumber])
+  @@index([validFromUtc, validUntilUtc])
+  @@index([status])
+}
+
+/// 門禁命令追蹤（下發給 Raspberry Pi 的命令）
+model DoorAccessCommand {
+  id                String                  @id @default(cuid())
+  /// 跨系統追蹤
+  commandId         String                  @unique
+
+  accessSessionId   String
+  /// 版本檢查（必須 ≥ 目前訂單版本）
+  bookingVersion    Int
+
+  /// 序號（遞增，用於重複檢查）
+  commandSequence   Int
+
+  /// 命令類型
+  commandType       DoorAccessCommandType   @default(PROVISION_CREDENTIAL)
+
+  /// 命令發行與失效時間
+  issuedAt          DateTime
+  expiresAt         DateTime
+
+  /// 目標狀態
+  targetState       String                  // ON / OFF / UNLOCK
+  status            CommandStatus           @default(PENDING)
+
+  /// MQTT 發送詳情
+  mqttTopic         String?
+  mqttPayload       Json?
+  sentAt            DateTime?
+
+  /// 設備回報
+  ackedAt           DateTime?
+  deviceResponse    Json?
+  deviceStatus      String?                 // ACCEPTED / REJECTED / UNKNOWN
+  error             String?
+
+  /// 是否為模擬
+  simulated         Boolean         @default(false)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  accessSession     AccessSession   @relation(fields: [accessSessionId], references: [id], onDelete: Cascade)
+  accessLogs        AccessLog[]
+
+  @@index([accessSessionId, commandType])
+  @@index([status, createdAt])
+  @@index([commandId])
+  @@index([expiresAt])
+}
+
+/// 門禁交易日誌（使用者在現場的通行記錄）
+model AccessLog {
+  id                String          @id @default(cuid())
+  accessSessionId   String
+  commandId         String?
+
+  venueId           String
+  controllerMacId   String
+
+  /// 通行嘗試時間（控制器時鐘）
+  attemptAt         DateTime
+
+  /// 通行結果
+  accessStatus      AccessStatus    @default(UNKNOWN)
+
+  /// 使用方式：PIN_ENTRY / CARD_SCAN / BIOMETRIC
+  accessMethod      String          @default("PIN_ENTRY")
+
+  /// 結果代碼（若控制器提供）
+  resultCode        String?
+  resultDescription String?
+
+  /// 門磁狀態：OPENED / CLOSED
+  doorState         String?
+  doorOpenAt        DateTime?
+  doorClosedAt      DateTime?
+
+  /// 時間異常偵測
+  clockDriftSeconds Int?
+
+  /// 詳細資料（已脫敏）
+  details           Json?
+
+  /// 是否為模擬記錄
+  simulated         Boolean         @default(false)
+
+  createdAt         DateTime        @default(now())
+
+  accessSession     AccessSession   @relation(fields: [accessSessionId], references: [id], onDelete: Cascade)
+  command           DoorAccessCommand? @relation(fields: [commandId], references: [id], onDelete: SetNull)
+
+  @@index([accessSessionId, attemptAt])
+  @@index([venueId, attemptAt])
+  @@index([accessStatus])
+  @@index([controllerMacId, attemptAt])
+}
+
+/// 門禁告警（Watchdog 擴展）
+model CredentialAlert {
+  id                String                  @id @default(cuid())
+  venueId           String
+  accessSessionId   String?
+
+  /// 告警類型
+  alertType         String // COMMAND_DELIVERY_FAILED / CONTROLLER_APPLY_FAILED 等
+  severity          WatchdogAlertSeverity
+
+  /// 標題與說明
+  title             String
+  description       String?
+
+  /// 影響的對象
+  affectedResource  String?                 // AccessSession ID 或 commandId
+
+  /// 告警狀態
+  status            String          @default("OPEN") // OPEN / ACKNOWLEDGED / RESOLVED
+
+  /// 自動觸發或人工
+  triggeredBy       String          @default("WATCHDOG") // WATCHDOG / MANUAL
+
+  detectionCount    Int             @default(1)
+
+  acknowledgedBy    String?
+  acknowledgedAt    DateTime?
+  acknowledgedNote  String?
+
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  resolveNote       String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  venue             Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  accessSession     AccessSession?  @relation(fields: [accessSessionId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, status])
+  @@index([alertType, severity])
+  @@index([createdAt])
 }

@@ -1,0 +1,12 @@
+{
+  "image": "line-richmenu-premium-purple-paddles-2500x1686.jpg",
+  "size": { "width": 2500, "height": 1686 },
+  "areas": [
+    { "label": "場地預約", "bounds": { "x": 35, "y": 915, "width": 1300, "height": 430 } },
+    { "label": "球敘", "bounds": { "x": 1340, "y": 915, "width": 570, "height": 430 } },
+    { "label": "我的帳戶", "bounds": { "x": 1925, "y": 915, "width": 540, "height": 430 } },
+    { "label": "關於我們", "bounds": { "x": 100, "y": 1360, "width": 870, "height": 240 } },
+    { "label": "最新消息", "bounds": { "x": 980, "y": 1360, "width": 790, "height": 240 } },
+    { "label": "交通資訊", "bounds": { "x": 1780, "y": 1360, "width": 690, "height": 240 } }
+  ]
+}

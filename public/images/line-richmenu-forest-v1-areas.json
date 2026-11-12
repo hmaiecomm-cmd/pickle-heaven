@@ -1,0 +1,13 @@
+{
+  "image": "line-richmenu-forest-2500x1686.jpg",
+  "size": { "width": 2500, "height": 1686 },
+  "chatBarText": "開啟選單",
+  "areas": [
+    { "label": "球敘", "bounds": { "x": 39, "y": 537, "width": 795, "height": 538 } },
+    { "label": "場地預約", "bounds": { "x": 854, "y": 537, "width": 795, "height": 538 } },
+    { "label": "我的帳戶", "bounds": { "x": 1669, "y": 537, "width": 795, "height": 538 } },
+    { "label": "關於我們", "bounds": { "x": 39, "y": 1120, "width": 795, "height": 538 } },
+    { "label": "交通資訊", "bounds": { "x": 854, "y": 1120, "width": 795, "height": 538 } },
+    { "label": "最新消息", "bounds": { "x": 1669, "y": 1120, "width": 795, "height": 538 } }
+  ]
+}

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE 整合进度追踪器 - 演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 56rem;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #065f46;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .progress-section {
+            margin-bottom: 2rem;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .progress-percent {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .progress-text {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .progress-bar-container {
+            position: relative;
+            height: 2rem;
+            background: white;
+            border: 2px solid #86efac;
+            border-radius: 9999px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e, #16a34a);
+            transition: width 0.5s ease-out;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+        }
+
+        .progress-bar-shimmer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-bar-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .tasks-list {
+            space-y: 1rem;
+        }
+
+        .task-item {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .task-item.completed {
+            background: #ecfdf5;
+            border-color: #86efac;
+        }
+
+        .task-item.in-progress {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .task-item.pending {
+            background: white;
+            border-color: #e5e7eb;
+        }
+
+        .task-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .task-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .task-title {
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .task-description {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .task-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-pending {
+            background: #d1d5db;
+            color: white;
+        }
+
+        .btn-pending:hover {
+            background: #9ca3af;
+        }
+
+        .btn-in-progress {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-in-progress:hover {
+            background: #2563eb;
+        }
+
+        .btn-completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-completed:hover {
+            background: #059669;
+        }
+
+        .btn.active {
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5);
+        }
+
+        .task-progress {
+            margin-top: 1rem;
+        }
+
+        .task-progress-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .task-progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .task-progress-fill {
+            height: 100%;
+            background: #10b981;
+            transition: width 0.3s ease;
+        }
+
+        .subtasks {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .subtasks-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtask {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .subtask::before {
+            content: attr(data-icon);
+            position: absolute;
+            left: 0;
+            font-size: 1rem;
+        }
+
+        .info-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .info-section h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .info-section ul {
+            list-style: none;
+            space-y: 0.5rem;
+        }
+
+        .info-section li {
+            font-size: 0.875rem;
+            color: #555;
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .info-section li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #10b981;
+            font-weight: 700;
+        }
+
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 0.875rem;
+            margin-top: 2rem;
+        }
+
+        .link-guide {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: #059669;
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .link-guide:hover {
+            background: #047857;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 进度追踪卡片 -->
+        <div class="card">
+            <h1>🚀 LINE 整合进度追踪</h1>
+            <p class="subtitle">顾好 AI 智慧场馆平台</p>
+
+            <!-- 主进度条 -->
+            <div class="progress-section">
+                <div class="progress-info">
+                    <div>
+                        <div class="progress-percent" id="totalProgress">0%</div>
+                        <div class="progress-text">
+                            <span id="completedCount">0</span>/<span id="totalCount">3</span> 任务完成
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;">
+                        <div class="progress-bar-shimmer"></div>
+                    </div>
+                    <div class="progress-bar-text" id="progressBarText">0%</div>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">已完成</div>
+                    <div class="stat-value" id="statCompleted">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">进行中</div>
+                    <div class="stat-value" id="statInProgress">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">待开始</div>
+                    <div class="stat-value" id="statPending">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div id="tasksList" class="tasks-list"></div>
+
+        <!-- 信息区域 -->
+        <div class="card info-section">
+            <h2>📖 使用说明</h2>
+            <ul>
+                <li>点击按钮切换任务状态（待开始 → 进行中 → 完成）</li>
+                <li>拖动进度条精细调整完成百分比</li>
+                <li>跑马灯进度条实时更新总体完成度</li>
+                <li>刷新页面后进度会被保存（使用 localStorage）</li>
+            </ul>
+
+            <a href="./LINE_INTEGRATION_GUIDE.md" class="link-guide" download>
+                📋 下载完整指南 (Markdown)
+            </a>
+        </div>
+
+        <div class="footer">
+            💡 这是一个交互式演示 | 拖动滑块或点击按钮更新进度 | 时间: <span id="currentTime"></span>
+        </div>
+    </div>
+
+    <script>
+        // 初始化任务数据
+        const INITIAL_TASKS = [
+            {
+                id: 'login-flow',
+                label: '任务 1️⃣ 登入与流程整合',
+                description: '建立 LIFF、后端认证、登出流程',
+                status: 'pending',
+                progress: 0,
+                subtasks: [
+                    '✅ 环境变量配置',
+                    '⏳ useLiff Hook 创建',
+                    '⏳ /api/auth/line/verify 端点',
+                    '⏳ /api/auth/line/logout 端点',
+                    '⏳ 登入页面 UI',
+                    '⏳ 应用入口逻辑',
+                ],
+            },
+            {
+                id: 'testing',
+                label: '任务 2️⃣ 测试 LINE 连接',
+                description: '单元测试、集成测试、手动测试',
+                status: 'pending',
+                progress: 0,
+                subtasks: [
+                    '⏳ 单元测试 (verifyLineIdToken)',
+                    '⏳ 单元测试 (pushMessages)',
+                    '⏳ 集成测试脚本编写',
+                    '⏳ 集成测试执行',
+                    '⏳ 手动测试清单执行',
+                    '⏳ 端对端验证完成',
+                ],
+            },
+            {
+                id: 'terms',
+                label: '任务 3️⃣ 服务条款与同意',
+                description: '数据库、UI 组件、API 端点、整合登入流程',
+                status: 'pending',
+                progress: 0,
+                subtasks: [
+                    '⏳ Prisma Schema 更新',
+                    '⏳ 数据库迁移执行',
+                    '⏳ terms.ts 内容管理',
+                    '⏳ TermsModal 组件开发',
+                    '⏳ /api/terms/accept 端点',
+                    '⏳ /api/terms/check 端点',
+                    '⏳ 登入流程整合',
+                ],
+            },
+        ];
+
+        let tasks = JSON.parse(localStorage.getItem('line_integration_tasks')) || INITIAL_TASKS;
+
+        // 更新 UI
+        function updateUI() {
+            const totalProgress = Math.round(
+                tasks.reduce((sum, task) => sum + task.progress, 0) / tasks.length
+            );
+            const completedCount = tasks.filter((t) => t.status === 'completed').length;
+            const inProgressCount = tasks.filter((t) => t.status === 'in_progress').length;
+            const pendingCount = tasks.length - completedCount - inProgressCount;
+
+            // 更新统计
+            document.getElementById('totalProgress').textContent = totalProgress + '%';
+            document.getElementById('progressBarFill').style.width = totalProgress + '%';
+            document.getElementById('progressBarText').textContent = totalProgress + '%';
+            document.getElementById('completedCount').textContent = completedCount;
+            document.getElementById('statCompleted').textContent = completedCount;
+            document.getElementById('statInProgress').textContent = inProgressCount;
+            document.getElementById('statPending').textContent = pendingCount;
+
+            // 渲染任务列表
+            renderTasks();
+
+            // 保存进度
+            localStorage.setItem('line_integration_tasks', JSON.stringify(tasks));
+        }
+
+        function renderTasks() {
+            const tasksList = document.getElementById('tasksList');
+            tasksList.innerHTML = tasks.map((task) => `
+                <div class="card task-item ${task.status}">
+                    <div class="task-header">
+                        <div class="task-icon">
+                            ${task.status === 'completed' ? '✅' : task.status === 'in-progress' ? '⏳' : '⭕'}
+                        </div>
+                        <div style="flex: 1;">
+                            <div class="task-title">${task.label}</div>
+                            <div class="task-description">${task.description}</div>
+                        </div>
+                    </div>
+
+                    <div class="task-controls">
+                        <button class="btn ${task.status === 'pending' ? 'btn-pending active' : 'btn-pending'}"
+                            onclick="updateTask('${task.id}', 'pending', 0)">待开始</button>
+                        <button class="btn ${task.status === 'in_progress' ? 'btn-in-progress active' : 'btn-in-progress'}"
+                            onclick="updateTask('${task.id}', 'in_progress', Math.max(task.progress, 25))">进行中</button>
+                        <button class="btn ${task.status === 'completed' ? 'btn-completed active' : 'btn-completed'}"
+                            onclick="updateTask('${task.id}', 'completed', 100)">完成</button>
+                    </div>
+
+                    <div class="task-progress">
+                        <div class="task-progress-label">
+                            <span>进度</span>
+                            <span>${task.progress}%</span>
+                        </div>
+                        <input type="range" min="0" max="100" value="${task.progress}"
+                            onchange="updateProgress('${task.id}', this.value)"
+                            style="width: 100%; accent-color: #10b981; cursor: pointer;">
+                    </div>
+
+                    <div class="subtasks">
+                        <div class="subtasks-label">子任务</div>
+                        ${task.subtasks.map((st) => `
+                            <div class="subtask" data-icon="${st.charAt(0)}">${st.substring(1)}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateTask(taskId, status, progress) {
+            const task = tasks.find((t) => t.id === taskId);
+            if (task) {
+                task.status = status;
+                task.progress = progress;
+                updateUI();
+            }
+        }
+
+        function updateProgress(taskId, value) {
+            const task = tasks.find((t) => t.id === taskId);
+            if (task) {
+                const progress = parseInt(value);
+                task.progress = progress;
+                task.status = progress === 100 ? 'completed' : progress > 0 ? 'in_progress' : 'pending';
+                updateUI();
+            }
+        }
+
+        // 更新时间戳
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('zh-TW');
+        }
+
+        // 初始化
+        updateUI();
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
