@@ -2178,3 +2178,33 @@ model AdminLineBinding {
 }
 
 // ═══════════════════ 後台管理員系統 ═══════════════════
+
+/// 門禁授權（業務層）：誰、在什麼期間可以進入。預約付款後自動建立，或由管理者手動授權。
+/// 「尚未生效／已過期」依 validFrom、validUntil 與目前時間判斷，不另存狀態。
+model DoorAccessGrant {
+  id           String    @id @default(cuid())
+  venueId      String
+  /// BOOKING 預約自動授權／MANUAL 手動授權
+  source       String
+  /// 預約授權對應的訂單（一張訂單一筆授權）
+  bookingId    String?   @unique
+  /// 會員授權時的會員；手動授權給非會員（清潔、維修人員）時為空
+  userId       String?
+  holderName   String
+  holderPhone  String?
+  validFrom    DateTime
+  validUntil   DateTime
+  /// ACTIVE 有效／REVOKED 已撤銷
+  status       String    @default("ACTIVE")
+  note         String?
+  createdBy    String
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([venueId, validFrom, validUntil])
+  @@index([userId])
+  @@index([status])
+}

@@ -63,7 +63,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     key: 'access',
     label: '門禁權限管理',
     icon: 'access',
-    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'settings' }],
+    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'device.control' }],
   },
   {
     key: 'orders',

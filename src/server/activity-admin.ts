@@ -18,6 +18,7 @@ import { findConflicts, occupyCourts, OccupancyConflictError, releaseOccupancy, 
 import { notifySeatWatchers, publicCapacity, seatsUsed } from './activity-service'
 import { cancelBooking } from './booking-service'
 import { applyPoints } from './points-ledger'
+import { syncGrantForBookingSafe } from './door-access-grants'
 import { deleteAssetIfUnused } from './media'
 
 /**
@@ -816,6 +817,7 @@ export async function cancelActivitySession(sessionId: string, reason: string, a
         },
       })
     }, TX_OPTIONS)
+    await syncGrantForBookingSafe(b.id)
     summary.refunded++
     summary.refundedAmount += cashShare
     summary.toPoints += toPoints

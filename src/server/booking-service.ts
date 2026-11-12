@@ -14,6 +14,7 @@ import { notifySeatWatchers, publicCapacity, seatsUsed, visibleSessionWhere } fr
 import { syncRefundStatus } from './refund-service'
 import { assertNotRestricted, RestrictedError } from './member-restrictions'
 import { applyPoints } from './points-ledger'
+import { syncGrantForBookingSafe } from './door-access-grants'
 
 /** 待付款訂單的付款期限（分鐘） */
 export const PAYMENT_WINDOW_MINUTES = 15
@@ -601,6 +602,8 @@ export async function markBookingPaid(bookingId: string, info: PaidInfo): Promis
 
   if (!outcome.claimed) return { alreadyPaid: true }
 
+  await syncGrantForBookingSafe(bookingId)
+
   if (outcome.conflict) {
     await refundUnfulfilledPayment(bookingId, info, outcome.conflict)
     return { alreadyPaid: false, conflict: outcome.conflict }
@@ -798,6 +801,7 @@ export async function cancelBooking(
     // 未使用完成的折價券歸還
     await tx.voucher.updateMany({ where: { bookingId }, data: { bookingId: null, usedAt: null } })
   }, TX_OPTIONS)
+  await syncGrantForBookingSafe(bookingId)
 
   // 2. 實付金額優先原路退回；金流不支援或失敗才改為點數（不會兩邊都退）
   let method: 'ORIGINAL' | 'POINTS' = 'POINTS'
