@@ -452,7 +452,7 @@ export async function getFinancialSummary(
     if (!res.success) {
       return {
         ...res,
-        data: { period: { from: new Date(), to: new Date() }, grossRevenue: 0, expenses: 0, netRevenue: 0, operatingProfit: 0, profitMargin: 0 },
+        data: { period: { from: new Date(), to: new Date() }, collected: 0, refunded: 0, net: 0, expenses: 0, netAfterExpenses: 0, margin: 0 },
       }
     }
     return { ...res, data: { ...res.data, period: { from: new Date(res.data.period.from), to: new Date(res.data.period.to) } } }
@@ -465,14 +465,19 @@ export async function getFinancialSummary(
     const revenueAmounts = revenues.map((r) => r.amount)
     const expenseAmounts = expenses.map((e) => e.amount)
 
-    const { totalExpenses, ...metrics } = calculateFinancialMetrics(revenueAmounts, expenseAmounts)
+    const { totalExpenses, grossRevenue } = calculateFinancialMetrics(revenueAmounts, expenseAmounts)
+    const netAfterExpenses = grossRevenue - totalExpenses
 
     return {
       success: true,
       data: {
         period: { from: range.from, to: range.to },
+        collected: grossRevenue,
+        refunded: 0,
+        net: grossRevenue,
         expenses: totalExpenses,
-        ...metrics,
+        netAfterExpenses,
+        margin: grossRevenue > 0 ? Math.round((netAfterExpenses / grossRevenue) * 10000) / 100 : 0,
       },
       meta: {
         dateRange: {
@@ -486,11 +491,12 @@ export async function getFinancialSummary(
       success: false,
       data: {
         period: { from: new Date(), to: new Date() },
-        grossRevenue: 0,
+        collected: 0,
+        refunded: 0,
+        net: 0,
         expenses: 0,
-        netRevenue: 0,
-        operatingProfit: 0,
-        profitMargin: 0,
+        netAfterExpenses: 0,
+        margin: 0,
       },
       error: {
         code: 'FETCH_ERROR',

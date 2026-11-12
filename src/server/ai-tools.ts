@@ -2,6 +2,7 @@ import 'server-only'
 import type Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
 import { isFinanceRange, resolveFinanceRange, type FinanceRange } from '@/lib/finance-range'
+import { allocateCollected, collectedBookings, collectedOf, financeTotals } from './finance-metrics'
 import { addDays, isValidDateString, slotStarts, taipeiDateString, taipeiToUtc } from '@/lib/time'
 
 /**
@@ -121,15 +122,8 @@ function dateArg(v: unknown): string | null {
 }
 
 async function revenueBetween(from: Date, to: Date) {
-  const agg = await prisma.booking.aggregate({
-    where: { status: { in: ['PAID', 'COMPLETED'] }, paidAt: { gte: from, lt: to } },
-    _sum: { total: true },
-    _count: { _all: true },
-  })
-  const exp = await prisma.expense.aggregate({ where: { status: 'APPROVED', submittedAt: { gte: from, lt: to } }, _sum: { amount: true } })
-  const revenue = agg._sum.total ?? 0
-  const expenses = exp._sum.amount ?? 0
-  return { revenue, bookings: agg._count._all, expenses, net: revenue - expenses }
+  const t = await financeTotals({ fromUtc: from, toUtc: to })
+  return { collected: t.collected, refunded: t.refunded, netCollected: t.net, bookings: t.orders, expenses: t.expenses, net: t.net - t.expenses }
 }
 
 type Handler = (input: Record<string, unknown>) => Promise<ToolOutcome>
@@ -144,34 +138,30 @@ const HANDLERS: Record<string, Handler> = {
     return {
       data: {
         period: RANGE_LABEL[range],
-        current: { ...cur, profitMarginPct: cur.revenue > 0 ? Math.round((cur.net / cur.revenue) * 1000) / 10 : null },
+        current: { ...cur, marginPct: cur.netCollected > 0 ? Math.round((cur.net / cur.netCollected) * 1000) / 10 : null },
         previousPeriod: prev,
-        revenueChangePct: pct(cur.revenue, prev.revenue),
+        netCollectedChangePct: pct(cur.netCollected, prev.netCollected),
       },
-      source: '訂單（Booking）、費用（Expense）',
+      source: '付款（Payment）、退款（Refund）、訂單（Booking）、費用（Expense）',
       period: { from, to },
-      note: '營收 = 期間內付款完成（已付款／已完成）的訂單實收；費用 = 已核准費用（依提交日）；比較基準為緊鄰的前一個同長度期間。',
+      note: '與後台營運總覽同一套算法：實收 = 付款成功金額（依付款時間）；退款 = 已完成現金退款（依完成時間）；淨實收 = 實收 − 退款；net = 淨實收 − 已核准費用（依提交日）；比較基準為緊鄰的前一個同長度期間。',
     }
   },
 
   async get_revenue_breakdown(input) {
     const range = rangeOf(input)
     const { from, to } = resolveFinanceRange(range)
-    const bookings = await prisma.booking.findMany({
-      where: { status: { in: ['PAID', 'COMPLETED'] }, paidAt: { gte: from, lt: to } },
-      select: { total: true, paidAt: true, items: { select: { courtName: true, price: true } }, payments: { where: { status: 'SUCCESS' }, select: { method: true }, take: 1 } },
-      take: 2000,
-    })
+    const bookings = await collectedBookings({ fromUtc: from, toUtc: to })
     const byCourt = new Map<string, number>()
     const byMethod = new Map<string, number>()
     const byDay = new Map<string, number>()
     for (const b of bookings) {
-      const subtotal = b.items.reduce((s, i) => s + i.price, 0) || 1
-      for (const it of b.items) byCourt.set(it.courtName, (byCourt.get(it.courtName) ?? 0) + Math.round((b.total * it.price) / subtotal))
+      const total = collectedOf(b)
+      for (const line of allocateCollected(b)) byCourt.set(line.label, (byCourt.get(line.label) ?? 0) + line.amount)
       const m = b.payments[0]?.method ?? 'UNKNOWN'
-      byMethod.set(m, (byMethod.get(m) ?? 0) + b.total)
+      byMethod.set(m, (byMethod.get(m) ?? 0) + total)
       const d = taipeiDateString(b.paidAt ?? new Date())
-      byDay.set(d, (byDay.get(d) ?? 0) + b.total)
+      byDay.set(d, (byDay.get(d) ?? 0) + total)
     }
     const sorted = (m: Map<string, number>) => [...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ key: k, revenue: v }))
     return {

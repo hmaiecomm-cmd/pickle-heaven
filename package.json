@@ -38,7 +38,8 @@
     "verify:line-push": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-line-push.ts",
     "verify:reminders": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-booking-reminders.ts",
     "verify:mock-access": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-mock-payment-access.ts",
-    "verify:door": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-door-grants.ts"
+    "verify:door": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-door-grants.ts",
+    "verify:finance": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-finance-metrics.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

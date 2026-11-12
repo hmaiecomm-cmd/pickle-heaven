@@ -171,12 +171,13 @@ export function FinanceClient() {
         <>
           {/* KPI */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-            <KPICard icon={<DollarSign className="h-5 w-5" />} label="總營收" value={s.grossRevenue.toLocaleString()} unit="元" />
-            <KPICard icon={<Receipt className="h-5 w-5" />} label="費用" value={s.expenses.toLocaleString()} unit="元" />
-            <KPICard icon={<Wallet className="h-5 w-5" />} label="淨收入" value={s.netRevenue.toLocaleString()} unit="元" />
-            <KPICard icon={<TrendingUp className="h-5 w-5" />} label="營業利潤" value={s.operatingProfit.toLocaleString()} unit="元" />
-            <KPICard icon={<Percent className="h-5 w-5" />} label="利潤率" value={s.profitMargin.toFixed(1)} unit="%" />
+            <KPICard icon={<DollarSign className="h-5 w-5" />} label="實收" value={s.collected.toLocaleString()} unit="元" />
+            <KPICard icon={<Receipt className="h-5 w-5" />} label="退款" value={s.refunded.toLocaleString()} unit="元" />
+            <KPICard icon={<Wallet className="h-5 w-5" />} label="淨實收" value={s.net.toLocaleString()} unit="元" />
+            <KPICard icon={<TrendingUp className="h-5 w-5" />} label="扣除費用後" value={s.netAfterExpenses.toLocaleString()} unit="元" />
+            <KPICard icon={<Percent className="h-5 w-5" />} label="費用後比率" value={s.margin.toFixed(1)} unit="%" />
           </div>
+          <p className="-mt-2 text-[11px] text-muted">實收依付款時間、退款依完成時間、費用（{s.expenses.toLocaleString()} 元）依申請時間；與營運總覽使用同一套算法。</p>
 
           {/* 趨勢 */}
           <div className="grid gap-4 lg:grid-cols-3">

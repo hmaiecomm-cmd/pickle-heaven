@@ -71,12 +71,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     icon: 'orders',
     items: [
       { label: '訂場與活動訂單', href: '/admin/bookings', permission: 'bookings', exact: true },
-      { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
-      { label: '儲值單', href: '/admin/topup', permission: 'finance' },
+      { label: '收款紀錄', href: '/admin/finance/payments', permission: 'finance' },
       { label: '退款紀錄', href: '/admin/refunds', permission: 'finance' },
+      { label: '儲值交易', href: '/admin/topup', permission: 'finance' },
+      { label: '點數與票券交易', href: '/admin/members/points', permission: 'members' },
       { label: '發票管理', href: '/admin/invoices', permission: 'invoice' },
-      { label: '收入與退款', href: '/admin/finance', permission: 'finance' },
-      { label: '費用與收據（申請與審核）', href: '/admin/expenses', permission: 'expenses.own' },
+      { label: '費用與收據審核', href: '/admin/expenses', permission: 'expenses.own' },
+      { label: '日結與對帳', href: '/admin/finance/daily', permission: 'finance' },
+      { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
     ],
   },
   {
@@ -86,7 +88,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '人員列表', href: '/admin/members', permission: 'members', exact: true },
       { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'finance' },
-      { label: '點數與票券', href: '/admin/members/points', permission: 'members' },
       { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members.restrict' },
       { label: '活動列表', href: '/admin/activities', permission: 'activities' },
       { label: '場次與週期安排', href: '/admin/sessions', permission: 'activities.view' },
@@ -102,7 +103,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '營運總覽',
     icon: 'reports',
     items: [
-      { label: '營運概況（含帳務）', href: '/admin/reports', permission: 'finance', exact: true },
+      { label: '營運總覽', href: '/admin/reports', permission: 'finance', exact: true },
+      { label: '收入與退款分析', href: '/admin/finance', permission: 'finance', exact: true },
       { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' },
       { label: '活動參與', href: '/admin/reports/activities', permission: 'reports' },
       { label: '會員分析', href: '/admin/reports/members', permission: 'reports' },
@@ -128,7 +130,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
 /** 相關但不在側欄的頁面，歸屬到哪個選單項目（用來標示選中） */
 export const ALIAS_PATHS: Record<string, string> = {
   '/admin/receipts': '/admin/expenses',
-  '/admin/finance/payments': '/admin/finance',
   '/admin/ai-courts': '/admin/control',
   '/admin/ai-assistant': '/admin',
   '/admin/templates': '/admin/activities',

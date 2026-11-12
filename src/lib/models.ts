@@ -343,11 +343,18 @@ export interface FinancialSummary {
     from: Date
     to: Date
   }
-  grossRevenue: number
+  /** 實收：付款成功金額，依付款時間 */
+  collected: number
+  /** 已完成的現金退款，依完成時間 */
+  refunded: number
+  /** 淨實收 = 實收 − 退款 */
+  net: number
+  /** 已核准費用，依申請時間 */
   expenses: number
-  netRevenue: number
-  operatingProfit: number
-  profitMargin: number // percentage
+  /** 淨實收 − 費用 */
+  netAfterExpenses: number
+  /** netAfterExpenses ÷ net，百分比 */
+  margin: number
 }
 
 export interface RevenueByType {

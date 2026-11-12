@@ -1,6 +1,7 @@
 import 'server-only'
 import { prisma } from '@/lib/db'
 import { addDays, slotStarts, taipeiDateString, taipeiToUtc } from '@/lib/time'
+import { financeTotals } from '@/server/finance-metrics'
 
 /** 報表共用：期間（以台北日期計）與基本資料 */
 export function periodOf(days: string | undefined) {
@@ -12,12 +13,17 @@ export function periodOf(days: string | undefined) {
 
 export type Period = ReturnType<typeof periodOf>
 
+/** 今天（台北時間）的期間 */
+export function todayPeriod(): Period {
+  const d = taipeiDateString()
+  return { days: 1, from: d, to: d, fromUtc: taipeiToUtc(d, 0), toUtc: taipeiToUtc(addDays(d, 1), 0) }
+}
+
 export async function overview(p: Period) {
   const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, include: { courts: { where: { active: true } } } })
-  const [ordered, paid, refunds, bookings, cancelled] = await Promise.all([
+  const [ordered, totals, bookings, cancelled] = await Promise.all([
     prisma.booking.aggregate({ where: { createdAt: { gte: p.fromUtc, lt: p.toUtc } }, _sum: { subtotal: true }, _count: { _all: true } }),
-    prisma.booking.aggregate({ where: { paidAt: { gte: p.fromUtc, lt: p.toUtc }, payments: { some: { status: { in: ['SUCCESS', 'REFUNDED'] } } } }, _sum: { total: true }, _count: { _all: true } }),
-    prisma.refund.aggregate({ where: { status: { in: ['SUCCEEDED', 'MANUAL_DONE'] }, completedAt: { gte: p.fromUtc, lt: p.toUtc } }, _sum: { cashAmount: true, pointsAmount: true }, _count: { _all: true } }),
+    financeTotals(p),
     prisma.booking.count({ where: { playDate: { gte: p.from, lte: p.to }, status: { in: ['PAID', 'COMPLETED'] } } }),
     prisma.booking.count({ where: { cancelledAt: { gte: p.fromUtc, lt: p.toUtc } } }),
   ])
@@ -25,11 +31,12 @@ export async function overview(p: Period) {
     venue,
     orderAmount: ordered._sum.subtotal ?? 0,
     orderCount: ordered._count._all,
-    collected: paid._sum.total ?? 0,
-    paidCount: paid._count._all,
-    refunded: refunds._sum.cashAmount ?? 0,
-    refundedPoints: refunds._sum.pointsAmount ?? 0,
-    refundCount: refunds._count._all,
+    totals,
+    collected: totals.collected,
+    paidCount: totals.orders,
+    refunded: totals.refunded,
+    refundedPoints: totals.refundedPoints,
+    refundCount: totals.refundCount,
     playedBookings: bookings,
     cancelled,
   }
