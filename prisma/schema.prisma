@@ -569,6 +569,22 @@ model Booking {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  /// 訂單簽署狀態（預約條款）
+  termsAckedAt      DateTime?
+  termsVersion      String?
+
+  /// 最近一次自助取消嘗試
+  lastCancelAttempt DateTime?
+  cancelAttemptReason String?
+
+  /// Check-in 狀態
+  checkedInAt       DateTime?
+  noShowReason      String?
+
+  /// 退款期限信息
+  cancelDeadlineAt  DateTime?
+  refundEligible    Boolean           @default(false)
+
   user          User                  @relation(fields: [userId], references: [id])
   venue         Venue                 @relation(fields: [venueId], references: [id])
   items         BookingItem[]
@@ -578,10 +594,13 @@ model Booking {
   reservations  Reservation[]
   voucher       Voucher?
   invoices      Invoice[]
+  cancellationLog CancellationLog[]
 
   @@index([userId, createdAt])
   @@index([venueId, playDate])
   @@index([status])
+  @@index([checkedInAt])
+  @@index([cancelDeadlineAt])
 }
 
 /// 訂單明細（下單當下的快照）
@@ -1257,11 +1276,54 @@ model Refund {
   completedAt    DateTime?
   note           String?
 
+  /// 退款是否符合「全額退款」條件
+  fullRefundEligible  Boolean         @default(false)
+
+  /// 取消截止點時間
+  cancelDeadlineAt    DateTime?
+
+  /// 實際取消時間
+  actualCancelledAt   DateTime?
+
+  /// 是否為超期退款（可能需人工審核）
+  isLateRefund        Boolean         @default(false)
+
+  /// 退款流程狀態細節（JSON 結構化數據）
+  refundBreakdown     Json?
+
   booking Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   items   RefundItem[]
 
   @@index([bookingId])
   @@index([status, createdAt])
+}
+
+/// 訂單取消日誌
+model CancellationLog {
+  id                String    @id @default(cuid())
+  bookingId         String
+
+  /// 嘗試時間
+  attemptAt         DateTime  @default(now())
+
+  /// 狀態：SUCCESS / REJECTED_TOO_LATE / REJECTED_CHECKED_IN / REJECTED_OTHER
+  status            String
+
+  /// 拒絕原因說明
+  rejectionReason   String?
+
+  /// 距開打時間（分鐘）— 用於稽核
+  minutesBeforeStart Int?
+
+  /// 操作人（自助或人工）
+  operatedBy        String    @default("USER") // USER / ADMIN
+
+  createdAt         DateTime  @default(now())
+
+  booking           Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, attemptAt])
+  @@index([status])
 }
 
 model RefundItem {

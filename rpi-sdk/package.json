@@ -1,0 +1,23 @@
+{
+  "name": "pickle-heaven-rpi-sdk",
+  "version": "1.0.0",
+  "description": "Raspberry Pi 現場控制軟件套件（MQTT Broker + Gateway Agent）",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "gateway-agent",
+    "cli"
+  ],
+  "scripts": {
+    "install-all": "npm install && npm run install -w gateway-agent && npm run install -w cli",
+    "build-all": "npm run build -w gateway-agent && npm run build -w cli",
+    "test": "npm run test -w gateway-agent && npm run test -w cli",
+    "test:simulation": "./scripts/test-simulation.sh",
+    "dev": "npm run dev -w gateway-agent",
+    "lint": "npm run lint -w gateway-agent && npm run lint -w cli"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}
