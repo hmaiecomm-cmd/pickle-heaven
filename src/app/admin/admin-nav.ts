@@ -15,9 +15,12 @@ export interface AdminNavItem {
   notOpen?: boolean
 }
 
+export type AdminNavIcon = 'home' | 'courts' | 'monitor' | 'devices' | 'access' | 'orders' | 'members' | 'reports' | 'settings'
+
 export interface AdminNavGroup {
   key: string
   label: string
+  icon: AdminNavIcon
   /** 沒有子項目時直接連結 */
   href?: string
   permission?: Permission
@@ -25,9 +28,11 @@ export interface AdminNavGroup {
 }
 
 export const ADMIN_NAV: AdminNavGroup[] = [
+  { key: 'home', label: '首頁', icon: 'home', href: '/admin', permission: 'dashboard' },
   {
     key: 'courts',
     label: '場地與預約',
+    icon: 'courts',
     items: [
       { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地與時段', href: '/admin/courts', permission: 'courts' },
@@ -38,6 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'monitor',
     label: '即時監控',
+    icon: 'monitor',
     items: [
       { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
       { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
@@ -46,6 +52,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'devices',
     label: '智慧設備管理',
+    icon: 'devices',
     items: [
       { label: '設備配置與電力迴路', href: '/admin/devices', permission: 'settings' },
       { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
@@ -55,11 +62,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'access',
     label: '門禁權限管理',
+    icon: 'access',
     items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'settings' }],
   },
   {
     key: 'orders',
     label: '訂單與財務',
+    icon: 'orders',
     items: [
       { label: '訂場與活動訂單', href: '/admin/bookings', permission: 'bookings', exact: true },
       { label: '商品訂單', href: '/admin/bookings/products', permission: 'marketing', notOpen: true },
@@ -73,6 +82,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'members',
     label: '會員與活動',
+    icon: 'members',
     items: [
       { label: '人員列表', href: '/admin/members', permission: 'members', exact: true },
       { label: '會員預約與消費紀錄', href: '/admin/members/history', permission: 'finance' },
@@ -90,6 +100,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'reports',
     label: '營運總覽',
+    icon: 'reports',
     items: [
       { label: '營運概況（含帳務）', href: '/admin/reports', permission: 'finance', exact: true },
       { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' },
@@ -100,6 +111,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     key: 'settings',
     label: '系統設定',
+    icon: 'settings',
     items: [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
       { label: '營業時間與預約規則', href: '/admin/pricing', permission: 'settings' },

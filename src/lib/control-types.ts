@@ -116,7 +116,7 @@ export const CIRCUIT_DEFINITIONS: Record<CircuitNumber, {
     defaultEnabled: true,
     remoteControlEnabled: false,
     scheduleControlEnabled: false,
-    description: 'Pro Shop 冷氣的供電（台數待確認）— 24 小時供電，不納入預約自動斷電',
+    description: 'Pro Shop 冷氣（3 台）的供電 — 24 小時供電，不納入預約自動斷電',
   },
   '14': {
     name: '辦公室弱電箱專用插座',
