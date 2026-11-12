@@ -22,8 +22,6 @@ function pass(req: NextRequest) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   if (pathname === '/admin/login' || pathname.startsWith('/admin/login/')) return pass(req)
-  // LINE 登入的起點與回呼必須在未登入時可用；兩個路由自行驗證 state、nonce、PKCE 與綁定
-  if (pathname === '/api/admin/auth/line/start' || pathname === '/api/admin/auth/line/callback') return pass(req)
 
   const token = req.cookies.get(ADMIN_COOKIE)?.value
   const secret = process.env.SESSION_SECRET

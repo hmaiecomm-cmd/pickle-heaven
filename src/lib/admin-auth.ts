@@ -154,8 +154,8 @@ export async function signInAdmin(username: string, password: string): Promise<S
 type SessionAccount = { id: string; username: string; role: string; tenant: string; active: boolean; userId: string | null }
 
 /**
- * 為已通過驗證（密碼或 LINE）的帳號建立伺服器端 session，回傳要寫入 Cookie 的憑證。
- * 帳號停用、黑名單、展示環境未設定時拒絕。密碼登入與 LINE 登入共用，規則完全一致。
+ * 為已通過密碼驗證的帳號建立伺服器端 session，回傳要寫入 Cookie 的憑證。
+ * 帳號停用、黑名單、展示環境未設定時拒絕。
  */
 export async function issueAdminSession(
   account: SessionAccount,
