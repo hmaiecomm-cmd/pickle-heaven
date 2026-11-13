@@ -2248,3 +2248,97 @@ model MonitorCamera {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
+/// 設備自動化規則 — 用於控制設備的自動執行條件和動作
+model AutomationRule {
+  id             String    @id @default(cuid())
+  venueId        String
+  
+  /// 規則名稱（例如：預約結束後延遲關燈）
+  name           String
+  
+  /// 規則啟用狀態
+  enabled        Boolean   @default(false)
+  
+  /// 觸發類型：RESERVATION_END, TIME_BASED, MANUAL, SENSOR
+  triggerType    String
+  
+  /// 觸發條件（JSON）例如：{ "reservationEndMinutes": 5, "exemptDates": [] }
+  triggerConfig  String
+  
+  /// 受影響的迴路（逗號分隔）
+  circuitNumbers String
+  
+  /// 動作類型：POWER_ON, POWER_OFF, SCHEDULE_SWITCH
+  actionType     String
+  
+  /// 動作參數（JSON）
+  actionConfig   String
+  
+  /// 優先級（1-10，數字越大優先級越高）
+  priority       Int       @default(5)
+  
+  /// 例外日期（逗號分隔，YYYY-MM-DD）
+  exceptDates    String?
+  
+  /// 適用星期（0-6，Sunday-Saturday，逗號分隔）
+  weekdays       String    @default("0,1,2,3,4,5,6")
+  
+  /// 是否暫停執行
+  paused         Boolean   @default(false)
+  
+  /// 暫停原因
+  pauseReason    String?
+  
+  /// 規則說明
+  note           String?
+  
+  /// 上次執行時間
+  lastTriggeredAt DateTime?
+  
+  /// 上次執行結果（SUCCESS, FAILED, SKIPPED）
+  lastResult     String?
+  
+  /// 上次執行錯誤信息
+  lastError      String?
+  
+  /// 建立者
+  createdBy      String
+  
+  /// 修改者
+  modifiedBy     String
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([venueId, enabled])
+  @@index([triggerType])
+}
+
+/// 自動化規則執行日誌
+model AutomationLog {
+  id              String    @id @default(cuid())
+  ruleId          String
+  venueId         String
+  
+  /// 觸發時間
+  triggeredAt     DateTime
+  
+  /// 執行結果：SUCCESS, FAILED, SKIPPED
+  result          String
+  
+  /// 執行動作（例如：設置迴路 01 為 ON）
+  action          String?
+  
+  /// 錯誤信息（如有）
+  errorMessage    String?
+  
+  /// 受影響的迴路
+  affectedCircuits String?
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([ruleId])
+  @@index([venueId])
+  @@index([triggeredAt])
+}
