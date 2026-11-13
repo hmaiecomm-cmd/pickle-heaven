@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
+import { ControlSchedulePanel } from './control-schedule-panel'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import {
   CATEGORY_INFO,
@@ -204,45 +205,16 @@ function DetailPanel({ selected }: { selected: Selection }) {
   }
   if (!selected) {
     return (
-      <aside aria-label="設備詳情" className="grid place-items-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-muted">
-        點選配置圖或清單中的設備查看詳情
+      <aside aria-label="控制排程" className="grid place-items-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-muted">
+        點選配置圖或清單中的設備查看排程管理
       </aside>
     )
   }
   const n = selected.id
   const def = CIRCUIT_DEFINITIONS[n]
   const cat = CATEGORY_INFO[def.category]
-  const spec = CIRCUIT_SPECS[n]
-  const location = circuitLocation(n)
-  const control =
-    def.category === 'ALWAYS_ON'
-      ? '不適用：不斷電供電（Bypass）'
-      : def.category === 'RESERVED'
-        ? '不啟用：預留迴路'
-        : '尚未串接硬體，Demo Mode 不提供開關'
 
-  return (
-    <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
-      <p className="text-xs text-muted">迴路 {n}</p>
-      <h3 className="mt-1 text-base font-semibold">{def.name}</h3>
-      <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', TONE[cat.tone].chip)}>
-        {cat.label}・{cat.schedule}
-      </span>
-      <p className="mt-2 text-xs leading-relaxed text-zinc-600">{cat.rule}</p>
-
-      <dl className="mt-3 divide-y divide-zinc-100 border-t border-zinc-100">
-        <Row label="位置" value={location} pending={isPending(location)} />
-        {spec.units && <Row label="數量" value={spec.units} />}
-        {spec.note && <Row label="涵蓋範圍" value={spec.note} />}
-        <Row label="電壓" value={spec.voltage} pending={isPending(spec.voltage)} />
-        <Row label="負載（功率）" value={spec.load} pending={isPending(spec.load)} />
-        <Row label="控制器／通道" value="待確認" pending />
-        <Row label="連線狀態" value={<span className="font-medium text-amber-700">未連線（Demo Mode）</span>} />
-        <Row label="目前狀態" value="未知（尚未串接）" />
-        <Row label="遠端控制" value={control} />
-      </dl>
-    </aside>
-  )
+  return <ControlSchedulePanel circuitNumber={n} category={def.category} />
 }
 
 function CircuitList({ selected, onSelect }: { selected: Selection; onSelect: (s: Selection) => void }) {
