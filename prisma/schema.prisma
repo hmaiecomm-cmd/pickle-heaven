@@ -1744,6 +1744,36 @@ model CircuitSchedule {
   @@index([enabled])
 }
 
+/// 排程操作審計日誌（追蹤所有修改）
+model CircuitScheduleAudit {
+  id String @id @default(cuid())
+
+  /// 關聯的排程 ID
+  scheduleId String?
+  circuitNumber String
+  category String
+
+  /// 操作類型：CREATE / UPDATE / DELETE
+  operation String
+
+  /// 修改前的值（JSON）
+  previousValue Json?
+  /// 修改後的值（JSON）
+  newValue Json?
+
+  /// 修改人員
+  modifiedBy String?
+  /// 修改原因（選填）
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([circuitNumber])
+  @@index([operation])
+  @@index([createdAt])
+  @@index([modifiedBy])
+}
+
 /// MQTT 命令追蹤與確認
 model ControlCommand {
   id        String @id @default(cuid())

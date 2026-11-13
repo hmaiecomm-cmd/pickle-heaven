@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // 權限檢查：只有 ADMIN 和 SUPERVISOR 可修改排程
+  if ((ctx as any).role !== 'ADMIN' && (ctx as any).role !== 'SUPERVISOR') {
+    return NextResponse.json({ error: '無權限修改排程設定' }, { status: 403 })
+  }
+
   try {
     const payload: ScheduleUpdatePayload = await request.json()
     const user = await getAdminUser()
@@ -68,6 +73,14 @@ export async function POST(request: NextRequest) {
     }
 
     const circuitId = circuit.id
+
+    // 查詢舊的排程設定用於審計
+    const oldSchedules = await prisma.circuitSchedule.findMany({
+      where: {
+        circuitId,
+        category: payload.category,
+      },
+    })
 
     // 更新預約動態控制
     if (payload.category === 'RESERVATION_DYNAMIC' && payload.reservationControl) {
@@ -97,7 +110,7 @@ export async function POST(request: NextRequest) {
       })
 
       // 新增主排程記錄
-      await prisma.circuitSchedule.create({
+      const newSchedule = await prisma.circuitSchedule.create({
         data: {
           circuitId,
           category: payload.category,
@@ -106,6 +119,19 @@ export async function POST(request: NextRequest) {
           weekdays: payload.operatingHours.weekdays,
           modifiedBy,
           enabled: true,
+        },
+      })
+
+      // 記錄審計日誌
+      await prisma.circuitScheduleAudit.create({
+        data: {
+          scheduleId: newSchedule.id,
+          circuitNumber: payload.circuitNumber || circuit.circuitNumber,
+          category: payload.category,
+          operation: oldSchedules.length > 0 ? 'UPDATE' : 'CREATE',
+          previousValue: oldSchedules.length > 0 ? JSON.parse(JSON.stringify(oldSchedules[0])) : null,
+          newValue: JSON.parse(JSON.stringify(newSchedule)),
+          modifiedBy,
         },
       })
     }
