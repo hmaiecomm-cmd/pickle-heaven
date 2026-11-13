@@ -6,6 +6,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/check-schedules",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/expire-bookings",
       "schedule": "0 17 * * *"
     },
