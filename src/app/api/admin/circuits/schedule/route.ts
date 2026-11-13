@@ -40,6 +40,28 @@ function validateTimeRange(startMinute: number, endMinute: number): { valid: boo
   return { valid: true }
 }
 
+// 檢測時間衝突
+function detectTimeConflicts(
+  newStart: number,
+  newEnd: number,
+  existingSlots: Array<{ startMinute: number; endMinute: number }>
+): { hasConflict: boolean; conflicts: string[] } {
+  const conflicts: string[] = []
+
+  for (const slot of existingSlots) {
+    // 檢測是否重疊
+    if (!(newEnd <= slot.startMinute || newStart >= slot.endMinute)) {
+      const existingTime = `${String(Math.floor(slot.startMinute / 60)).padStart(2, '0')}:${String(slot.startMinute % 60).padStart(2, '0')}-${String(Math.floor(slot.endMinute / 60)).padStart(2, '0')}:${String(slot.endMinute % 60).padStart(2, '0')}`
+      conflicts.push(`與現有時段 ${existingTime} 衝突`)
+    }
+  }
+
+  return {
+    hasConflict: conflicts.length > 0,
+    conflicts,
+  }
+}
+
 export async function POST(request: NextRequest) {
   const ctx = await pagePermission('device')
   if (ctx === 'forbidden') {
@@ -138,11 +160,32 @@ export async function POST(request: NextRequest) {
 
     // 更新自訂時段（如果有）
     if (payload.customSlots && payload.customSlots.length > 0) {
+      // 先檢測衝突
+      const existingSlots = oldSchedules
+        .filter(s => s.note && s.startMinute !== null && s.endMinute !== null) // 只檢查自訂時段
+        .map(s => ({ startMinute: s.startMinute!, endMinute: s.endMinute! }))
+
       for (const slot of payload.customSlots) {
         const validation = validateTimeRange(slot.startMinute, slot.endMinute)
         if (!validation.valid) {
           return NextResponse.json(
             { error: `自訂時段驗證失敗: ${validation.error}` },
+            { status: 400 }
+          )
+        }
+
+        // 檢測與其他自訂時段的衝突
+        const otherSlots = existingSlots.filter((_, idx) => {
+          if (slot.id) {
+            const oldIdx = oldSchedules.findIndex(os => os.id === slot.id)
+            return idx !== oldIdx
+          }
+          return true
+        })
+        const conflict = detectTimeConflicts(slot.startMinute, slot.endMinute, otherSlots)
+        if (conflict.hasConflict) {
+          return NextResponse.json(
+            { error: `時段衝突: ${conflict.conflicts.join('、')}` },
             { status: 400 }
           )
         }
