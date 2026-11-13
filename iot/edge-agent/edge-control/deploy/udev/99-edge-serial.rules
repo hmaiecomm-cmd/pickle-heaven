@@ -1,0 +1,6 @@
+# Optional: give each RS-485 adapter a stable name and the dialout group. EXAMPLE ONLY - fill the real IDs
+# (udevadm info -a -n /dev/ttyUSB0 | grep -E 'serial|idVendor|idProduct'). Nothing here is confirmed for your adapters.
+# /dev/serial/by-id/... already exists on most distros and is the preferred stable path.
+#
+# SUBSYSTEM=="tty", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", ATTRS{serial}=="RELAY-ADAPTER-SERIAL", SYMLINK+="edge-rs485-relay", GROUP="dialout", MODE="0660"
+# SUBSYSTEM=="tty", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", ATTRS{serial}=="HVAC-ADAPTER-SERIAL",  SYMLINK+="edge-rs485-hvac",  GROUP="dialout", MODE="0660"

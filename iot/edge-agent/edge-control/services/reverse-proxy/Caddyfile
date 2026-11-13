@@ -1,0 +1,36 @@
+# Caddy: serves the web UI and proxies API + WHEP signalling on ONE origin (no CORS, cookies stay same-site).
+# Plain HTTP on :8080 by default so the stack starts anywhere. For production set EDGE_PUBLIC_HOST to a DNS
+# name (Caddy then obtains certificates) or terminate TLS in front and set EDGE_COOKIE_SECURE=true on the agent.
+{
+	auto_https off
+}
+
+:8080 {
+	encode gzip
+
+	# Never expose agent-internal hooks (MediaMTX auth callback) or the MediaMTX control API.
+	@internal path /internal/*
+	respond @internal 404
+
+	handle /v1/* {
+		reverse_proxy edge-agent:8000
+	}
+
+	# WHEP signalling for browsers. Media itself flows over WebRTC (UDP/TCP 8189 or TURN), NOT through this proxy.
+	handle_path /media/* {
+		reverse_proxy mediamtx:8889
+	}
+
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+	}
+}

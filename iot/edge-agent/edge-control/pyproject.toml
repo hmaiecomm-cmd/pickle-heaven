@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edge-control"
+version = "0.1.0"
+description = "顧好 Edge Control — venue edge agent (RS-485 device control + RTSP/WebRTC media)"
+requires-python = ">=3.11"
+# Versions below are the ones this MVP was developed and tested against.
+dependencies = [
+  "fastapi==0.136.3",
+  "uvicorn==0.48.0",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.16.2",
+  "SQLAlchemy==2.1.6",
+  "httpx==0.28.1",
+  "pyserial==3.5",
+  "pymodbus==3.16.2",
+  "PyYAML==6.0.3",
+  "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.1.post1"]
+
+[project.scripts]
+edge-control = "edge_control.main:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+edge_control = ["storage/migrations/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+markers = [
+  "hardware: needs real hardware; skipped unless EDGE_HARDWARE_TESTS=1 and devices are named",
+  "media: needs ffmpeg/mediamtx",
+]

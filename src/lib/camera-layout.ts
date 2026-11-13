@@ -1,51 +1,65 @@
-import type { ZoneId } from './venue-layout'
+import { VENUE_ZONES, type ZoneId } from './venue-layout'
 
 /**
- * 即時監控的 6 支攝影機（Camera 1–6）。
- * 座標使用 venue-layout 的平面圖 viewBox（136 × 66）；安裝位置與拍攝方向為示意，待現場確認。
- * 這裡只放公開的顯示資料，不含任何串流網址、帳號或密碼。
+ * 即時監控的 6 支攝影機（Camera 01–06）預設值。
+ * 名稱、區域、平面圖位置可在「攝影機管理」修改（存在 MonitorCamera 資料表）；沒有資料列時使用這裡的預設。
+ * 座標使用 venue-layout 的平面圖 viewBox（136 × 66）。這裡只放顯示資料，不含任何串流網址或憑證。
  */
 
-export type CameraId = 1 | 2 | 3 | 4 | 5 | 6
+export const CAMERA_IDS = ['01', '02', '03', '04', '05', '06'] as const
+export type CameraId = (typeof CAMERA_IDS)[number]
 
-export interface CameraSpec {
+export interface CameraDefaults {
   id: CameraId
-  /** 顯示代號，例如 Camera 1 */
-  code: string
   name: string
   zone: ZoneId
-  /** 平面圖上的安裝位置 */
   x: number
   y: number
   /** 拍攝方向（度；0 = 向右，90 = 向下） */
   facing: number
-  /** 拍攝範圍說明 */
   coverage: string
 }
 
-export const CAMERAS: CameraSpec[] = [
-  { id: 1, code: 'Camera 1', name: '出入口', zone: 'entrance', x: 111, y: 10, facing: 180, coverage: '大門外側與進出人員' },
-  { id: 2, code: 'Camera 2', name: '門內監看', zone: 'entrance', x: 103, y: 28, facing: 200, coverage: '門內通道、桌區入口' },
-  { id: 3, code: 'Camera 3', name: '休息區', zone: 'deck', x: 60, y: 33, facing: 90, coverage: '休息區（站板）' },
-  { id: 4, code: 'Camera 4', name: '球場 A', zone: 'courtA', x: 111, y: 44.5, facing: 160, coverage: '球場 A 全場' },
-  { id: 5, code: 'Camera 5', name: 'Pro Shop', zone: 'proshop', x: 35, y: 19, facing: 20, coverage: 'Pro Shop 櫃位與商品區' },
-  { id: 6, code: 'Camera 6', name: '球場 B', zone: 'courtB', x: 10, y: 44.5, facing: 20, coverage: '球場 B 全場' },
+export const DEFAULT_CAMERAS: CameraDefaults[] = [
+  { id: '01', name: '球場 A－中央', zone: 'courtA', x: 88, y: 44.2, facing: 90, coverage: '球場 A 全場（由中央上方俯拍）' },
+  { id: '02', name: '球場 A－側邊', zone: 'courtA', x: 111.5, y: 53.5, facing: 180, coverage: '球場 A 側邊與邊線' },
+  { id: '03', name: '室內休息區', zone: 'dining', x: 99, y: 19.5, facing: 165, coverage: '室內休息區座位、飲料販賣機' },
+  { id: '04', name: '門口休息區', zone: 'deck', x: 110.5, y: 33.6, facing: 180, coverage: '門口旁戶外座位區與門口動線' },
+  { id: '05', name: '球場 B－中央', zone: 'courtB', x: 35, y: 44.2, facing: 90, coverage: '球場 B 全場（由中央上方俯拍）' },
+  { id: '06', name: '出入口／大門', zone: 'entrance', x: 111, y: 10, facing: 200, coverage: '大門與進出人員' },
 ]
 
-export const CAMERA_IDS = CAMERAS.map((c) => c.id)
+export const cameraCode = (id: string) => `Camera ${id}`
+export const cameraTitle = (id: string, name: string) => `攝影機 ${id}｜${name}`
 
-export function cameraById(id: number): CameraSpec | undefined {
-  return CAMERAS.find((c) => c.id === id)
+export function isCameraId(v: unknown): v is CameraId {
+  return typeof v === 'string' && (CAMERA_IDS as readonly string[]).includes(v)
 }
 
 /** 前一支／下一支（循環），供主畫面切換 */
-export function stepCamera(id: CameraId, delta: 1 | -1): CameraId {
-  const i = CAMERA_IDS.indexOf(id)
-  return CAMERA_IDS[(i + delta + CAMERA_IDS.length) % CAMERA_IDS.length]
+export function stepCamera<T extends string>(ids: readonly T[], id: T, delta: 1 | -1): T {
+  const i = Math.max(0, ids.indexOf(id))
+  return ids[(i + delta + ids.length) % ids.length]
 }
 
+/**
+ * Demo Mode 的示範影像（只有 03、04 有現場照片）。照片不是即時串流，畫面上一律標示「示範影像」。
+ * 04 的主畫面用整張外觀照（保留建築、招牌、綠化），縮圖取景在門口休息區。
+ */
+export const DEMO_MEDIA: Partial<Record<CameraId, { main: string; mainPosition: string; thumb: string; thumbPosition: string }>> = {
+  '03': { main: '/monitor-demo/cam03-indoor-lounge.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam03-indoor-lounge.jpg', thumbPosition: '50% 55%' },
+  '04': { main: '/monitor-demo/cam04-entrance-full.jpg', mainPosition: '50% 70%', thumb: '/monitor-demo/cam04-entrance-lounge.jpg', thumbPosition: '45% 60%' },
+}
+
+/** 攝影機可選的區域 */
+export const CAMERA_ZONES: { id: ZoneId; name: string }[] = [...VENUE_ZONES.map((z) => ({ id: z.id, name: z.name })), { id: 'outdoor', name: '戶外' }]
+
+export const STREAM_PROTOCOLS = ['NVR', 'RTSP', 'HLS', 'WEBRTC'] as const
+export type StreamProtocol = (typeof STREAM_PROTOCOLS)[number]
+export const PROTOCOL_LABEL: Record<StreamProtocol, string> = { NVR: 'NVR 通道', RTSP: 'RTSP', HLS: 'HLS', WEBRTC: 'WebRTC' }
+
 /** 平面圖上的拍攝範圍扇形（SVG path） */
-export function conePath(c: Pick<CameraSpec, 'x' | 'y' | 'facing'>, length = 9, spread = 50): string {
+export function conePath(c: { x: number; y: number; facing: number }, length = 9, spread = 50): string {
   const rad = (d: number) => (d * Math.PI) / 180
   const a1 = rad(c.facing - spread / 2)
   const a2 = rad(c.facing + spread / 2)

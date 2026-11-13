@@ -1,0 +1,32 @@
+# Non-secret Hikvision settings.  Credentials/host/ports come ONLY from HIKVISION_* environment variables.
+nvr_id: nvr-1
+strategy: rtsp                   # rtsp | isapi | sdk | auto (auto follows only CONFIRMED capabilities)
+rtsp_transport: tcp
+# Fill from the official RTSP document + the real device, e.g. a template using {rtsp_stream_id}.  null = not configured.
+# Official doc (read 2026-11-12, "录像机【实时预览】RTSP取流地址"): rtsp://user:pwd@IP:554/Streaming/Channels/101
+#   = channel 1 main; 102 = channel 1 sub; 103 = third stream; 1201 = channel 12 main.  Older devices: /h264/ch1/main/av_stream.
+# Candidate template (set ONLY after confirming on the real NVR; {rtsp_stream_id} is bound per camera, e.g. "101"):
+# live_path_template: "/Streaming/Channels/{rtsp_stream_id}"
+live_path_template: null
+# History: template placeholders {track_id} {start} {end}; time format as the device document requires.
+# Official doc ("录像机【回放录像】RTSP取流地址"): rtsp://user:pwd@IP:554/Streaming/tracks/<channel+stream>?starttime=YYYYMMDDtHHMMSSz&endtime=...
+# Candidate (unverified on a device; the doc does not say whether 'z' is UTC or NVR-local time - test it):
+# playback_path_template: "/Streaming/tracks/{track_id}?starttime={start}&endtime={end}"
+# playback_time_format: "%Y%m%dt%H%M%Sz"
+playback_path_template: null
+playback_time_format: null
+capabilities_confirmed: false    # set true only after verifying each capability below on the real NVR
+capabilities:
+  live_rtsp: false
+  isapi_search: false
+  isapi_playback: false
+  sdk_search: false
+  sdk_playback: false
+  sdk_download: false
+  pause: false
+  speed: false
+  seek: false
+sdk_binding: none                # none | fake (tests) | official (needs the operator-supplied SDK + binding)
+http_timeout_seconds: 8
+sdk_worker_timeout_seconds: 15
+sdk_callback_queue_size: 256

@@ -1,0 +1,11 @@
+lead_minutes: 10                  # switch on before a booking starts
+lag_minutes: 10                   # switch off after a booking ends
+manual_override_max_minutes: 120
+offline_cache_max_minutes: 60     # cloud bookings older than this are not trusted for automatic control
+command_default_ttl_seconds: 60
+command_max_ttl_seconds: 600
+reconcile_interval_seconds: 30
+maintenance_mode: false           # must be true (and Admin) for single-circuit test writes
+per_device_rate_limit_per_minute: 30
+outbox_max_rows: 10000
+outbox_retention_days: 7

@@ -1,0 +1,11 @@
+{
+  "name": "Hikvision Device Network SDK (Linux)",
+  "version": "FILL-FROM-PACKAGE",
+  "arch": "x86_64 | aarch64",
+  "source": "https://open.hikvision.com/download/5cda567cf47ae80dd41a54b3?type=10",
+  "acquired_on": "YYYY-MM-DD",
+  "acquired_by": "operator",
+  "sha256_of_archive": "FILL",
+  "license": "FILL (accepted terms; redistribution NOT allowed unless the licence says so)",
+  "entry_library": "FILL-EXACT-FILENAME-FROM-PACKAGE.so"
+}

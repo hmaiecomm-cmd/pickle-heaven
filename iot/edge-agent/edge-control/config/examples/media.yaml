@@ -1,0 +1,16 @@
+live_ttl_default_seconds: 300
+live_ttl_min_seconds: 30
+live_ttl_max_seconds: 1800
+playback_ttl_default_seconds: 900
+max_live_sessions: 12
+max_live_sessions_per_actor: 8
+max_playback_sessions: 4
+max_playback_sessions_per_actor: 2
+max_ffmpeg_jobs: 4
+prepare_timeout_seconds: 25
+temp_dir_max_mb: 2048
+stun_urls: ["stun:stun.l.google.com:19302"]   # replace with your own STUN for production
+turn_enabled: false                            # optional; see docs/media-streaming.md and services/turn
+turn_urls: []                                  # e.g. ["turn:turn.example.com:3478?transport=udp"]
+turn_secret_env: EDGE_TURN_SHARED_SECRET       # coturn static-auth-secret, env only
+cloud_media: {}                                # {protocol: whip, url: https://...} only with a signed-off receiver contract

@@ -1,0 +1,19 @@
+# OPTIONAL coturn configuration (not started by default). Copy to turnserver.conf and fill in.
+# Short-lived credentials (REST API style): the edge agent derives username=<expiry>:<session> and
+# credential=HMAC-SHA1(static-auth-secret, username) per session, so no permanent TURN password reaches the browser.
+# Put the same secret in the agent's EDGE_TURN_SHARED_SECRET and set media.yaml turn_enabled: true + turn_urls.
+listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=CHANGE-ME-LONG-RANDOM
+realm=edge.example.com
+# external-ip=<public-ip>[/<private-ip>]
+min-port=49160
+max-port=49200
+no-multicast-peers
+no-cli
+# deny relaying into private ranges so TURN cannot be abused to reach venue LAN devices
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+# Reachability from the internet (UDP 3478 + relay range, or TLS 5349) is NOT verified by this repository.

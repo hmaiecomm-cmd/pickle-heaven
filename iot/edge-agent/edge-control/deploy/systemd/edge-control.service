@@ -1,0 +1,32 @@
+# Alternative to Docker Compose: run the agent natively. Do NOT run both (two agents would fight over the serial ports).
+# Install: scripts/install.sh   (creates the user, venv and directories; does not touch firewalls or devices)
+[Unit]
+Description=顧好 Edge Control agent
+After=network-online.target
+Wants=network-online.target
+# Refuse to start if the Docker deployment is active
+Conflicts=docker-edge-control.service
+
+[Service]
+Type=simple
+User=edge-control
+Group=edge-control
+SupplementaryGroups=dialout
+EnvironmentFile=/etc/edge-control/edge-control.env
+Environment=EDGE_CONFIG_DIR=/etc/edge-control EDGE_DATA_DIR=/var/lib/edge-control EDGE_CACHE_DIR=/var/cache/edge-control
+ExecStart=/opt/edge-control/venv/bin/python -m edge_control.main
+Restart=on-failure
+RestartSec=5
+# Gives the agent time to finish commands and reap FFmpeg / SDK child processes (SIGTERM first).
+TimeoutStopSec=25
+KillMode=control-group
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/edge-control /var/cache/edge-control
+StateDirectory=edge-control
+CacheDirectory=edge-control
+
+[Install]
+WantedBy=multi-user.target

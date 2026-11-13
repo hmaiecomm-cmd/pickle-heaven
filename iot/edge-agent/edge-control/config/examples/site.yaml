@@ -1,0 +1,5 @@
+# EDGE_SITE_ID / EDGE_ID environment variables override these values (a copied file cannot spoof identity).
+site_id: site-demo
+edge_id: edge-demo
+timezone: Asia/Taipei
+display_name: 顧好示範場館（模擬）

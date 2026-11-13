@@ -1,0 +1,78 @@
+# Default stack: MOCK mode. No serial device, NVR or cloud is required or touched.
+#   cd deploy && cp ../.env.example .env && docker compose up -d --build
+# Exactly ONE edge-agent must run on a venue PC (one owner per serial port): do not also enable the systemd unit.
+name: edge-control
+
+services:
+  edge-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.agent
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      EDGE_CONFIG_DIR: /etc/edge-control
+      EDGE_DATA_DIR: /var/lib/edge-control
+      EDGE_CACHE_DIR: /var/cache/edge-control
+      EDGE_MODE: ${EDGE_MODE:-mock}
+      EDGE_MEDIAMTX_API_URL: http://mediamtx:9997
+      EDGE_MEDIAMTX_RTSP_PUBLISH_URL: rtsp://mediamtx:8554
+      EDGE_MEDIA_INTERNAL_SECRET: ${EDGE_MEDIA_INTERNAL_SECRET:?set EDGE_MEDIA_INTERNAL_SECRET in .env}
+    volumes:
+      - ../config/examples:/etc/edge-control:ro
+      - edge-data:/var/lib/edge-control
+      - edge-cache:/var/cache/edge-control
+      # Optional vendor SDK, read-only, only used when HIKVISION_SDK_DIR=/opt/hikvision-sdk
+      - ../vendor/hikvision:/opt/hikvision-sdk:ro
+    expose: ["8000"]            # internal only: reached through the reverse proxy
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    stop_grace_period: 20s      # lets the agent finish commands and reap ffmpeg / SDK children
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [edge]
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.3
+    restart: unless-stopped
+    volumes:
+      - ../services/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    expose: ["9997", "8554", "8889"]      # control API / RTSP publish / WHEP: internal only
+    ports:
+      - "8189:8189/udp"                   # WebRTC media (ICE). Must be reachable by viewers (LAN, or via NAT/TURN).
+      - "8189:8189/tcp"
+    depends_on:
+      edge-agent: {condition: service_healthy}
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks: [edge]
+
+  web:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    volumes:
+      - ../services/reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../web/dist:/srv/web:ro            # run `npm ci && npm run build` in ../web first
+      - caddy-data:/data
+    ports:
+      - "8080:8080"                       # web UI + /v1 API + /media signalling
+    depends_on: [edge-agent, mediamtx]
+    security_opt: ["no-new-privileges:true"]
+    networks: [edge]
+
+  # The FFmpeg "media worker" runs as supervised child processes of edge-agent (bounded job count, killed on stop),
+  # so a separate container is optional.  See deploy/docker/Dockerfile.media-worker if you want to split it out.
+
+volumes:
+  edge-data:
+  edge-cache:
+  caddy-data:
+
+networks:
+  edge:
+    driver: bridge

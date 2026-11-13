@@ -1,0 +1,7 @@
+# OPTIONAL: stand-alone FFmpeg tool image if you later move transcoding out of the agent container.
+# The default stack does not use it (FFmpeg runs as bounded, supervised children of edge-agent).
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+ && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10002 media
+USER media
+ENTRYPOINT ["ffmpeg"]

@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+*.db
+*.db-wal
+*.db-shm
+data/
+node_modules/
+web/dist/
+web/.vite/
+.pytest_cache/
+# Vendor SDKs are NOT redistributable: never commit binaries, keys or archives.
+vendor/**/sdk/**
+!vendor/**/sdk/.gitkeep
+vendor/hikvision/include/*
+!vendor/hikvision/include/.gitkeep
+vendor/**/*.so
+vendor/**/*.so.*
+vendor/**/*.zip
+vendor/**/*.tar*
+vendor/**/*.rar
+vendor/hikvision/manifest.json
+secrets/
+*.secret

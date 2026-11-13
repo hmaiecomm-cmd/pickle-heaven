@@ -1,0 +1,18 @@
+# Hardware overlay: maps serial adapters into edge-agent. NOT used by default.
+#   docker compose -f compose.yaml -f compose.hardware.yaml up -d
+# - Use the STABLE by-id paths of your adapters (ls -l /dev/serial/by-id). Never /dev/ttyUSB0.
+# - No privileged mode: only the listed device nodes are mapped, plus the dialout group for access.
+# - Edit the placeholder paths below. Compose fails fast if a mapped path does not exist, which is the intent.
+services:
+  edge-agent:
+    environment:
+      EDGE_MODE: real           # still safe: unbound circuits/unknown models are refused until mapped + validated
+    group_add:
+      - "dialout"               # or the numeric gid of the group that owns the device nodes
+    devices:
+      - "/dev/serial/by-id/REPLACE-RELAY-ADAPTER-if00-port0:/dev/serial/by-id/REPLACE-RELAY-ADAPTER-if00-port0"
+      # - "/dev/serial/by-id/REPLACE-HVAC-ADAPTER-if00-port0:/dev/serial/by-id/REPLACE-HVAC-ADAPTER-if00-port0"
+      # - "/dev/serial/by-id/REPLACE-ACCESS-ADAPTER-if00-port0:/dev/serial/by-id/REPLACE-ACCESS-ADAPTER-if00-port0"
+    # Real config lives in a writable-by-admin directory, not the shipped examples:
+    volumes:
+      - /etc/edge-control:/etc/edge-control:ro

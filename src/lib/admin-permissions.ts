@@ -13,10 +13,10 @@
 export type AdminRole = 'OWNER' | 'MANAGER' | 'OPERATOR' | 'FRONTDESK' | 'VIEWER' | 'DEMO'
 
 export type AdminModule = 'booking' | 'monitor' | 'device' | 'access' | 'finance' | 'reports' | 'settings'
-export type AdminAction = 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'remote' | 'door'
+export type AdminAction = 'view' | 'playback' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'remote' | 'door'
 
 export const MODULES: AdminModule[] = ['booking', 'monitor', 'device', 'access', 'finance', 'reports', 'settings']
-export const ACTIONS: AdminAction[] = ['view', 'create', 'edit', 'delete', 'approve', 'export', 'remote', 'door']
+export const ACTIONS: AdminAction[] = ['view', 'playback', 'create', 'edit', 'delete', 'approve', 'export', 'remote', 'door']
 
 export const MODULE_LABEL: Record<AdminModule, string> = {
   booking: '預約管理',
@@ -30,6 +30,7 @@ export const MODULE_LABEL: Record<AdminModule, string> = {
 
 export const ACTION_LABEL: Record<AdminAction, string> = {
   view: '查看',
+  playback: '歷史回放',
   create: '新增',
   edit: '編輯',
   delete: '刪除',
@@ -42,7 +43,7 @@ export const ACTION_LABEL: Record<AdminAction, string> = {
 /** 每個模組實際存在的動作（矩陣中其他格子不適用） */
 export const MODULE_ACTIONS: Record<AdminModule, AdminAction[]> = {
   booking: ['view', 'create', 'edit', 'delete', 'approve'],
-  monitor: ['view', 'export'],
+  monitor: ['view', 'playback', 'edit', 'approve', 'export'],
   device: ['view', 'edit', 'approve', 'remote'],
   access: ['view', 'door', 'remote'],
   finance: ['view', 'create', 'edit', 'approve', 'export'],
@@ -54,7 +55,11 @@ export const MODULE_ACTIONS: Record<AdminModule, AdminAction[]> = {
 export const ACTION_MEANING: Partial<Record<`${AdminModule}.${AdminAction}`, string>> = {
   'booking.approve': '黑名單、會員角色與權益等級',
   'booking.delete': '取消客人的預約',
-  'monitor.export': '影像匯出',
+  'monitor.view': '即時影像、攝影機狀態、事件紀錄',
+  'monitor.playback': '歷史回放',
+  'monitor.edit': '攝影機管理（名稱、位置、串流來源、啟用）',
+  'monitor.approve': '處理監控事件（確認、結案、備註）',
+  'monitor.export': '影像下載與截圖',
   'device.edit': '設備與迴路設定',
   'device.approve': '自動化規則發布',
   'device.remote': '遠端開關設備',
@@ -72,7 +77,7 @@ export const ROLE_MATRIX: Record<AdminRole, Matrix> = {
   OWNER: ALL,
   MANAGER: {
     booking: ['view', 'create', 'edit', 'delete', 'approve'],
-    monitor: ['view', 'export'],
+    monitor: ['view', 'playback', 'edit', 'approve', 'export'],
     device: ['view', 'edit', 'approve', 'remote'],
     access: ['view', 'door', 'remote'],
     finance: ['view', 'create', 'edit', 'approve', 'export'],
@@ -81,7 +86,7 @@ export const ROLE_MATRIX: Record<AdminRole, Matrix> = {
   },
   OPERATOR: {
     booking: ['view', 'create', 'edit'],
-    monitor: ['view'],
+    monitor: ['view', 'playback', 'approve'],
     device: ['view', 'remote'],
     access: ['view'],
   },
@@ -109,7 +114,10 @@ export type Permission =
   | 'dashboard' // 首頁
   | 'ai' // 小P 對話
   | 'monitor' // 場地監測、設備狀態、異常事件
-  | 'camera.export' // 影像匯出
+  | 'camera.playback' // 歷史回放
+  | 'camera.export' // 影像下載與截圖
+  | 'camera.manage' // 攝影機管理
+  | 'monitor.events' // 處理監控事件
   | 'device' // 智慧設備管理（檢視配置與迴路）
   | 'device.control' // 遠端開關設備
   | 'device.automation' // 自動化規則發布
@@ -148,7 +156,10 @@ const PERMISSION_RULES: Record<Permission, (m: Matrix) => boolean> = {
   dashboard: () => true,
   ai: (m) => anyCreate(m),
   monitor: (m) => has(m, 'monitor', 'view'),
+  'camera.playback': (m) => has(m, 'monitor', 'playback'),
   'camera.export': (m) => has(m, 'monitor', 'export'),
+  'camera.manage': (m) => has(m, 'monitor', 'edit'),
+  'monitor.events': (m) => has(m, 'monitor', 'approve'),
   device: (m) => has(m, 'device', 'view'),
   'device.control': (m) => has(m, 'device', 'remote'),
   'device.automation': (m) => has(m, 'device', 'approve'),
@@ -198,7 +209,7 @@ export const ROLE_LABEL: Record<AdminRole, string> = {
 export const ROLE_SUMMARY: Record<AdminRole, string> = {
   OWNER: '完整功能，包含管理員邀請、角色變更與所有敏感操作。',
   MANAGER: '預約、監控、設備、門禁、訂單財務、報表與系統設定；不能邀請管理員或變更角色。',
-  OPERATOR: '預約管理、即時監控、設備遠端控制；門禁只能查看，不碰財務與設定。',
+  OPERATOR: '預約管理、即時監控與回放、處理監控事件、設備遠端控制；門禁只能查看，不碰財務與設定。',
   FRONTDESK: '預約與報到、會員服務、活動場次；不碰財務、設備、門禁與設定。',
   VIEWER: '各區只能查看，不能新增、修改、匯出或控制任何設備。',
   DEMO: '展示資料庫內的完整體驗，所有外部服務一律模擬。',
@@ -208,7 +219,10 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   dashboard: '首頁',
   ai: '小P 對話',
   monitor: '場地監測與異常回報',
-  'camera.export': '影像匯出',
+  'camera.playback': '歷史回放',
+  'camera.export': '影像下載與截圖',
+  'camera.manage': '攝影機管理',
+  'monitor.events': '處理監控事件',
   device: '智慧設備管理（檢視）',
   'device.control': '設備遠端控制',
   'device.automation': '自動化規則發布',

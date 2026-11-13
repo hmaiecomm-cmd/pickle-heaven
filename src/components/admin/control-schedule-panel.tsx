@@ -102,6 +102,7 @@ interface ControlSchedulePanelProps {
 export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedulePanelProps) {
   const [expanded, setExpanded] = React.useState<CircuitCategory | null>(category)
   const [isSaving, setIsSaving] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(true)
   const [saveMessage, setSaveMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [schedules, setSchedules] = React.useState<ScheduleState>({
     RESERVATION_DYNAMIC: {
@@ -130,7 +131,70 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
     },
   })
 
-  const handleSave = async (category: CircuitCategory) => {
+  // 載入已保存的排程數據
+  React.useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const response = await fetch(`/api/admin/circuits/schedule?circuitNumber=${circuitNumber}&category=${category}`)
+        if (!response.ok) return
+
+        const data = await response.json()
+
+        // 如果有已保存的排程數據，更新到 state
+        if (data.schedules && data.schedules.length > 0) {
+          const mainSchedule = data.schedules.find((s: any) => !s.note)
+          const customSchedules = data.schedules.filter((s: any) => s.note)
+
+          if (mainSchedule) {
+            setSchedules((prev) => ({
+              ...prev,
+              [category]: {
+                ...prev[category],
+                defaultStart: minutesToTime(mainSchedule.startMinute),
+                defaultEnd: minutesToTime(mainSchedule.endMinute),
+              },
+            }))
+          }
+
+          if (customSchedules.length > 0) {
+            setSchedules((prev) => ({
+              ...prev,
+              [category]: {
+                ...prev[category],
+                customSlots: customSchedules.map((s: any) => ({
+                  id: s.id,
+                  startTime: minutesToTime(s.startMinute),
+                  endTime: minutesToTime(s.endMinute),
+                  weekdays: s.weekdays,
+                  note: s.note,
+                })),
+              },
+            }))
+          }
+        }
+
+        // 載入預約控制設定
+        if (data.reservationAdvanceMinutes !== undefined) {
+          setSchedules((prev) => ({
+            ...prev,
+            RESERVATION_DYNAMIC: {
+              ...prev.RESERVATION_DYNAMIC,
+              defaultStart: String(data.reservationAdvanceMinutes),
+              defaultEnd: String(data.reservationDelayMinutes),
+            },
+          }))
+        }
+      } catch (error) {
+        console.error('Failed to load schedules:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSchedules()
+  }, [circuitNumber, category])
+
+  const handleSave = async (saveCategory: CircuitCategory) => {
     setIsSaving(true)
     setSaveMessage(null)
 
@@ -139,42 +203,53 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          circuitId: circuitNumber,
-          category,
+          circuitNumber,
+          category: saveCategory,
           operatingHours:
-            category === 'OPERATING_HOURS'
+            saveCategory === 'OPERATING_HOURS'
               ? {
-                  startMinute: timeToMinutes(schedules[category].defaultStart || '08:00'),
-                  endMinute: timeToMinutes(schedules[category].defaultEnd || '22:00'),
+                  startMinute: timeToMinutes(schedules[saveCategory].defaultStart || '08:00'),
+                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00'),
                   weekdays: '0,1,2,3,4,5,6',
                 }
               : undefined,
           nightAmbience:
-            category === 'NIGHT_AMBIENT'
+            saveCategory === 'NIGHT_AMBIENT'
               ? {
-                  startMinute: timeToMinutes(schedules[category].defaultStart || '18:00'),
-                  endMinute: timeToMinutes(schedules[category].defaultEnd || '22:00'),
+                  startMinute: timeToMinutes(schedules[saveCategory].defaultStart || '18:00'),
+                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00'),
                   weekdays: '0,1,2,3,4,5,6',
                 }
               : undefined,
           reservationControl:
-            category === 'RESERVATION_DYNAMIC'
+            saveCategory === 'RESERVATION_DYNAMIC'
               ? {
-                  advanceMinutes: 0,
-                  delayMinutes: 0,
+                  advanceMinutes: parseInt(schedules[saveCategory].defaultStart || '0'),
+                  delayMinutes: parseInt(schedules[saveCategory].defaultEnd || '0'),
                 }
+              : undefined,
+          customSlots:
+            (schedules[saveCategory].customSlots && schedules[saveCategory].customSlots.length > 0)
+              ? schedules[saveCategory].customSlots.map((s) => ({
+                  id: s.id,
+                  startMinute: timeToMinutes(s.startTime),
+                  endMinute: timeToMinutes(s.endTime),
+                  weekdays: s.weekdays || '0,1,2,3,4,5,6',
+                  note: s.note,
+                }))
               : undefined,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save settings')
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save settings')
       }
 
       setSaveMessage({ type: 'success', text: '設定已保存' })
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
-      setSaveMessage({ type: 'error', text: '保存失敗，請稍後重試' })
+      setSaveMessage({ type: 'error', text: error instanceof Error ? error.message : '保存失敗，請稍後重試' })
     } finally {
       setIsSaving(false)
     }

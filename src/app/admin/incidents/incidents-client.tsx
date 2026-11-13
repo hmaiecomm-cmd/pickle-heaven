@@ -24,7 +24,7 @@ interface Row {
 
 const STATUS = { OPEN: { l: '待處理', t: 'red' }, ACKED: { l: '處理中', t: 'amber' }, RESOLVED: { l: '已解除', t: 'green' } } as const
 
-export function IncidentsClient({ rows, showAll }: { rows: Row[]; showAll: boolean }) {
+export function IncidentsClient({ rows, showAll, canHandle }: { rows: Row[]; showAll: boolean; canHandle: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
   const { ask } = useAi()
@@ -69,7 +69,7 @@ export function IncidentsClient({ rows, showAll }: { rows: Row[]; showAll: boole
                 <Pill tone={st.t}>{st.l}</Pill>
               </div>
             </div>
-            {r.status !== 'RESOLVED' && (
+            {canHandle && r.status !== 'RESOLVED' && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
                   value={notes[r.id] ?? ''}

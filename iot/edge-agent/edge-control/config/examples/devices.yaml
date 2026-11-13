@@ -1,0 +1,22 @@
+# Every device individually selects driver: mock | real.  Default = mock.
+# 'real' with an unknown model/protocol reports not_configured / unsupported - it never guesses.
+devices:
+  - device_id: hvac-1
+    kind: hvac
+    name: 冷氣 1（模擬）
+    driver: mock               # real: set driver_profile once model + RS-485 protocol are known
+    bus_id: mock-bus-hvac      # bus_id only serialises access; a real bus is defined in buses.yaml
+    min_role: operator
+    mock: {min_c: 16, max_c: 30, step: 1, modes: [cool, heat, fan, dry], fan: []}
+  - device_id: access-1
+    kind: access
+    name: 門鎖控制器 1（模擬）
+    driver: mock               # real + driver_profile: soyal_721_727 needs bus_id (soyal_binary) + node_id
+    doors: [door-1]
+    bus_id: mock-bus-access
+    min_role: operator
+    mock: {door_contact: true}
+  - device_id: mock-relay-1    # matches the SIMULATION-ONLY controller of the mock mapping
+    kind: relay_controller
+    name: Relay 控制器（模擬）
+    driver: mock

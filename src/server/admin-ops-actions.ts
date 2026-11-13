@@ -128,7 +128,7 @@ export async function incidentsAction(status: 'OPEN' | 'ALL') {
 }
 
 export async function incidentUpdateAction(id: string, status: 'ACKED' | 'RESOLVED', note: string) {
-  return guard('monitor', async (actor) => {
+  return guard('monitor.events', async (actor) => {
     await updateIncident(id, status, note, actor)
     revalidatePath('/admin/incidents')
     revalidatePath('/admin')

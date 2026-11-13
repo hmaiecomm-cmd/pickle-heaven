@@ -1,0 +1,19 @@
+# Seed for REAL mode only (EDGE_MODE=real). Mock mode ignores this file and uses a simulation-only mapping.
+# Real buses/controllers are normally entered in the web UI (System > Deployment mapping) and versioned in SQLite.
+# Nothing here is a confirmed field value.  Example shape (commented out on purpose):
+#
+# buses:
+#   - bus_id: bus-relay
+#     serial_path: /dev/serial/by-id/usb-XXXX-if00-port0   # stable path, never /dev/ttyUSB0
+#     baudrate: null      # confirm on site (M-7000 factory default is code 0x06 = 9600, N,1 - verify, do not assume)
+#     parity: null
+#     data_bits: null
+#     stop_bits: null
+#     timeout_s: 1.0
+#     protocol_profile: unspecified   # modbus_rtu | soyal_binary
+# controllers:
+#   - controller_id: relay-ctrl-1
+#     protocol: unspecified           # modbus_m7000 | soyal_721_727 once the model is CONFIRMED
+#     model_confirmed: false
+buses: []
+controllers: []

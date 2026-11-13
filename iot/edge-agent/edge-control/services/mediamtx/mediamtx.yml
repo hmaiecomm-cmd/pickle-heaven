@@ -1,0 +1,41 @@
+# MediaMTX v1.21.3 (pinned in deploy/compose.yaml). Every key below was checked against that release's mediamtx.yml.
+#
+# Security model: EVERY action is authenticated by the edge agent (authMethod: http). Viewers present a
+# short-lived per-session token; publishing and the control API need the agent's internal credential.
+# NOTE: `authHTTPExclude` would ALLOW the listed actions without any check, so it is intentionally left empty.
+# The control API (9997) is only reachable on the compose-internal network and is never published to the host.
+
+logLevel: info
+
+authMethod: http
+authHTTPAddress: http://edge-agent:8000/internal/media/auth
+authHTTPExclude: []
+
+api: yes
+apiAddress: :9997
+
+rtsp: yes                 # used only by FFmpeg publishers inside the compose network
+rtspAddress: :8554
+rtspTransports: [tcp]
+rtmp: no
+hls: no
+srt: no
+
+webrtc: yes
+webrtcAddress: :8889      # WHEP signalling; exposed to browsers only via the reverse proxy (/media/)
+webrtcEncryption: no      # TLS is terminated by the reverse proxy
+webrtcAllowOrigins: ["*"] # tokens, not origins, authorise access; tighten if the UI origin is fixed
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: ""
+webrtcIPsFromInterfaces: true
+# For browsers outside the venue LAN list the address they can reach (public IP / DNS name) here.
+# An HTTPS reverse proxy does NOT carry WebRTC media: UDP/TCP 8189 (or TURN) must be reachable.
+webrtcAdditionalHosts: []
+webrtcICEServers2: []     # add your STUN/TURN here (see services/turn/turnserver.conf.example)
+
+pathDefaults:
+  source: publisher
+  sourceOnDemand: no
+
+paths:
+  all_others:
