@@ -3,11 +3,12 @@ import Link from 'next/link'
 import { pagePermission } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
-import { formatDateTime, taipeiDateString, taipeiMinuteOfDay } from '@/lib/time'
+import { formatDateTime, isValidDateString, slotStarts, taipeiDateString, taipeiMinuteOfDay } from '@/lib/time'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { listMaintenance } from '@/server/maintenance-admin'
 import { MaintenanceClient } from './maintenance-client'
 import { UnblockButton } from './unblock-button'
+import { BlockForm } from './block-form'
 
 export const metadata: Metadata = { title: '維護與封場' }
 export const dynamic = 'force-dynamic'
@@ -16,17 +17,18 @@ export const dynamic = 'force-dynamic'
  * 清潔／維護排程與人工封場共用同一頁（活動管理與場地管理都連到這裡），不建兩套紀錄。
  * 兩者都寫進同一套場地占用（Reservation.BLOCKED），前台一律顯示不可租借。
  */
-export default async function MaintenancePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function MaintenancePage({ searchParams }: { searchParams: Promise<{ tab?: string; court?: string; date?: string; start?: string }> }) {
   const ctx = await pagePermission('courts')
   if (ctx === 'forbidden') return <Forbidden />
-  const { tab: rawTab } = await searchParams
+  const { tab: rawTab, court: preCourt, date: preDate, start: preStart } = await searchParams
   const tab = rawTab === 'manual' ? 'manual' : 'plans'
   const canManage = can(ctx.role, 'courts.manage')
 
-  const [data, blocks, courts] = await Promise.all([
+  const [data, blocks, courts, venue] = await Promise.all([
     listMaintenance(),
     prisma.reservation.findMany({ where: { status: 'BLOCKED', maintenanceEventId: null, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'asc' }, take: 200, include: { court: { select: { name: true } } } }),
     prisma.court.findMany({ where: { status: { not: 'ACTIVE' } }, select: { id: true, name: true, status: true } }),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { openMinute: true, closeMinute: true, slotMinutes: true, courts: { where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } } } }),
   ])
 
   return (
@@ -56,7 +58,16 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
         <MaintenanceClient data={data} canManage={canManage} />
       ) : (
         <section className="space-y-3">
-          <p className="text-xs text-muted">人工封場以單一時段格為單位；新增請到「智慧排程」點選空白時段。整面場地停用或維護請到「場地設定」。</p>
+          <p className="text-xs text-muted">人工封場以單一時段格為單位；整面場地停用或維護請到「場地設定」。</p>
+          {canManage && venue && (
+            <BlockForm
+              courts={venue.courts}
+              starts={slotStarts(venue.openMinute, venue.closeMinute, venue.slotMinutes)}
+              slotMinutes={venue.slotMinutes}
+              today={taipeiDateString()}
+              initial={{ courtId: preCourt, date: preDate && isValidDateString(preDate) ? preDate : undefined, start: preStart && /^\d+$/.test(preStart) ? Number(preStart) : undefined }}
+            />
+          )}
           <div className="rounded-2xl border border-zinc-200 bg-white">
             {blocks.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted">目前沒有人工封場時段</p>
@@ -74,7 +85,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
               </ul>
             )}
           </div>
-          <Link href="/admin/schedule" className="text-sm text-brand-700 hover:underline">到智慧排程新增封場 →</Link>
+          <Link href="/admin/schedule" className="text-sm text-brand-700 hover:underline">到智慧排程查看當日預約 →</Link>
         </section>
       )}
     </div>

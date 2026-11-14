@@ -12,7 +12,7 @@ async function need(p: Permission): Promise<string> {
   return (await requirePermission(p)).username
 }
 const denied = (err: unknown): AdminResult | null => (err instanceof PermissionError ? { ok: false, error: '目前帳號沒有這項操作的權限' } : null)
-import { taipeiToUtc } from '@/lib/time'
+import { isValidDateString, slotStarts, taipeiToUtc } from '@/lib/time'
 import { cancelBooking } from './booking-service'
 
 export type AdminResult = { ok: true; message?: string } | { ok: false; error: string }
@@ -33,9 +33,14 @@ export async function blockSlot(
 
   const court = await prisma.court.findUnique({ where: { id: courtId }, include: { venue: true } })
   if (!court) return { ok: false, error: '找不到場地' }
+  if (!isValidDateString(dateStr)) return { ok: false, error: '日期格式錯誤' }
+  if (!slotStarts(court.venue.openMinute, court.venue.closeMinute, court.venue.slotMinutes).includes(startMinute)) {
+    return { ok: false, error: '這個時段不在營業時間內' }
+  }
 
   const startsAt = taipeiToUtc(dateStr, startMinute)
   const endsAt = taipeiToUtc(dateStr, startMinute + court.venue.slotMinutes)
+  if (endsAt <= new Date()) return { ok: false, error: '這個時段已經結束' }
 
   try {
     await prisma.reservation.create({
@@ -45,7 +50,8 @@ export async function blockSlot(
       data: { actor: admin, action: 'SLOT_BLOCKED', target: `${court.name} ${dateStr} ${startMinute}`, detail: { note } },
     })
     revalidatePath('/admin/schedule')
-    return { ok: true, message: '已鎖定該時段' }
+    revalidatePath('/admin/maintenance')
+    return { ok: true, message: '已封場' }
   } catch (err) {
     if (isUniqueViolation(err) || (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) {
       return { ok: false, error: '此時段已有預約或已鎖定' }
@@ -71,7 +77,8 @@ export async function unblockSlot(courtId: string, dateStr: string, startMinute:
     data: { actor: admin, action: 'SLOT_UNBLOCKED', target: `${courtId} ${dateStr} ${startMinute}` },
   })
   revalidatePath('/admin/schedule')
-  return { ok: true, message: '已解除鎖定' }
+  revalidatePath('/admin/maintenance')
+  return { ok: true, message: '已解除封場' }
 }
 
 /** 後台代為取消訂單（全額退還為點數） */
