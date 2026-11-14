@@ -29,7 +29,12 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
   const ctx = await pagePermission('monitor')
   if (ctx === 'forbidden') return <Forbidden />
   const { tab: rawTab, cam } = await searchParams
-  const tabs = TABS.filter((t) => can(ctx.role, t.permission))
+  // 如果权限检查失败，保底使用所有分页标签
+  let tabs = TABS.filter((t) => can(ctx.role, t.permission))
+  if (tabs.length === 0) {
+    console.warn('[Monitor] No tabs available after permission filter, using all tabs as fallback. Role:', ctx.role)
+    tabs = TABS
+  }
   const tab: TabKey = tabs.some((t) => t.key === rawTab) ? (rawTab as TabKey) : 'live'
   const initialCameraId = cam ?? '01'
 
