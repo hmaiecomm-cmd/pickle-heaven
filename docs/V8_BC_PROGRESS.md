@@ -148,4 +148,61 @@ src/app/admin/admin-nav.ts、activities/page.tsx、automation/page.tsx、control
 - Preview 不影響正式站，無需回退
 
 ### 下一階段
-Phase 2 智慧排程。開始前需決定：三個高風險安全問題的處理時機、手動封場的建立入口要留在智慧排程或移到維護與封場。
+Phase 2（已完成，見下方）。
+
+---
+
+## Phase 2：智慧排程 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+使用者未另行指定，依建議：手動封場的建立移到「維護與封場」，智慧排程只留捷徑；三個高風險安全問題維持於 Phase 5／6 處理。
+
+### 已完成
+- 智慧排程改為後台專用的場地時段表（前台訂場矩陣元件未修改）
+  - 格子顯示：預約人、付款中、封場原因、清潔維護排程名稱、活動名稱、可預約／已截止／未開放
+  - 當日統計（已預約、付款中、可預約、活動、封場／維護格數）
+  - 點選時段開啟詳情：預約顯示訂單編號與狀態；具 `bookings` 權限者另顯示電話、金額與「查看訂單」（/admin/bookings?q=訂單編號）
+  - 封場／維護格只提供「到維護與封場管理」，不在此頁解除
+  - 空白時段提供「到維護與封場新增封場」捷徑，自動帶入場地、日期、時段（需 `courts.manage`）
+- 維護與封場「人工封場」分頁新增封場表單（場地、日期、時段、原因），可接收捷徑預填
+- `blockSlot` 伺服器端驗證：日期格式、必須是營業時段格、不可封已結束時段；新增／解除後同步更新兩頁
+- 資料責任：預約資料只在智慧排程檢視；封場的新增與解除只在維護與封場
+
+### 未完成
+- 智慧排程不提供代客建立或修改預約（訂單仍在「訂單與財務」處理）
+- 封場仍為單一時段格；整段多格封場、整面場地停用屬 Phase 3
+- 目前所有角色都有 `bookings` 權限，電話與金額的權限遮蔽實務上不會觸發
+
+### 修改檔案（6 個，+363／−104）
+src/app/admin/schedule/page.tsx、schedule/schedule-client.tsx、src/server/schedule-admin.ts（新）、src/app/admin/maintenance/page.tsx、maintenance/block-form.tsx（新）、src/server/admin-actions.ts
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過（Dropbox 外副本，435813c）
+- 功能／API 測試：專案無對應的 verify 腳本（verify:schedule 為活動場次週期，與本次無關）；以瀏覽器測試涵蓋伺服器動作
+- 瀏覽器測試：26／26（建置版本＋本機暫時 SQLite＋種子資料＋Phase 2 測試資料，測完刪除）
+  - 各狀態格顯示、當日統計（已預約 6、付款中 1、封場／維護 4，含種子示範資料，已逐筆核對）
+  - 預約詳情、查看訂單、付款中與封場詳情
+  - 捷徑預填 → 新增封場 → 清單與智慧排程同步 → 解除封場 → 恢復可預約
+  - 伺服器拒絕：已有預約的時段、非營業時段格、已結束時段
+  - 檢視者（VIEWER）看不到新增封場捷徑、表單與解除按鈕
+  - 1180、1366、1024、390 無水平捲動
+- 測試中修正：捷徑預填時段的正規表示式缺反斜線（已修正後重測）
+
+### 截圖
+桌面 `V8_Phase2_智慧排程_截圖`（8 張）
+
+### Git／部署
+- Commit：`435813c` feat(admin): V8-BC Phase 2 智慧排程
+- 備份點：標籤 `v8-phase2-start` → a57a8eb
+- Preview：https://pickle-heaven-c9eag9wi3-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：以 Vercel API 取得部署上傳的原始檔清單，6 個修改檔案的 SHA-1 與 435813c 逐一相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert 435813c`，或 `git switch -c restore v8-phase2-start`
+- 無資料庫結構變更
+
+### 下一階段
+Phase 3 場地設定與維護。開始前建議確認：營業時間的單一來源（Venue.openMinute／closeMinute 或 OperatingHours）。
