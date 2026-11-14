@@ -99,4 +99,53 @@ Demo Mode：設備、控制、監控頁皆有顯示。
 | 8 驗收與 Preview | 全面驗收 | — |
 
 ### 下一階段
-等待使用者回覆「繼續下一階段」後執行 Phase 1。
+Phase 1（已完成，見下方）。
+
+---
+
+## Phase 1：導覽選單整理 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+使用者未回覆 Phase 0 的四項待決事項，採最保守做法：本階段只改選單與名稱；三個高風險安全問題、ESLint、.env 整理均未處理，仍待決定。
+
+### 已完成
+- 場地與預約：智慧排程（/admin/schedule）、場地設定（/admin/courts）、維護與封場（/admin/maintenance，合併原本兩個入口；?tab=manual 仍選取此項）
+- 智慧設備管理：設備總覽（/admin/devices）、控制中心（/admin/control）、自動化策略（/admin/automation，仍標「未開放」）
+- 其餘七個主分類不變
+- 頁面標題、瀏覽器標題、跨頁連結、AI 指南連結、權限顯示名稱同步新名稱
+- 系統設定「營業時間與預約規則」（實為定價頁）更名為「定價與會員折扣」
+
+### 未完成（屬後續 Phase）
+- 各頁內容與功能未調整；維護頁內分頁名稱「清潔／維護排程」「人工封場」保留
+- 自動化策略仍為未開放頁
+
+### 修改檔案（12 個，+28／−29，只改文字）
+src/app/admin/admin-nav.ts、activities/page.tsx、automation/page.tsx、control/page.tsx、courts/page.tsx、courts/courts-client.tsx、devices/page.tsx、maintenance/page.tsx、pricing/page.tsx、schedule/schedule-client.tsx、src/lib/admin-permissions.ts、src/server/ai-guide.ts
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過（Dropbox 外副本，c7b7b9e）
+- 功能測試：verify:ai-guide 21／21（連開發庫）；選單結構與選取邏輯 15／15
+- 瀏覽器測試：42／42（建置版本＋本機暫時 SQLite＋prisma/seed.ts 範例資料，測完刪除）
+  - 六個子分頁逐一點擊：網址、選取狀態、頁面標題、無錯誤、無水平捲動
+  - 九個主分類保留、維護頁 ?tab=manual、定價頁、舊網址 /admin/ai-courts
+  - 1366×768、1024×768、390×844（抽屜選單）
+- 測試中發現（非本次造成）：場館不存在時 /admin/maintenance 會整頁錯誤（「尚未設定場館」）
+
+### 截圖
+桌面 `V8_Phase1_導覽選單_截圖`（11 張：1180×820 六頁、1366×768 兩頁、1024×768 兩頁、390×844 一張）
+
+### Git／部署
+- Commit：`c7b7b9e` feat(admin): V8-BC Phase 1 導覽選單整理
+- 備份點：標籤 `v8-phase1-start` → 53cf832
+- Preview：https://pickle-heaven-n0pswq3mw-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：CLI 部署不記錄 commit；以內容雜湊比對，Preview 的選單程式檔 8202-851dca40405acae2.js 與 c7b7b9e 本機建置相同，含新名稱、無舊名稱
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert c7b7b9e`，或 `git switch -c restore v8-phase1-start`
+- Preview 不影響正式站，無需回退
+
+### 下一階段
+Phase 2 智慧排程。開始前需決定：三個高風險安全問題的處理時機、手動封場的建立入口要留在智慧排程或移到維護與封場。
