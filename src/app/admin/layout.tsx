@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db'
 import { AdminShell } from '@/components/admin/admin-shell'
 
 export const metadata: Metadata = {
-  title: { default: '後台管理', template: '%s｜匹克精靈後台' },
+  title: { default: '後台管理', template: '%s｜大新店森林匹克球後台' },
   robots: { index: false, follow: false },
 }
 export const dynamic = 'force-dynamic'

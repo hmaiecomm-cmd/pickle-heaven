@@ -21,7 +21,7 @@ export function AdminLoginForm() {
               <ShieldCheck className="h-6 w-6" aria-hidden />
             </div>
             <div className="mt-1 inline-block rounded-full bg-emerald-100 px-3 py-1">
-              <p className="text-[11px] font-bold text-emerald-700">Pickle Heaven</p>
+              <p className="text-[11px] font-bold text-emerald-700">大新店森林匹克球</p>
             </div>
             <h1 className="mt-3 text-base font-semibold">後台管理登入</h1>
             <p className="mt-1 text-xs text-muted">僅限授權的場館管理人員</p>

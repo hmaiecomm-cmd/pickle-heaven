@@ -1,4 +1,23 @@
-/** 後台品牌圖形：匹克球拍標誌、森林剪影、底部山丘 */
+/** 後台品牌圖形：DXD 標誌容器、匹克球拍標誌、森林剪影、底部山丘 */
+
+export const BRAND_NAME_ZH = '大新店森林匹克球'
+export const BRAND_NAME_EN = 'DAXINDIAN PICKLEBALL CLUB'
+
+// 臨時素材：從品牌展示圖（docs/brand-source/dxd-brand-sheet.jpg）黑底版本裁切去背，不是原始向量檔。
+// 取得正式透明 Logo 後替換此檔；設為 null 會改顯示中性佔位框。
+const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo-temp.png'
+
+export function BrandLogo({ className }: { className?: string }) {
+  return (
+    <span className={`flex shrink-0 items-center justify-center ${className ?? ''}`}>
+      {BRAND_LOGO_SRC ? (
+        <img src={BRAND_LOGO_SRC} alt="" className="h-full w-full object-contain" />
+      ) : (
+        <span className="h-full w-full rounded-md border border-dashed border-white/35 bg-white/5" aria-hidden />
+      )}
+    </span>
+  )
+}
 
 export function PaddleMark({ className }: { className?: string }) {
   return (

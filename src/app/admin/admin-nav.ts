@@ -45,8 +45,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '即時監控',
     icon: 'monitor',
     items: [
-      { label: '場地即時監測', href: '/admin/monitor', permission: 'monitor' },
-      { label: '異常警示與處理紀錄', href: '/admin/incidents', permission: 'monitor' },
+      { label: '即時影像', href: '/admin/monitor', permission: 'monitor' },
+      { label: '歷史回放', href: '/admin/monitor?tab=playback', permission: 'camera.playback' },
+      { label: '事件紀錄', href: '/admin/monitor?tab=events', permission: 'monitor' },
+      { label: '攝影機管理', href: '/admin/monitor?tab=cameras', permission: 'camera.manage' },
     ],
   },
   {
@@ -133,18 +135,25 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/ai-courts': '/admin/control',
   '/admin/ai-assistant': '/admin',
   '/admin/templates': '/admin/activities',
+  '/admin/incidents': '/admin/monitor?tab=events',
 }
 
-/** 目前路徑對應的選單項目：取路徑前綴最長的那一個（例如 /admin/members/points 不會同時選中會員列表） */
-export function activeHref(pathname: string): string | null {
+/**
+ * 目前網址對應的選單項目：取最長的相符者（例如 /admin/members/points 不會同時選中會員列表）。
+ * 選單網址帶查詢參數（?tab=）時，目前網址必須有相同的參數才算相符。
+ */
+export function activeHref(pathname: string, search: string = ''): string | null {
   const alias = Object.entries(ALIAS_PATHS).find(([p]) => pathname === p || pathname.startsWith(p + '/'))?.[1]
-  const path = alias ?? pathname
+  const [path, aliasQuery] = (alias ?? pathname).split('?')
+  const params = new URLSearchParams(aliasQuery ?? search)
   let best: string | null = null
   for (const g of ADMIN_NAV) {
     const hrefs = g.href ? [g.href] : (g.items ?? []).map((i) => i.href)
     for (const h of hrefs) {
-      const match = h === '/admin' ? path === h : path === h || path.startsWith(h + '/')
-      if (match && (!best || h.length > best.length)) best = h
+      const [hPath, hQuery] = h.split('?')
+      const pathMatch = hPath === '/admin' ? path === hPath : path === hPath || path.startsWith(hPath + '/')
+      const queryMatch = [...new URLSearchParams(hQuery ?? '')].every(([k, v]) => params.get(k) === v)
+      if (pathMatch && queryMatch && (!best || h.length > best.length)) best = h
     }
   }
   return best

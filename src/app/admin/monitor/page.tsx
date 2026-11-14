@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { History, ListChecks, Settings2, Video } from 'lucide-react'
 import { pagePermission } from '@/lib/admin-auth'
 import { can, type Permission } from '@/lib/admin-permissions'
-import { cn } from '@/lib/utils'
 import { getMonitorSnapshot } from '@/server/monitor-service'
 import { listCameras, listCamerasForAdmin, listMonitorAudit, listMonitorEvents } from '@/server/camera-service'
 import { MonitorBoard } from '@/components/admin/monitor-board'
@@ -16,15 +13,15 @@ import { CamerasManager } from './cameras-manager'
 
 export const metadata: Metadata = {
   title: '即時監控',
-  // v2.0.0 - 強制四個分頁標籤顯示
 }
 export const dynamic = 'force-dynamic'
 
-const TABS: { key: 'live' | 'playback' | 'events' | 'cameras'; label: string; icon: typeof Video; permission: Permission }[] = [
-  { key: 'live', label: '即時影像', icon: Video, permission: 'monitor' },
-  { key: 'playback', label: '歷史回放', icon: History, permission: 'camera.playback' },
-  { key: 'events', label: '事件紀錄', icon: ListChecks, permission: 'monitor' },
-  { key: 'cameras', label: '攝影機管理', icon: Settings2, permission: 'camera.manage' },
+// 分頁切換在左側選單（admin-nav.ts），這裡只依 ?tab= 與權限決定顯示內容
+const TABS: { key: 'live' | 'playback' | 'events' | 'cameras'; permission: Permission }[] = [
+  { key: 'live', permission: 'monitor' },
+  { key: 'playback', permission: 'camera.playback' },
+  { key: 'events', permission: 'monitor' },
+  { key: 'cameras', permission: 'camera.manage' },
 ]
 type TabKey = (typeof TABS)[number]['key']
 
@@ -32,12 +29,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
   const ctx = await pagePermission('monitor')
   if (ctx === 'forbidden') return <Forbidden />
   const { tab: rawTab, cam } = await searchParams
-  // 如果权限检查失败，保底使用所有分页标签
-  let tabs = TABS.filter((t) => can(ctx.role, t.permission))
-  if (tabs.length === 0) {
-    console.warn('[Monitor] No tabs available after permission filter, using all tabs as fallback. Role:', ctx.role)
-    tabs = TABS
-  }
+  const tabs = TABS.filter((t) => can(ctx.role, t.permission))
   const tab: TabKey = tabs.some((t) => t.key === rawTab) ? (rawTab as TabKey) : 'live'
   const initialCameraId = cam ?? '01'
 
@@ -45,24 +37,6 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
     <div className="space-y-4">
       <PageTitle title="即時監控" desc="六路攝影機、場館平面圖、歷史回放與監控事件。" right={<RefreshButtonLight />} />
       <DemoModeBanner what="攝影機與錄影主機（NVR）" />
-
-      <nav className="flex gap-1 overflow-x-auto rounded-2xl bg-white p-1 shadow-[0_1px_3px_rgba(16,24,16,0.05)] ring-1 ring-zinc-200" aria-label="即時監控分頁">
-        {/* DEBUG: 强制显示所有四个分页标签，用于诊断部署问题 */}
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <Link
-            key={key}
-            href={`/admin/monitor?tab=${key}${cam ? `&cam=${cam}` : ''}`}
-            aria-current={tab === key ? 'page' : undefined}
-            className={cn(
-              'flex h-10 shrink-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium transition-colors',
-              tab === key ? 'bg-[#1f4d34] text-white' : 'text-zinc-600 hover:bg-zinc-100',
-            )}
-          >
-            <Icon className="h-4 w-4" aria-hidden />
-            {label}
-          </Link>
-        ))}
-      </nav>
 
       {tab === 'live' && <LiveTab role={ctx.role} initialCameraId={initialCameraId} />}
       {tab === 'playback' && <PlaybackView cameras={(await listCameras(ctx.role)).cameras} initialCameraId={initialCameraId} canExport={can(ctx.role, 'camera.export')} />}

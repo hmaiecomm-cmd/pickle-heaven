@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   ArrowLeftToLine,
   CalendarDays,
@@ -23,7 +23,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { Permission } from '@/lib/admin-permissions'
 import { ADMIN_NAV, activeHref, type AdminNavIcon } from '@/app/admin/admin-nav'
-import { ForestSilhouette, PaddleMark } from './brand'
+import { BRAND_NAME_EN, BRAND_NAME_ZH, BrandLogo, ForestSilhouette } from './brand'
 
 const NAV_ICON: Record<AdminNavIcon, LucideIcon> = {
   home: House,
@@ -74,7 +74,8 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
   const [drawer, setDrawer] = React.useState(false)
   const { open, setOpen } = useAi()
   const pathname = usePathname()
-  React.useEffect(() => setDrawer(false), [pathname])
+  const search = useSearchParams().toString()
+  React.useEffect(() => setDrawer(false), [pathname, search])
 
   return (
     <div className="flex h-dvh flex-col bg-[#f6f7f2]">
@@ -96,7 +97,7 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
               <Menu className="h-5 w-5" aria-hidden />
             </button>
             <div className="relative min-w-0 flex-1">
-              <p className="truncate text-lg font-bold tracking-tight text-[#1f3d2b]">Pickle Heaven</p>
+              <p className="truncate text-lg font-bold tracking-tight text-[#1f3d2b]">{BRAND_NAME_ZH}</p>
               <p className="truncate text-[11px] text-muted">
                 {venue.name}・{today}
                 {user.tenant === 'demo' ? '・展示場館' : ''}
@@ -145,7 +146,8 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
 
 function SidebarNav({ user }: { user: ShellUser }) {
   const pathname = usePathname()
-  const current = activeHref(pathname)
+  const search = useSearchParams().toString()
+  const current = activeHref(pathname, search)
   const allowed = (p?: Permission) => !p || user.permissions.includes(p)
   const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items?.filter((i) => allowed(i.permission)) })).filter(
     (g) => (g.href ? allowed(g.permission) : (g.items?.length ?? 0) > 0),
@@ -159,6 +161,19 @@ function SidebarNav({ user }: { user: ShellUser }) {
       setManual(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}'))
     } catch {}
   }, [])
+  // 進入某分類的頁面時（含重新整理、直接開網址），之前手動收合的該分類要重新展開，才看得到選取項目
+  React.useEffect(() => {
+    if (!activeGroup) return
+    setManual((m) => {
+      if (m[activeGroup] !== false) return m
+      const next = { ...m }
+      delete next[activeGroup]
+      try {
+        localStorage.setItem(OPEN_KEY, JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [activeGroup, current])
   const isOpen = (key: string) => manual[key] ?? key === activeGroup
   const toggle = (key: string) => {
     const next = { ...manual, [key]: !isOpen(key) }
@@ -172,14 +187,14 @@ function SidebarNav({ user }: { user: ShellUser }) {
     <div className="flex h-full flex-col text-white">
       <Link
         href="/admin"
-        aria-label="Pickle Heaven 後台首頁"
+        aria-label={`${BRAND_NAME_ZH} 後台首頁`}
         aria-current={pathname === '/admin' ? 'page' : undefined}
         className="flex items-center gap-2.5 px-4 py-4 hover:bg-white/5"
       >
-        <PaddleMark className="h-10 w-10 shrink-0" />
-        <div>
-          <p className="text-[15px] font-bold leading-tight">Pickle Heaven</p>
-          <p className="text-[11px] text-white/70">球館管理後台</p>
+        <BrandLogo className="h-6 w-[74px]" />
+        <div className="min-w-0">
+          <p className="whitespace-nowrap text-[15px] font-bold leading-tight tracking-wide">{BRAND_NAME_ZH}</p>
+          <p className="mt-0.5 whitespace-nowrap text-[8px] font-medium leading-tight tracking-[0.04em] text-white/70">{BRAND_NAME_EN}</p>
         </div>
       </Link>
 
