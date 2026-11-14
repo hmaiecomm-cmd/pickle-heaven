@@ -47,7 +47,8 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
       <DemoModeBanner what="攝影機與錄影主機（NVR）" />
 
       <nav className="flex gap-1 overflow-x-auto rounded-2xl bg-white p-1 shadow-[0_1px_3px_rgba(16,24,16,0.05)] ring-1 ring-zinc-200" aria-label="即時監控分頁">
-        {tabs.map(({ key, label, icon: Icon }) => (
+        {/* DEBUG: 强制显示所有四个分页标签，用于诊断部署问题 */}
+        {TABS.map(({ key, label, icon: Icon }) => (
           <Link
             key={key}
             href={`/admin/monitor?tab=${key}${cam ? `&cam=${cam}` : ''}`}
