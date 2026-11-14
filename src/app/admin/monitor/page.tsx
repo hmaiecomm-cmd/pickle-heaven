@@ -14,7 +14,10 @@ import { PlaybackView } from './playback-view'
 import { EventsView } from './events-view'
 import { CamerasManager } from './cameras-manager'
 
-export const metadata: Metadata = { title: '即時監控' }
+export const metadata: Metadata = {
+  title: '即時監控',
+  // v2.0.0 - 強制四個分頁標籤顯示
+}
 export const dynamic = 'force-dynamic'
 
 const TABS: { key: 'live' | 'playback' | 'events' | 'cameras'; label: string; icon: typeof Video; permission: Permission }[] = [
