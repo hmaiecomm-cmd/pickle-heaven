@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden, NotOpen } from '@/components/admin/page-bits'
 
-export const metadata: Metadata = { title: '自動化規則' }
+export const metadata: Metadata = { title: '自動化策略' }
 
 export default async function AutomationPage() {
   if ((await pagePermission('device.automation')) === 'forbidden') return <Forbidden />
   return (
     <NotOpen
-      title="自動化規則"
+      title="自動化策略"
       reason="預約前開燈、結束後延遲關燈、設備離線通知等規則，必須在真實設備支援下才能啟用。目前尚未串接設備閘道，因此不提供可啟用的規則，以免畫面顯示已啟用但現場沒有動作。"
       needs={[
         '串接燈控、門禁等設備閘道，並能回報指令執行結果',
@@ -18,7 +18,7 @@ export default async function AutomationPage() {
       ]}
       links={[
         { href: '/admin/settings/devices', label: '設備串接狀態' },
-        { href: '/admin/control', label: '無人化控制' },
+        { href: '/admin/control', label: '控制中心' },
       ]}
     />
   )

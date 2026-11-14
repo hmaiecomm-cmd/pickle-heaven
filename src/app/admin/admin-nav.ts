@@ -34,10 +34,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '場地與預約',
     icon: 'courts',
     items: [
-      { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
-      { label: '場地與時段', href: '/admin/courts', permission: 'courts' },
-      { label: '封場與維護', href: '/admin/maintenance?tab=manual', permission: 'courts.manage' },
-      { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts.manage' },
+      { label: '智慧排程', href: '/admin/schedule', permission: 'courts' },
+      { label: '場地設定', href: '/admin/courts', permission: 'courts' },
+      { label: '維護與封場', href: '/admin/maintenance', permission: 'courts.manage' },
     ],
   },
   {
@@ -56,9 +55,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '智慧設備管理',
     icon: 'devices',
     items: [
-      { label: '設備配置與電力迴路', href: '/admin/devices', permission: 'device' },
-      { label: '無人化控制', href: '/admin/control', permission: 'monitor' },
-      { label: '自動化規則', href: '/admin/automation', permission: 'device.automation', notOpen: true },
+      { label: '設備總覽', href: '/admin/devices', permission: 'device' },
+      { label: '控制中心', href: '/admin/control', permission: 'monitor' },
+      { label: '自動化策略', href: '/admin/automation', permission: 'device.automation', notOpen: true },
     ],
   },
   {
@@ -118,7 +117,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     icon: 'settings',
     items: [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
-      { label: '營業時間與預約規則', href: '/admin/pricing', permission: 'settings' },
+      { label: '定價與會員折扣', href: '/admin/pricing', permission: 'settings' },
       { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true },
       { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings' },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },

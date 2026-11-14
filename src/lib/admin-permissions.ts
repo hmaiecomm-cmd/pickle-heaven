@@ -229,7 +229,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   access: '門禁權限（檢視）',
   'access.grant': '門禁授權',
   'access.remote': '遠端開門',
-  courts: '預約行事曆與場地',
+  courts: '智慧排程與場地設定',
   'courts.manage': '封場、清潔維護、場地設定',
   bookings: '訂單查詢（不含金額）',
   'bookings.manage': '新增／改期／取消客人預約',

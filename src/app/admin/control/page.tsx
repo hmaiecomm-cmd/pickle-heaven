@@ -5,7 +5,7 @@ import { getMonitorSnapshot, recentCommands, ACTIONS_BY_TYPE } from '@/server/mo
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { ControlClient } from './control-client'
 
-export const metadata: Metadata = { title: '無人化控制' }
+export const metadata: Metadata = { title: '控制中心' }
 export const dynamic = 'force-dynamic'
 
 export default async function ControlPage() {
@@ -16,7 +16,7 @@ export default async function ControlPage() {
   return (
     <div>
       <PageTitle
-        title="無人化控制"
+        title="控制中心"
         desc="開門、燈光等指令都要先看操作預覽，由有權限的人員確認。送出不等於完成：收到設備回報才顯示「設備已確認」。"
       />
       <ControlClient

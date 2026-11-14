@@ -87,7 +87,7 @@ export function CourtsClient() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="球場"
+        title="場地設定"
         subtitle="球場狀態、容量、時租與設備"
         action={
           <Button size="sm" disabled title="Phase 2 實作">

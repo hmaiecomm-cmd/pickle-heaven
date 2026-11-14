@@ -9,7 +9,7 @@ import { listMaintenance } from '@/server/maintenance-admin'
 import { MaintenanceClient } from './maintenance-client'
 import { UnblockButton } from './unblock-button'
 
-export const metadata: Metadata = { title: '清潔／維護排程與封場' }
+export const metadata: Metadata = { title: '維護與封場' }
 export const dynamic = 'force-dynamic'
 
 /**
@@ -31,7 +31,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-4">
-      <PageTitle title="清潔／維護排程與封場" desc="清潔維護與人工封場都會占用場地：前台該時段顯示「清潔維護・暫不開放」或「封場」，不能訂場也不能安排活動。" />
+      <PageTitle title="維護與封場" desc="清潔維護與人工封場都會占用場地：前台該時段顯示「清潔維護・暫不開放」或「封場」，不能訂場也不能安排活動。" />
       <nav className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" aria-label="分頁">
         {(
           [
@@ -56,7 +56,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
         <MaintenanceClient data={data} canManage={canManage} />
       ) : (
         <section className="space-y-3">
-          <p className="text-xs text-muted">人工封場以單一時段格為單位；新增請到預約行事曆點選空白時段。整面場地停用或維護請到「場地與時段」。</p>
+          <p className="text-xs text-muted">人工封場以單一時段格為單位；新增請到「智慧排程」點選空白時段。整面場地停用或維護請到「場地設定」。</p>
           <div className="rounded-2xl border border-zinc-200 bg-white">
             {blocks.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted">目前沒有人工封場時段</p>
@@ -74,7 +74,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
               </ul>
             )}
           </div>
-          <Link href="/admin/schedule" className="text-sm text-brand-700 hover:underline">到預約行事曆新增封場 →</Link>
+          <Link href="/admin/schedule" className="text-sm text-brand-700 hover:underline">到智慧排程新增封場 →</Link>
         </section>
       )}
     </div>

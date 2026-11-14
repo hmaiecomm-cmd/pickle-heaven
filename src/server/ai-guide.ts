@@ -39,8 +39,8 @@ export const GUIDES: GuideEntry[] = [
   {
     id: 'slot_blocked',
     question: '為什麼某個時段不能預約？',
-    answer: '可能已有訂場、活動占用、清潔封場、付款暫留，或已超過預約期限。請到「預約行事曆」選擇場地與時間查看該時段的實際原因；未查到資料前不能斷定是哪一種。',
-    links: [{ label: '預約行事曆', href: '/admin/schedule', permission: 'courts' }, { label: '清潔／維護排程', href: '/admin/maintenance', permission: 'courts.manage' }],
+    answer: '可能已有訂場、活動占用、清潔封場、付款暫留，或已超過預約期限。請到「智慧排程」選擇場地與時間查看該時段的實際原因；未查到資料前不能斷定是哪一種。',
+    links: [{ label: '智慧排程', href: '/admin/schedule', permission: 'courts' }, { label: '維護與封場', href: '/admin/maintenance', permission: 'courts.manage' }],
     patterns: [/(不能|無法|沒辦法).*(預約|訂)/, /時段.*(不能|無法|鎖|占用)/, /為什麼.*(預約|時段)/],
   },
   {
@@ -54,7 +54,7 @@ export const GUIDES: GuideEntry[] = [
     id: 'modify_booking',
     question: '如何修改客人的預約？',
     answer: '擁有者、管理員、營運人員與櫃台人員可以修改；只讀人員只能查看。先在「訂單與財務 → 訂場與活動訂單」開啟預約明細，取消或重新安排新日期、時間及場地並確認無衝突；涉及付款差額（退款或補款）時交由有退款核准權限的擁有者或管理員處理。',
-    links: [{ label: '交易管理', href: '/admin/bookings', permission: 'bookings' }, { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' }],
+    links: [{ label: '交易管理', href: '/admin/bookings', permission: 'bookings' }, { label: '智慧排程', href: '/admin/schedule', permission: 'courts' }],
     patterns: [/(修改|改期|更改|變更|取消).*(預約|訂單|訂場)/, /(預約|訂單).*(修改|改期|取消)/, /改期|改時間|換時段/],
   },
   {
@@ -103,7 +103,7 @@ export const GUIDES: GuideEntry[] = [
     id: 'courts',
     question: '本館有幾面球場？',
     answer: '',
-    links: [{ label: '場地與時段', href: '/admin/courts', permission: 'courts' }],
+    links: [{ label: '場地設定', href: '/admin/courts', permission: 'courts' }],
     patterns: [/幾面|幾個(球)?場|有哪些場地|場地有/],
     live: 'courts',
   },

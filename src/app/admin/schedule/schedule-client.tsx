@@ -81,7 +81,7 @@ export function AdminScheduleClient({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">場地時段管理</h1>
+        <h1 className="text-xl font-semibold tracking-tight">智慧排程</h1>
         <p className="mt-1 text-sm text-muted">
           點選空白時段可鎖定為維護時間；已鎖定（綠色）的時段再點一次即可解除。
         </p>
