@@ -205,4 +205,62 @@ src/app/admin/schedule/page.tsx、schedule/schedule-client.tsx、src/server/sche
 - 無資料庫結構變更
 
 ### 下一階段
-Phase 3 場地設定與維護。開始前建議確認：營業時間的單一來源（Venue.openMinute／closeMinute 或 OperatingHours）。
+Phase 3（已完成，見下方）。
+
+---
+
+## Phase 3：場地設定與維護 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+使用者未另行指定，依建議：營業時間以 `Venue.openMinute／closeMinute` 為唯一來源，編輯入口統一到「場地設定」。電力控制排程（`scheduling-service` 讀 `OperatingHours`）改讀 Venue 屬控制邏輯，延到 Phase 6 處理。
+
+### 已完成
+- 場地設定新增「營業時間與預約規則」區塊：營業時間、可預約天數、購物車保留、預約截止（時段長度維持唯讀）
+  - 沿用 `PATCH /api/admin/settings/venue/[id]`（權限 `settings`），無權限者只能檢視
+- 系統設定的「營運規則」改為唯讀摘要「營業時間與預約規則」，附「到場地設定修改 →」，不再能在兩處編輯
+- 球場新增與編輯完成（原為停用的「Phase 2 實作」佔位）
+  - 欄位：名稱（同場館不可重複）、容納人數、排序、室內／室外、雨棚、地面材質
+  - 新 API：`POST /api/admin/courts`、`PATCH /api/admin/courts/[id]`（權限 `courts.manage`，寫入 COURT_CREATE／COURT_UPDATE 稽核）
+  - 欄位驗證集中於 `src/lib/court-input.ts`
+  - 無 `courts.manage` 時隱藏新增、編輯、狀態按鈕
+- 維護與封場：沒有場館時顯示「尚未建立場館」，不再整頁錯誤（Phase 1 測試發現的既有問題）
+- 球場卡片狀態標籤不再被擠成兩行
+
+### 未完成
+- 電力控制排程仍讀 `OperatingHours`（Phase 6）
+- 時租仍由「定價與會員折扣」的 PriceRule 決定，PriceRule 編輯仍未開放
+- 時段長度（slotMinutes）不開放修改
+- 手機版球場卡片的設備欄位（照明／風扇／門禁）擠成兩行，屬既有排版，未在本階段處理
+
+### 修改檔案（10 個，+372／−92）
+src/app/admin/courts/page.tsx、courts/courts-client.tsx、courts/venue-rules.tsx（新）、src/app/api/admin/courts/route.ts、api/admin/courts/[id]/route.ts（新）、src/lib/court-input.ts（新）、src/lib/api-service.ts、src/lib/models.ts、src/app/admin/settings/settings-client.tsx、src/app/admin/maintenance/page.tsx
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過
+- 瀏覽器＋API 測試：29／29（建置版本＋本機暫時 SQLite＋種子資料，測完刪除）
+  - 營業規則：顯示、伺服器拒絕超出範圍值、修改後資料庫更新、智慧排程時段同步減少、前台訂場頁正常、還原
+  - 球場：新增（含室外／雨棚／材質）、智慧排程出現新球場、同名拒絕、空白名稱無法送出、編輯帶入與儲存、狀態切換、維護頁顯示維護中球場
+  - 稽核紀錄：VENUE_UPDATE、COURT_CREATE、COURT_UPDATE、COURT_STATUS
+  - 系統設定改為唯讀連結
+  - 檢視者：看不到新增／編輯／狀態按鈕；直接呼叫 POST／PATCH API 皆回 401
+  - 無場館時：維護與封場、場地設定、智慧排程皆顯示提示而非錯誤頁
+  - 1366、1024、390 無水平捲動
+
+### 截圖
+桌面 `V8_Phase3_場地設定與維護_截圖`（7 張）
+
+### Git／部署
+- Commit：`cb67cab` feat(admin): V8-BC Phase 3 場地設定與維護
+- 備份點：標籤 `v8-phase3-start` → 00caf1a
+- Preview：https://pickle-heaven-cylmnv9fx-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：Vercel API 檔案清單比對，10／10 個修改檔案 SHA-1 相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert cb67cab`，或 `git switch -c restore v8-phase3-start`
+- 無資料庫結構變更
+
+### 下一階段
+Phase 4 設備總覽：只保留設備與 18 路迴路配置，排程編輯（ControlSchedulePanel）移出，待 Phase 6 放進自動化策略。
