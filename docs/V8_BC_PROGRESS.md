@@ -380,4 +380,75 @@ src/lib/circuit-guard.ts（新）、src/server/circuit-control.ts（新）、src
 - 無資料庫結構變更
 
 ### 下一階段
-Phase 6 自動化策略：修正排程儲存 403 與夜間排程、排程 API 加入分類檢查、cron 改用 Bearer 驗證並讀取 Venue 營業時間與已存排程。
+Phase 6（已完成，見下方）。
+
+---
+
+## Phase 6：自動化策略 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+依 Phase 5 回報時提出、使用者回覆「繼續下一階段」的四點進行；自動化規則（AutomationRule）需要真實硬體，維持「尚未開放」。
+
+### 已完成
+- **排程儲存 API**（`/api/admin/circuits/schedule` POST）
+  - 修正一律 403（原本檢查不存在的 ADMIN／SUPERVISOR 角色）→ 改為 `device.automation`（擁有者、經理）
+  - 以迴路程式定義的分類為準；分類不符、24 小時、預留、不可排程迴路一律拒絕
+  - 修正夜間排程存不進去（原本只讀 `operatingHours`）
+  - 改為「整組取代」：修正自訂時段假 id 造成錯誤、刪除的時段不會刪除、沒有備註的自訂時段被當成主時段刪掉、可用他路排程 id 改到別路等問題
+  - 驗證時間範圍、星期格式、自訂時段不重疊、提前／延遲 0–120 分鐘；寫入 CircuitScheduleAudit
+  - 改用 `$transaction(async (tx) => …)`（專案資料範圍保護不支援陣列寫法；陣列寫法會先寫入一部分再報錯）
+- **排程面板**：只顯示迴路自己的分類；無 `device.automation` 時唯讀；未存排程時營業迴路預設帶入場地設定營業時間；24:00 以 00:00 顯示並存回 1440
+- **每分鐘排程計算**（`calculateCircuitStates`）
+  - 改用台北時間與台北星期（原本直接取 UTC 時分）
+  - 營業迴路（05–09）：已存主時段，否則場地設定營業時間；另加自訂時段（原本讀空的 OperatingHours，正式站永遠不會開）
+  - 夜間迴路（10–11）：已存主時段，否則預設 18:00–22:00；另加自訂時段
+  - 預約迴路（01–04）：依球場排序先後對應（第 1 面 01、02；第 2 面 03、04），套用每路提前／延遲分鐘數
+  - 不可排程迴路不納入；每個場館只計算一次（原本每路迴路重算一次）
+- **cron** `check-schedules`：改用 `Authorization: Bearer`（與其他 cron 一致；原本讀 `?secret=`，Vercel Cron 會被 401）
+- **`/api/remote-control/watchdog`（Phase 0 高風險問題 3）**：GET 需 `monitor`、POST 需 `device.control`；頁面需 `monitor`
+- 自動化策略選單移除「未開放」；分類說明改為「預設依場地設定的營業時間」，不再寫死 08:00–22:00
+
+### 未完成
+- 自動化規則（AutomationRule）UI 與執行引擎仍未開放（需真實硬體）
+- OperatingHours 資料表已不再被排程使用（未刪除，無資料庫結構變更）
+- 開發庫（Preview 使用）仍缺 Circuit 等 15 張表：Preview 的控制中心、自動化策略可能因缺表出錯；正式庫已補齊
+- `recalculateReservationSchedule` 未被呼叫，仍沿用舊的球場對應（未修改）
+
+### 修改檔案（10 個，+205／−347）
+src/app/api/admin/circuits/schedule/route.ts、src/server/scheduling-service.ts、src/components/admin/control-schedule-panel.tsx、src/app/admin/automation/page.tsx、automation/schedule-picker.tsx、src/app/api/cron/check-schedules/route.ts、src/app/api/remote-control/watchdog/route.ts、src/app/admin/remote-control-watchdog/page.tsx、src/lib/venue-layout.ts、src/app/admin/admin-nav.ts
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過
+- 排程計算邏輯：15／15（固定時間點：營業前後、台北 18:30、12–18 永遠 OFF、A／B 場對應、提前／延遲、已存排程覆蓋、星期限制、自訂時段、錯掛在 12 路的排程無效）
+  - 對照舊版（Phase 5，ef80320）：台北 18:30 營業與夜間迴路全部 OFF。球場對應在種子資料與正式庫（A=1、B=2）下舊版碰巧正確，本次修正為預防排序值變更
+- Phase 5 防護測試重跑：11／11
+- 瀏覽器＋API 測試：29／29
+  - 擁有者儲存營業、夜間、預約動態；整組取代；6 種錯誤輸入皆 400；稽核 4 筆
+  - 介面：選單無「未開放」、只顯示自身分類、載入已存值、畫面儲存成功、未存排程預設 10:00–24:00 且存成 1440
+  - 檢視者：唯讀、無儲存按鈕、欄位停用、儲存 API 403、監控 POST 401
+  - 未登入：監控 API GET／POST 401、監控頁導向登入
+  - cron：無驗證 401、`?secret=` 401、Bearer 200；執行後 12–18 路 0 筆指令
+  - 1366、1024、390 無水平捲動
+- 測試中修正：陣列交易造成 500 與部分寫入；錯誤訊息顯示英文分類代碼；面板未存排程時預設 08:00–22:00
+
+### 截圖
+桌面 `V8_Phase6_自動化策略_截圖`（6 張）
+
+### Git／部署
+- Commit：`4293efd` feat(automation): V8-BC Phase 6 自動化策略
+- 備份點：標籤 `v8-phase6-start` → a397ac5
+- Preview：https://pickle-heaven-1xpf17cjy-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：Vercel API 檔案清單比對，10／10 相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 部署注意
+- 部署到正式站後，每分鐘 cron 會開始真正執行（原本一直 401）。正式庫目前 Circuit 0 筆，執行結果為不動作；建立迴路資料後才會產生模擬指令
+
+### 回復方法
+- 程式：`git revert 4293efd`，或 `git switch -c restore v8-phase6-start`
+- 無資料庫結構變更
+
+### 下一階段
+Phase 7 跨系統整合測試。
