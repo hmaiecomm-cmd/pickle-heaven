@@ -18,6 +18,7 @@ import {
   updateIncident,
   type MonitorSnapshot,
 } from './monitor-service'
+import { CircuitCommandError, previewCircuitCommand, sendManualCircuitCommand } from './circuit-control'
 
 /** 後台營運操作。每個動作在伺服器端檢查權限；AI 助理呼叫的也是同一組動作。 */
 
@@ -29,7 +30,7 @@ async function guard<T>(permission: Permission, fn: (actor: string, ctx: AdminCo
     return { ok: true, data: await fn(`admin:${ctx.username}`, ctx) }
   } catch (err) {
     if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有這項操作的權限' }
-    if (err instanceof RefundError || err instanceof InvoiceActionError || err instanceof DeviceCommandError) return { ok: false, error: err.message }
+    if (err instanceof RefundError || err instanceof InvoiceActionError || err instanceof DeviceCommandError || err instanceof CircuitCommandError) return { ok: false, error: err.message }
     if (err instanceof ZodError) return { ok: false, error: err.errors[0]?.message ?? '輸入資料有誤' }
     if (err && typeof err === 'object' && 'digest' in err) throw err // redirect 等 Next 控制流程
     console.error('[admin-ops]', err)
@@ -108,6 +109,18 @@ export async function devicePreviewAction(deviceId: string, action: string) {
 export async function deviceSendAction(params: { deviceId: string; action: string; idempotencyKey: string; reason: string }) {
   return guard('device.control', async (actor) => {
     const c = await sendDeviceCommand({ ...params, actor })
+    return { id: c.id, status: c.status, simulated: c.simulated }
+  })
+}
+
+export async function circuitPreviewAction(circuitNumber: string, targetState: string) {
+  return guard('device.control', () => previewCircuitCommand(circuitNumber, targetState))
+}
+
+export async function circuitSendAction(params: { circuitNumber: string; targetState: string; reason: string; idempotencyKey: string }) {
+  return guard('device.control', async (actor) => {
+    const c = await sendManualCircuitCommand({ ...params, actor })
+    revalidatePath('/admin/control')
     return { id: c.id, status: c.status, simulated: c.simulated }
   })
 }

@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db'
 import { now, taipeiDateString, taipeiToUtc, addMinutes, addDays } from '@/lib/time'
 import { CircuitNumber, CIRCUIT_DEFINITIONS } from '@/lib/control-types'
 import { randomUUID } from 'crypto'
+import { circuitCommandBlocker } from '@/lib/circuit-guard'
 
 type CircuitState = 'ON' | 'OFF'
 
@@ -211,6 +212,25 @@ export async function sendCircuitCommand(
 
     if (!circuit) continue
 
+    const blocker = circuitCommandBlocker(circuit, source)
+    if (blocker) {
+      await prisma.controlEvent.create({
+        data: {
+          eventId: randomUUID(),
+          venueId,
+          circuitId: circuit.id,
+          reservationId,
+          eventType: 'COMMAND_FAILED',
+          severity: 'WARNING',
+          environment: 'SIMULATION',
+          title: `迴路 ${circuitNum} 指令已攔截`,
+          description: blocker,
+          data: { targetState, source, blocked: true },
+        },
+      })
+      continue
+    }
+
     const commandId = randomUUID()
 
     const command = await prisma.controlCommand.create({
@@ -346,6 +366,8 @@ export async function checkAndUpdateSchedules() {
   for (const venue of venues) {
     // 檢查每個迴路的預期狀態
     for (const circuit of venue.circuits) {
+      // 24 小時供電、預留、停用或不接受排程的迴路不由排程改變狀態
+      if (circuitCommandBlocker(circuit, 'SCHEDULE')) continue
       const states = await calculateCircuitStates(venue.id, currentTime)
       const expectedState = states[circuit.circuitNumber as CircuitNumber]
 

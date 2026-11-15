@@ -28,6 +28,7 @@ interface Cmd {
 type Preview = Awaited<ReturnType<typeof devicePreviewAction>> extends infer R ? (R extends { ok: true; data: infer D } ? D : never) : never
 
 const STATUS: Record<string, { label: string; tone: 'gray' | 'blue' | 'green' | 'red' | 'amber' }> = {
+  PENDING: { label: '等待送出', tone: 'gray' },
   SENT: { label: '已送出，等待設備回報', tone: 'blue' },
   ACKED: { label: '設備已確認', tone: 'green' },
   FAILED: { label: '失敗', tone: 'red' },
@@ -40,11 +41,13 @@ export function ControlClient({
   canControl,
   courts,
   commands,
+  children,
 }: {
   integration: { mode: string; label: string; reason: string }
   canControl: boolean
   courts: Court[]
   commands: Cmd[]
+  children?: React.ReactNode
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -147,6 +150,8 @@ export function ControlClient({
           </article>
         ))}
       </div>
+
+      {children}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">指令紀錄</h2>

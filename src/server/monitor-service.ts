@@ -177,11 +177,8 @@ export type MonitorSnapshot = NonNullable<Awaited<ReturnType<typeof getMonitorSn
 
 export class DeviceCommandError extends Error {}
 
+/** 控制中心可下的指令。門禁（開門／上鎖）由門禁權限管理負責，不在此提供。 */
 export const ACTIONS_BY_TYPE: Record<string, { action: string; label: string }[]> = {
-  DOOR: [
-    { action: 'UNLOCK', label: '開門' },
-    { action: 'LOCK', label: '上鎖' },
-  ],
   LIGHTS: [
     { action: 'ON', label: '開燈' },
     { action: 'OFF', label: '關燈' },
@@ -217,7 +214,6 @@ export async function previewDeviceCommand(deviceId: string, action: string) {
     if (!sensorKnown) blockers.push('現場是否有人無法確認（感測器未串接或資料過期），為避免影響現場人員不可關閉')
     else if (sensor?.lastAction === 'OCCUPIED') blockers.push('感測器偵測到現場有人，不可關閉')
   }
-  if (d.type === 'DOOR' && action === 'UNLOCK') warnings.push('開門會讓非預約者也能進入，請確認現場需求；此指令不影響逃生門（逃生門不受本系統控制）')
   if (d.status === 'OFFLINE') warnings.push('設備目前離線，指令可能失敗或逾時')
 
   return {
