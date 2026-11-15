@@ -507,4 +507,58 @@ Phase 7（已完成，見下方）。
 - 無程式變更，不需回復
 
 ### 下一階段
-Phase 8 最終驗收與 Preview 部署。開始前請就「待決定」1–5 指示要不要處理。
+待決定事項修正（已完成，見下方），之後進入 Phase 8。
+
+---
+
+## 待決定事項修正 — ✅ 完成（2026-11-15）
+
+### 使用者決定
+1. 手動操作維持方式：C（到下一個排程時間點＋指定分鐘數），並增加「一直維持」
+2. 照明：D（每次自己勾選），人工封場與清潔維護排程都要
+3. 未串接時：A（只記錄預期狀態、不產生指令）
+4. 檢視者選單：A（看得到維護與封場）
+5. 開發庫：A（補齊缺表）
+
+### 已完成
+- **手動維持方式**：預覽視窗選擇「到下一個排程時間點」（預設，記錄當下排程狀態，排程結果改變即結束）、「維持指定時間」（15 分鐘～8 小時）、「一直維持」；控制中心顯示「手動・維持至…／一直維持／維持到下一個排程時間點」與「恢復排程」；每分鐘排程在維持期間不改變該路，結束時清除並記錄 OVERRIDE_EXPIRED；API 支援 `hold` 參數並驗證
+- **需要照明**：人工封場表單（預設不勾）、清潔維護排程表單（預設勾選）；預約迴路只在需要照明的封場／維護期間開啟；封場清單標示「開燈／不開燈」，智慧排程詳情顯示照明設定
+- **未串接不產生指令**：每分鐘排程只更新迴路預期狀態；控制中心顯示「排程預期：開啟／關閉」；接上設備（非 NOT_CONNECTED）後才送出指令
+- **選單**：維護與封場改為 `courts` 權限，與頁面一致
+- **開發庫**：補 15 張表與 2 個照明欄位（49 → 64 張表；既有資料 AdminAccount 7、Court 2、Booking 0、Reservation 8 前後相同）
+
+### 資料庫結構變更（V8 第一次）
+- migration `prisma/migrations/20261115_v8_override_lighting/migration.sql`：只新增欄位
+  - Circuit：overrideMode、overrideState、overrideBaseline、overrideUntil、overrideBy（皆可為空）
+  - Reservation.lighting、MaintenancePlan.lighting（BOOLEAN NOT NULL DEFAULT true）
+- 開發庫：已套用
+- **正式庫：尚未套用。部署正式站前必須先套用這 7 個 ALTER TABLE（需使用者同意），否則新程式查詢新欄位會出錯**
+- 展示環境的資料庫（若正式站有設定 DEMO_DATABASE_URL）也需要同樣處理
+
+### 修改檔案（16 個，+235／−34）
+prisma/schema.prisma、prisma/migrations/20261115_v8_override_lighting/migration.sql（新）、src/server/scheduling-service.ts、src/server/circuit-control.ts、src/server/admin-ops-actions.ts、src/server/admin-actions.ts、src/server/maintenance-admin.ts、src/server/schedule-admin.ts、src/app/api/admin/control/command/route.ts、src/app/admin/control/page.tsx、control/circuit-panel.tsx、src/app/admin/maintenance/page.tsx、maintenance/block-form.tsx、maintenance/maintenance-client.tsx、src/app/admin/schedule/schedule-client.tsx、src/app/admin/admin-nav.ts
+
+### 測試結果
+- Type Check、Build：通過（Dropbox 內的 Prisma 引擎檔被鎖住無法重新產生，於 Dropbox 外副本執行）
+- Lint：不適用（專案未設定 ESLint）
+- 邏輯測試 15／15：維持方式判斷、人工封場／清潔維護照明、未串接 0 筆指令、三種維持方式與每分鐘排程的互動
+- 本次瀏覽器測試 18／18：預覽三種維持方式、30 分鐘維持寫入與顯示、恢復排程、一直維持、預設維持記錄排程狀態、API 驗證分鐘數、未串接顯示排程預期、兩種照明勾選的預設值與寫入、清單與智慧排程顯示、檢視者選單
+- 回歸：Phase 5 防護 11／11、Phase 5 控制中心 27／27、Phase 6 自動化策略 29／29、Phase 7 跨系統 24／24（更新為新設計的預期：未串接看預期狀態、手動維持期間不改回）、全站 44 頁 0 錯誤
+- 開發庫限定腳本（補表後首次可執行）：門禁授權 25／25、即時監控 30／30、財務數字 21／21
+
+### 截圖
+桌面 `V8_待決定事項修正_截圖`（6 張）、`V8_Phase7_整合測試_截圖`（已更新）
+
+### Git／部署
+- Commit：`4f2a9fb` feat(v8): 手動維持方式、封場照明勾選、未串接不產生指令
+- 備份點：標籤 `v8-phase8a-start` → 9264c73
+- Preview：https://pickle-heaven-eo388zbxh-karajankuo-7123s-projects.vercel.app（連開發庫，已補齊，/api/health ok）
+- Preview 與 Commit 一致性：16／16 檔案相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert 4f2a9fb`
+- 資料庫：新增的欄位與表不影響舊版程式（舊版不讀取），回復程式時不需移除
+
+### 下一階段
+Phase 8 最終驗收與 Preview 部署。
