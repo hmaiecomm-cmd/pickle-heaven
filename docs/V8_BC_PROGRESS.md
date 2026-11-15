@@ -317,4 +317,67 @@ src/components/admin/device-manager.tsx、src/app/admin/automation/page.tsx、sr
 - 無資料庫結構變更
 
 ### 下一階段
-Phase 5 控制中心（高風險）：18 路迴路操作、統一執行紀錄、24 小時迴路防護、門禁指令移交門禁系統。開始前需確認範圍。
+Phase 5（已完成，見下方）。
+
+---
+
+## Phase 5：控制中心 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+依 Phase 4 回報時提出、使用者回覆「繼續下一階段」的四點進行：18 路迴路人工操作、24 小時迴路防護、門禁指令移出控制中心、合併執行紀錄。
+
+### 已完成
+- **24 小時迴路防護（修正 Phase 0 高風險問題 1）**：`src/lib/circuit-guard.ts`
+  - 24 小時供電（12–16）與預留（17–18）迴路：排程、人工、緊急任何來源都不可開關
+  - 以程式定義為準，資料庫分類被改成其他類別仍擋下
+  - 停用、未開放遠端控制（人工）、未開放排程控制（排程）的迴路依來源擋下
+  - `sendCircuitCommand` 送出前檢查，被攔截者寫入 ControlEvent（COMMAND_FAILED，data.blocked=true）
+  - 每分鐘 `checkAndUpdateSchedules` 略過不可排程迴路，不再改寫其預期狀態
+- **控制中心 18 路電力迴路**（`circuit-panel.tsx`、`src/server/circuit-control.ts`）
+  - 依分類列出 18 路；24 小時與預留迴路只顯示標示，沒有按鈕
+  - 開啟／關閉需先預覽、必填原因；同一操作以 idempotencyKey 防重複送出
+  - 未串接設備（正式環境）時停用並說明原因；展示環境產生模擬結果（直接記為設備已確認並標示模擬，避免 Watchdog 誤判未回報）
+  - 寫入 ControlCommand、ControlEvent（MANUAL_OVERRIDE）、AuditLog（CIRCUIT_COMMAND）
+- **手動控制 API** `POST /api/admin/control/command` 改用同一服務：同樣的防護、串接檢查、必填原因、選填 idempotencyKey（原本未串接時也會記錄模擬指令）
+- **門禁**：開門／上鎖自 `ACTIONS_BY_TYPE` 移除，控制中心不再顯示，伺服器端預覽也會拒絕；改為說明並連到門禁權限管理
+- **指令紀錄**：合併設備指令（DeviceCommand）與迴路指令（ControlCommand），標示手動／排程與模擬
+
+### 未完成
+- 門禁權限管理目前沒有遠端開門功能（移除後系統內無遠端開門入口）
+- 排程儲存 403、夜間排程欄位、排程 API 分類檢查、cron 驗證方式、`scheduling-service` 改讀 Venue 營業時間（Phase 6）
+- `/api/remote-control/watchdog` 無登入驗證（Phase 0 高風險問題 3，尚未處理）
+- 正式庫 Circuit 為 0 筆，正式站控制中心的迴路區塊會顯示停用（迴路資料尚未建立）
+
+### 修改檔案（9 個，+410／−134）
+src/lib/circuit-guard.ts（新）、src/server/circuit-control.ts（新）、src/app/admin/control/circuit-panel.tsx（新）、control/page.tsx、control/control-client.tsx、src/app/api/admin/control/command/route.ts、src/server/scheduling-service.ts、src/server/admin-ops-actions.ts、src/server/monitor-service.ts
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過
+- 防護與排程服務測試：11／11（本機暫時 SQLite＋18 路迴路）
+  - 18 路 × 3 種來源；資料庫分類竄改；停用；未開放遠端；未定義編號
+  - 每分鐘排程對 12–18 路 0 筆指令且不改預期狀態；`sendCircuitCommand` 只為 01 建立；被攔截者留下事件；緊急來源也擋
+  - 對照：同一測試在舊版（Phase 4，8810daf）重現問題——每分鐘排程對 12–18 路送出 7 筆 OFF
+- 瀏覽器＋API 測試：27／27（正式環境帳號、展示帳號 DEMO＋本機展示資料庫、檢視者）
+  - 未串接：18 列、12／17 無按鈕、按鈕停用與原因、無開門／上鎖、門禁連結、API 拒絕（未串接／24 小時／缺原因）、無指令產生
+  - 展示環境：預覽、未填原因不能確認、送出成功（模擬）、狀態更新、紀錄合併、關閉提醒、idempotencyKey 只建一筆、24 小時迴路仍拒、稽核紀錄
+  - 檢視者：只能檢視、API 403
+  - 1180、1366、1024、390 無水平捲動
+
+### 截圖
+桌面 `V8_Phase5_控制中心_截圖`（6 張）
+
+### Git／部署
+- Commit：`ef80320` feat(control): V8-BC Phase 5 控制中心與 24 小時迴路防護
+- 備份點：標籤 `v8-phase5-start` → 1a4ffda
+- Preview：https://pickle-heaven-if0xf0ffg-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：Vercel API 檔案清單比對，9／9 相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert ef80320`，或 `git switch -c restore v8-phase5-start`
+- 無資料庫結構變更
+
+### 下一階段
+Phase 6 自動化策略：修正排程儲存 403 與夜間排程、排程 API 加入分類檢查、cron 改用 Bearer 驗證並讀取 Venue 營業時間與已存排程。
