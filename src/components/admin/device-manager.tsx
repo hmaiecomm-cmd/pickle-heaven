@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import {
   AirVent,
   Cable,
@@ -20,7 +21,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
-import { ControlSchedulePanel } from './control-schedule-panel'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import {
   CATEGORY_INFO,
@@ -67,6 +67,12 @@ type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: 
 
 export function DeviceManager() {
   const [selected, setSelected] = React.useState<Selection>({ type: 'circuit', id: '01' })
+  const detailRef = React.useRef<HTMLDivElement>(null)
+  // 從下方清單選取時，詳情面板可能在畫面外，捲動到可見處
+  const selectFromList = (s: Selection) => {
+    setSelected(s)
+    requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  }
 
   return (
     <div className="space-y-6">
@@ -83,10 +89,12 @@ export function DeviceManager() {
           <Legend />
         </section>
 
-        <DetailPanel selected={selected} />
+        <div ref={detailRef} className="scroll-mt-4">
+          <DetailPanel selected={selected} />
+        </div>
       </div>
 
-      <CircuitList selected={selected} onSelect={setSelected} />
+      <CircuitList selected={selected} onSelect={selectFromList} />
     </div>
   )
 }
@@ -205,16 +213,43 @@ function DetailPanel({ selected }: { selected: Selection }) {
   }
   if (!selected) {
     return (
-      <aside aria-label="控制排程" className="grid place-items-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-muted">
-        點選配置圖或清單中的設備查看排程管理
+      <aside aria-label="設備詳情" className="grid place-items-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-muted">
+        點選配置圖或清單中的設備查看配置
       </aside>
     )
   }
   const n = selected.id
   const def = CIRCUIT_DEFINITIONS[n]
   const cat = CATEGORY_INFO[def.category]
+  const spec = CIRCUIT_SPECS[n]
+  const yesNo = (v: boolean) => (v ? '可' : '不可')
 
-  return <ControlSchedulePanel circuitNumber={n} category={def.category} />
+  return (
+    <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
+      <p className="text-xs text-muted">迴路 {n}</p>
+      <h3 className="mt-1 text-base font-semibold">{def.name}</h3>
+      <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1', TONE[cat.tone].chip)}>
+        {cat.label}・{cat.schedule}
+      </span>
+      <p className="mt-2 text-xs text-muted">{cat.rule}</p>
+      <dl className="mt-3 divide-y divide-zinc-100">
+        <Row label="位置" value={circuitLocation(n)} />
+        {spec.units && <Row label="數量" value={spec.units} />}
+        <Row label="電壓" value={spec.voltage} pending={isPending(spec.voltage)} />
+        <Row label="負載" value={spec.load} pending={isPending(spec.load)} />
+        {spec.note && <Row label="說明" value={spec.note} />}
+        <Row label="遠端控制" value={yesNo(def.remoteControlEnabled)} />
+        <Row label="排程控制" value={yesNo(def.scheduleControlEnabled)} />
+        <Row label="連線狀態" value={def.category === 'RESERVED' ? '預留未使用' : '未連線（Demo）'} pending={def.category !== 'RESERVED'} />
+      </dl>
+      {def.category === 'ALWAYS_ON' && <p className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800">24 小時供電迴路，不受預約與排程控制。</p>}
+      {def.scheduleControlEnabled && (
+        <Link href={`/admin/automation?circuit=${n}`} className="mt-4 inline-flex h-9 items-center rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50">
+          查看控制時間排程 →
+        </Link>
+      )}
+    </aside>
+  )
 }
 
 function CircuitList({ selected, onSelect }: { selected: Selection; onSelect: (s: Selection) => void }) {

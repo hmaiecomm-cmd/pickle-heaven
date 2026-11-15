@@ -57,7 +57,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '設備總覽', href: '/admin/devices', permission: 'device' },
       { label: '控制中心', href: '/admin/control', permission: 'monitor' },
-      { label: '自動化策略', href: '/admin/automation', permission: 'device.automation', notOpen: true },
+      { label: '自動化策略', href: '/admin/automation', permission: 'device', notOpen: true },
     ],
   },
   {
