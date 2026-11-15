@@ -24,11 +24,13 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
   const tab = rawTab === 'manual' ? 'manual' : 'plans'
   const canManage = can(ctx.role, 'courts.manage')
 
-  const [data, blocks, courts, venue] = await Promise.all([
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { openMinute: true, closeMinute: true, slotMinutes: true, courts: { where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } } } })
+  if (!venue) return <p className="text-sm text-muted">尚未建立場館。</p>
+
+  const [data, blocks, courts] = await Promise.all([
     listMaintenance(),
     prisma.reservation.findMany({ where: { status: 'BLOCKED', maintenanceEventId: null, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'asc' }, take: 200, include: { court: { select: { name: true } } } }),
     prisma.court.findMany({ where: { status: { not: 'ACTIVE' } }, select: { id: true, name: true, status: true } }),
-    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { openMinute: true, closeMinute: true, slotMinutes: true, courts: { where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } } } }),
   ])
 
   return (
@@ -59,7 +61,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
       ) : (
         <section className="space-y-3">
           <p className="text-xs text-muted">人工封場以單一時段格為單位；整面場地停用或維護請到「場地設定」。</p>
-          {canManage && venue && (
+          {canManage && (
             <BlockForm
               courts={venue.courts}
               starts={slotStarts(venue.openMinute, venue.closeMinute, venue.slotMinutes)}

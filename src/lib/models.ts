@@ -110,6 +110,10 @@ export interface Court {
   name: string
   venueId: string
   capacity: number
+  indoor?: boolean
+  covered?: boolean
+  surface?: string | null
+  sortOrder?: number
   pricePerHour: number
   status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE'
   /** 沒有對應裝置時為 undefined */

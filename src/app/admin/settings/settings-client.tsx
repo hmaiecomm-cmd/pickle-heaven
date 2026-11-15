@@ -16,7 +16,7 @@ import type { AuditEntry, Court, MembershipTierRow, PriceRuleRow, SystemSettings
  * 金流與整合只顯示是否已設定；稽核紀錄讀 AuditLog。
  */
 
-type Section = 'info' | 'rules' | 'notice'
+type Section = 'info' | 'notice'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const fmtMinute = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
@@ -163,7 +163,6 @@ export function SettingsClient() {
     if (!venue) return
     const pick: Record<Section, (keyof VenueSettingsPatch)[]> = {
       info: ['name', 'address', 'phone', 'description'],
-      rules: ['openMinute', 'closeMinute', 'bookAheadDays', 'holdMinutes', 'bookingCutoffMinutes'],
       notice: ['notice', 'policy'],
     }
     setDraft(Object.fromEntries(pick[section].map((k) => [k, venue[k]])) as VenueSettingsPatch)
@@ -209,13 +208,6 @@ export function SettingsClient() {
         編輯
       </Button>
     )
-
-  const step = venue?.slotMinutes ?? 60
-  const timeOptions = (from: number, to: number) => {
-    const out: number[] = []
-    for (let m = from; m <= to; m += step) out.push(m)
-    return out
-  }
 
   return (
     <div className="space-y-6">
@@ -293,56 +285,17 @@ export function SettingsClient() {
           </Card>
 
           {/* 營運規則 */}
-          <Card icon={ScrollText} title="營運規則" aside={editActions('rules')}>
-            {editing === 'rules' ? (
-              <div className="grid grid-cols-2 gap-3 p-4">
-                <Field label="營業開始" htmlFor="v-open">
-                  <select
-                    id="v-open"
-                    value={draft.openMinute}
-                    onChange={(e) => set('openMinute', Number(e.target.value))}
-                    className="h-11 w-full rounded-xl border border-[rgb(var(--border))] surface px-3 text-[15px]"
-                  >
-                    {timeOptions(0, 1440 - step).map((m) => (
-                      <option key={m} value={m}>{fmtMinute(m)}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="營業結束" htmlFor="v-close">
-                  <select
-                    id="v-close"
-                    value={draft.closeMinute}
-                    onChange={(e) => set('closeMinute', Number(e.target.value))}
-                    className="h-11 w-full rounded-xl border border-[rgb(var(--border))] surface px-3 text-[15px]"
-                  >
-                    {timeOptions((draft.openMinute ?? 0) + step, 1440).map((m) => (
-                      <option key={m} value={m}>{fmtMinute(m)}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="可預約未來天數" htmlFor="v-ahead" hint="1–90 天">
-                  <Input id="v-ahead" type="number" min={1} max={90} value={draft.bookAheadDays ?? ''} onChange={(e) => set('bookAheadDays', Number(e.target.value))} />
-                </Field>
-                <Field label="購物車保留（分鐘）" htmlFor="v-hold" hint="3–60 分鐘">
-                  <Input id="v-hold" type="number" min={3} max={60} value={draft.holdMinutes ?? ''} onChange={(e) => set('holdMinutes', Number(e.target.value))} />
-                </Field>
-                <Field label="預約截止（開打前分鐘）" htmlFor="v-cutoff" hint="0 = 可預約到開打前一刻；前台超過截止會顯示「已截止」">
-                  <Input id="v-cutoff" type="number" min={0} max={1440} value={draft.bookingCutoffMinutes ?? ''} onChange={(e) => set('bookingCutoffMinutes', Number(e.target.value))} />
-                </Field>
-                <p className="col-span-2 text-xs text-muted">時段長度 {venue.slotMinutes} 分鐘不開放修改，避免打亂既有預約。縮短營業時間不會取消已成立的訂單。</p>
-              </div>
-            ) : (
-              <KV
-                rows={[
-                  ['營業時間', `${fmtMinute(venue.openMinute)}–${fmtMinute(venue.closeMinute)}，每日`],
-                  ['時段長度', `${venue.slotMinutes} 分鐘`],
-                  ['可預約', `未來 ${venue.bookAheadDays} 天`],
-                  ['購物車保留', `${venue.holdMinutes} 分鐘`],
-                  ['預約截止', venue.bookingCutoffMinutes > 0 ? `開打前 ${venue.bookingCutoffMinutes} 分鐘` : '可預約到開打前一刻'],
-                  ['付款期限', `建立訂單後 ${settings.rules.paymentWindowMinutes} 分鐘`],
-                ]}
-              />
-            )}
+          <Card icon={ScrollText} title="營業時間與預約規則" aside={<a href="/admin/courts" className="text-xs text-brand-600 hover:underline">到場地設定修改 →</a>}>
+            <KV
+              rows={[
+                ['營業時間', `${fmtMinute(venue.openMinute)}–${fmtMinute(venue.closeMinute)}，每日`],
+                ['時段長度', `${venue.slotMinutes} 分鐘`],
+                ['可預約', `未來 ${venue.bookAheadDays} 天`],
+                ['購物車保留', `${venue.holdMinutes} 分鐘`],
+                ['預約截止', venue.bookingCutoffMinutes > 0 ? `開打前 ${venue.bookingCutoffMinutes} 分鐘` : '可預約到開打前一刻'],
+                ['付款期限', `建立訂單後 ${settings.rules.paymentWindowMinutes} 分鐘`],
+              ]}
+            />
           </Card>
 
           {/* 公告與政策 */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Camera, DoorClosed, Fan, Lightbulb, Plus, Users, Volume2, Wrench } from 'lucide-react'
 import { PageHeader } from '@/components/layout'
 import { EmptyState, ErrorState, KPICard, LoadingState, StatusBadge } from '@/components/common'
@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useToast } from '@/components/ui/toast'
-import { getCourts, getDevices, updateCourtStatus } from '@/lib/api-service'
+import { createCourt, getCourts, getDevices, updateCourt, updateCourtStatus, type CourtInput } from '@/lib/api-service'
 import type { Court, Device, DeviceStatus } from '@/lib/models'
 
-/** 球場（Phase 1I）。資料來自 mock api-service；狀態切換僅更新本機狀態。 */
+/** 場地設定：營業時間與預約規則（children）、球場的新增、編輯與營運狀態。寫入資料庫並留下稽核紀錄。 */
 
 type CourtStatus = Court['status']
 const STATUS_META: Record<CourtStatus, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' }> = {
@@ -25,12 +25,15 @@ const TYPE_ICON: Record<Device['type'], React.ElementType> = { DOOR: DoorClosed,
 
 const fmtMoney = (n: number) => `NT$${n.toLocaleString()}`
 
-export function CourtsClient() {
+const EMPTY: CourtInput = { name: '', capacity: 4, indoor: true, covered: false, surface: null }
+
+export function CourtsClient({ canManage, children }: { canManage: boolean; children: ReactNode }) {
   const [courts, setCourts] = useState<Court[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<{ id: string | null; data: CourtInput } | null>(null)
+  const [saving, setSaving] = useState(false)
   const { toast } = useToast()
 
   const load = async () => {
@@ -81,21 +84,40 @@ export function CourtsClient() {
     }
   }
 
-  const editing = courts.find((c) => c.id === editingId) ?? null
+  const openEdit = (c: Court) =>
+    setForm({ id: c.id, data: { name: c.name, capacity: c.capacity, indoor: c.indoor ?? true, covered: c.covered ?? false, surface: c.surface ?? null, sortOrder: c.sortOrder } })
+  const setField = <K extends keyof CourtInput>(k: K, v: CourtInput[K]) => setForm((f) => (f ? { ...f, data: { ...f.data, [k]: v } } : f))
+  const saveForm = async () => {
+    if (!form) return
+    setSaving(true)
+    try {
+      const res = form.id ? await updateCourt(form.id, form.data) : await createCourt(form.data)
+      if (!res.success) return toast(`儲存失敗：${res.error?.message ?? '未知錯誤'}`, 'error')
+      toast(form.id ? '球場資料已更新' : `已新增「${form.data.name}」，前台立即可預約`, 'success')
+      setForm(null)
+      await load()
+    } finally {
+      setSaving(false)
+    }
+  }
   const panelClass = 'rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))]'
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="場地設定"
-        subtitle="球場狀態、容量、時租與設備"
+        subtitle="營業時間、預約規則與球場"
         action={
-          <Button size="sm" disabled title="Phase 2 實作">
-            <Plus className="h-4 w-4" aria-hidden />
-            新增球場
-          </Button>
+          canManage ? (
+            <Button size="sm" onClick={() => setForm({ id: null, data: EMPTY })}>
+              <Plus className="h-4 w-4" aria-hidden />
+              新增球場
+            </Button>
+          ) : undefined
         }
       />
+
+      {children}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KPICard icon={<Users className="h-5 w-5" />} label="球場數" value={kpi.total} unit="面" />
@@ -121,9 +143,14 @@ export function CourtsClient() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="font-semibold">{c.name}</h2>
-                    <p className="mt-0.5 text-xs text-muted">容納 {c.capacity} 人　{fmtMoney(c.pricePerHour)} / 小時</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {c.indoor === false ? (c.covered ? '室外・有雨棚' : '室外') : '室內'}
+                      {c.surface ? `・${c.surface}` : ''}　容納 {c.capacity} 人　{fmtMoney(c.pricePerHour)} 起 / 小時
+                    </p>
                   </div>
-                  <StatusBadge status={STATUS_META[c.status].label} variant={STATUS_META[c.status].variant} />
+                  <span className="shrink-0 whitespace-nowrap">
+                    <StatusBadge status={STATUS_META[c.status].label} variant={STATUS_META[c.status].variant} />
+                  </span>
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
@@ -153,6 +180,7 @@ export function CourtsClient() {
                   </ul>
                 )}
 
+                {canManage && (
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-[rgb(var(--border))] pt-3">
                   {c.status === 'ACTIVE' ? (
                     <Button size="sm" variant="secondary" loading={busyId === c.id} onClick={() => setStatus(c.id, 'MAINTENANCE')}>
@@ -165,33 +193,52 @@ export function CourtsClient() {
                   {c.status !== 'INACTIVE' ? (
                     <Button size="sm" variant="ghost" disabled={busyId === c.id} onClick={() => setStatus(c.id, 'INACTIVE')}>停用</Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(c.id)}>編輯</Button>
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>編輯</Button>
                 </div>
+                )}
               </section>
             )
           })}
         </div>
       )}
 
-      {/* 編輯（佔位：欄位唯讀） */}
-      <Sheet open={editing !== null} onOpenChange={(o) => !o && setEditingId(null)}>
-        {editing && (
-          <SheetContent title={`編輯 ${editing.name}`} description="Phase 2 實作儲存；目前欄位唯讀">
+      <Sheet open={form !== null} onOpenChange={(o) => !o && !saving && setForm(null)}>
+        {form && (
+          <SheetContent title={form.id ? `編輯 ${form.data.name || '球場'}` : '新增球場'} description={form.id ? '修改後前台立即生效' : '新增後前台立即開放預約，時租依「定價與會員折扣」的費率規則'}>
             <div className="space-y-4 text-sm">
-              <Field label="名稱" htmlFor="court-name">
-                <Input id="court-name" value={editing.name} readOnly />
+              <Field label="名稱" htmlFor="court-name" required>
+                <Input id="court-name" value={form.data.name} maxLength={30} onChange={(e) => setField('name', e.target.value)} placeholder="例如：C 場" />
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="容納人數" htmlFor="court-cap">
-                  <Input id="court-cap" value={editing.capacity} readOnly />
+                  <Input id="court-cap" type="number" min={1} max={40} value={form.data.capacity} onChange={(e) => setField('capacity', Number(e.target.value))} />
                 </Field>
-                <Field label="時租（NT$）" htmlFor="court-price">
-                  <Input id="court-price" value={editing.pricePerHour} readOnly />
+                <Field label="排序" htmlFor="court-sort" hint="數字小的排前面">
+                  <Input id="court-sort" type="number" min={0} max={999} value={form.data.sortOrder ?? ''} placeholder="自動" onChange={(e) => setField('sortOrder', e.target.value === '' ? undefined : Number(e.target.value))} />
                 </Field>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="場地類型" htmlFor="court-indoor">
+                  <select id="court-indoor" className="h-11 w-full rounded-xl border border-[rgb(var(--border))] surface px-3 text-[15px]" value={form.data.indoor ? 'in' : 'out'} onChange={(e) => setField('indoor', e.target.value === 'in')}>
+                    <option value="in">室內</option>
+                    <option value="out">室外</option>
+                  </select>
+                </Field>
+                <Field label="地面材質" htmlFor="court-surface">
+                  <Input id="court-surface" value={form.data.surface ?? ''} maxLength={30} onChange={(e) => setField('surface', e.target.value || null)} placeholder="例如：PU" />
+                </Field>
+              </div>
+              {!form.data.indoor && (
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.data.covered} onChange={(e) => setField('covered', e.target.checked)} />
+                  有雨棚
+                </label>
+              )}
               <div className="flex gap-2 border-t border-[rgb(var(--border))] pt-4">
-                <Button size="sm" disabled title="Phase 2 實作">儲存</Button>
-                <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>關閉</Button>
+                <Button size="sm" loading={saving} disabled={!form.data.name.trim()} onClick={saveForm}>
+                  {form.id ? '儲存' : '新增'}
+                </Button>
+                <Button size="sm" variant="secondary" disabled={saving} onClick={() => setForm(null)}>取消</Button>
               </div>
             </div>
           </SheetContent>

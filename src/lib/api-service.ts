@@ -568,6 +568,18 @@ export async function updateCourtStatus(id: string, status: Court['status']): Pr
   return sendAdmin(`/api/admin/courts/${encodeURIComponent(id)}/status`, 'PATCH', { status })
 }
 
+export type CourtInput = { name: string; capacity: number; indoor: boolean; covered: boolean; surface: string | null; sortOrder?: number }
+
+/** 新增球場（寫入資料庫與稽核紀錄）。 */
+export async function createCourt(input: CourtInput): Promise<ApiResponse<{ id: string }>> {
+  return sendAdmin('/api/admin/courts', 'POST', input)
+}
+
+/** 修改球場基本資料（部分欄位）。 */
+export async function updateCourt(id: string, patch: Partial<CourtInput>): Promise<ApiResponse<{ id: string; changed: string[] }>> {
+  return sendAdmin(`/api/admin/courts/${encodeURIComponent(id)}`, 'PATCH', patch)
+}
+
 export async function getDevices(): Promise<ApiResponse<Device[]>> {
   if (ADMIN_LIVE) {
     const res = await fetchAdmin<Array<Omit<Device, 'lastSeen'> & { lastSeen: string }>>('/api/admin/devices')
