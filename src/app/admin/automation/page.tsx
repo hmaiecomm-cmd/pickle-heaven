@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Construction } from 'lucide-react'
 import { pagePermission } from '@/lib/admin-auth'
+import { can } from '@/lib/admin-permissions'
+import { prisma } from '@/lib/db'
 import { DemoModeBanner, Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import { CIRCUIT_NUMBERS } from '@/lib/venue-layout'
@@ -14,7 +16,10 @@ export const metadata: Metadata = { title: '自動化策略' }
 export const dynamic = 'force-dynamic'
 
 export default async function AutomationPage({ searchParams }: { searchParams: Promise<{ circuit?: string }> }) {
-  if ((await pagePermission('device')) === 'forbidden') return <Forbidden />
+  const ctx = await pagePermission('device')
+  if (ctx === 'forbidden') return <Forbidden />
+  const canEdit = can(ctx.role, 'device.automation')
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { openMinute: true, closeMinute: true } })
   const { circuit } = await searchParams
   const initial = (SCHEDULABLE as string[]).includes(circuit ?? '') ? (circuit as CircuitNumber) : SCHEDULABLE[0]
 
@@ -26,9 +31,9 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
       <section aria-labelledby="schedule-title" className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="schedule-title" className="text-sm font-semibold">控制時間排程</h2>
-          <p className="text-xs text-amber-700">排程儲存功能維修中，目前僅供檢視。</p>
+          <p className="text-xs text-muted">{canEdit ? '儲存後由每分鐘排程依台北時間執行；未串接設備前只產生模擬指令。' : '目前帳號只能檢視排程，修改需要「自動化規則發布」權限。'}</p>
         </div>
-        <SchedulePicker initial={initial} />
+        <SchedulePicker initial={initial} canEdit={canEdit} businessHours={venue ?? undefined} />
         <p className="text-xs text-muted">24 小時供電（12–16）與預留迴路（17–18）不接受排程控制，因此不在清單中。</p>
       </section>
 

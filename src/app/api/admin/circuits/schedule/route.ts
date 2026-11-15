@@ -1,233 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pagePermission } from '@/lib/admin-auth'
-import { getAdminUser } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
+import { circuitCommandBlocker } from '@/lib/circuit-guard'
+import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
+import { CATEGORY_INFO } from '@/lib/venue-layout'
 
+type Window = { startMinute: number; endMinute: number; weekdays?: string }
 interface ScheduleUpdatePayload {
-  circuitId?: string
-  circuitNumber?: string // 01-18 迴路號
-  category: string
-  operatingHours?: {
-    startMinute: number
-    endMinute: number
-    weekdays: string
-  }
-  nightAmbience?: {
-    startMinute: number
-    endMinute: number
-    weekdays: string
-  }
-  reservationControl?: {
-    advanceMinutes: number
-    delayMinutes: number
-  }
-  customSlots?: Array<{
-    id?: string
-    startMinute: number
-    endMinute: number
-    weekdays?: string
-    note?: string
-  }>
+  circuitNumber?: string
+  category?: string
+  /** 營業時間迴路的主時段 */
+  operatingHours?: Window
+  /** 夜間迴路的主時段 */
+  nightAmbience?: Window
+  reservationControl?: { advanceMinutes: number; delayMinutes: number }
+  /** 額外開啟時段；儲存時整組取代 */
+  customSlots?: (Window & { note?: string })[]
 }
 
-function validateTimeRange(startMinute: number, endMinute: number): { valid: boolean; error?: string } {
-  if (startMinute < 0 || startMinute > 1439 || endMinute < 0 || endMinute > 1439) {
-    return { valid: false, error: '時間必須在 00:00-23:59 之間' }
-  }
-  if (startMinute >= endMinute) {
-    return { valid: false, error: '開啟時間必須早於關閉時間' }
-  }
-  return { valid: true }
+const WEEKDAYS = /^[0-6](,[0-6])*$/
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+function checkWindow(w: unknown, label: string): string | null {
+  const x = w as Window
+  if (!x || !Number.isInteger(x.startMinute) || !Number.isInteger(x.endMinute)) return `${label}格式錯誤`
+  if (x.startMinute < 0 || x.startMinute > 1439 || x.endMinute < 1 || x.endMinute > 1440) return `${label}必須在 00:00–24:00 之間`
+  if (x.startMinute >= x.endMinute) return `${label}開啟時間必須早於關閉時間`
+  if (x.weekdays !== undefined && !WEEKDAYS.test(x.weekdays)) return `${label}星期格式錯誤`
+  return null
 }
 
-// 檢測時間衝突
-function detectTimeConflicts(
-  newStart: number,
-  newEnd: number,
-  existingSlots: Array<{ startMinute: number; endMinute: number }>
-): { hasConflict: boolean; conflicts: string[] } {
-  const conflicts: string[] = []
-
-  for (const slot of existingSlots) {
-    // 檢測是否重疊
-    if (!(newEnd <= slot.startMinute || newStart >= slot.endMinute)) {
-      const existingTime = `${String(Math.floor(slot.startMinute / 60)).padStart(2, '0')}:${String(slot.startMinute % 60).padStart(2, '0')}-${String(Math.floor(slot.endMinute / 60)).padStart(2, '0')}:${String(slot.endMinute % 60).padStart(2, '0')}`
-      conflicts.push(`與現有時段 ${existingTime} 衝突`)
-    }
-  }
-
-  return {
-    hasConflict: conflicts.length > 0,
-    conflicts,
-  }
-}
-
+/**
+ * 儲存一個迴路「自己分類」的控制時間排程（整組取代並寫入稽核）。
+ * 需要 device.automation；24 小時供電、預留、停用或不接受排程的迴路一律拒絕。
+ */
 export async function POST(request: NextRequest) {
-  const ctx = await pagePermission('device')
+  const ctx = await pagePermission('device.automation')
   if (ctx === 'forbidden') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: '目前帳號沒有修改排程的權限' }, { status: 403 })
   }
 
-  // 權限檢查：只有 ADMIN 和 SUPERVISOR 可修改排程
-  if ((ctx as any).role !== 'ADMIN' && (ctx as any).role !== 'SUPERVISOR') {
-    return NextResponse.json({ error: '無權限修改排程設定' }, { status: 403 })
+  const payload = (await request.json().catch(() => null)) as ScheduleUpdatePayload | null
+  if (!payload?.circuitNumber) return NextResponse.json({ error: '缺少迴路編號' }, { status: 400 })
+  const def = CIRCUIT_DEFINITIONS[payload.circuitNumber as CircuitNumber]
+  const circuit = def ? await prisma.circuit.findUnique({ where: { circuitNumber: payload.circuitNumber } }) : null
+  if (!def || !circuit) return NextResponse.json({ error: '找不到迴路' }, { status: 404 })
+
+  const blocker = circuitCommandBlocker(circuit, 'SCHEDULE')
+  if (blocker) return NextResponse.json({ error: blocker }, { status: 400 })
+  const category = def.category
+  if (payload.category && payload.category !== category) {
+    return NextResponse.json({ error: `迴路 ${circuit.circuitNumber} 屬於「${CATEGORY_INFO[category].label}」，不可設定其他分類的排程` }, { status: 400 })
+  }
+  const modifiedBy = `admin:${ctx.username}`
+
+  if (category === 'RESERVATION_DYNAMIC') {
+    const r = payload.reservationControl
+    if (!r || !Number.isInteger(r.advanceMinutes) || !Number.isInteger(r.delayMinutes) || r.advanceMinutes < 0 || r.advanceMinutes > 120 || r.delayMinutes < 0 || r.delayMinutes > 120) {
+      return NextResponse.json({ error: '提前開啟與延遲關閉需為 0 到 120 的整數分鐘' }, { status: 400 })
+    }
+    if (payload.customSlots?.length) return NextResponse.json({ error: '預約動態控制不使用自訂時段' }, { status: 400 })
+    await prisma.$transaction(async (tx) => {
+      await tx.circuit.update({ where: { id: circuit.id }, data: { reservationAdvanceMinutes: r.advanceMinutes, reservationDelayMinutes: r.delayMinutes } })
+      await tx.circuitScheduleAudit.create({
+        data: {
+          circuitNumber: circuit.circuitNumber,
+          category,
+          operation: 'UPDATE',
+          previousValue: { advanceMinutes: circuit.reservationAdvanceMinutes, delayMinutes: circuit.reservationDelayMinutes },
+          newValue: { advanceMinutes: r.advanceMinutes, delayMinutes: r.delayMinutes },
+          modifiedBy,
+        },
+      })
+    })
+    return NextResponse.json({ success: true, message: '設定已保存' })
   }
 
-  try {
-    const payload: ScheduleUpdatePayload = await request.json()
-    const user = await getAdminUser()
-    const modifiedBy = (user as any)?.username || 'system'
-
-    // 查詢迴路
-    let circuit
-    if (payload.circuitId) {
-      circuit = await prisma.circuit.findUnique({
-        where: { id: payload.circuitId },
-      })
-    } else if (payload.circuitNumber) {
-      circuit = await prisma.circuit.findUnique({
-        where: { circuitNumber: payload.circuitNumber },
-      })
+  const main = category === 'OPERATING_HOURS' ? payload.operatingHours : payload.nightAmbience
+  const mainErr = checkWindow(main, '主時段')
+  if (mainErr) return NextResponse.json({ error: mainErr }, { status: 400 })
+  const slots = payload.customSlots ?? []
+  if (slots.length > 20) return NextResponse.json({ error: '自訂時段最多 20 個' }, { status: 400 })
+  for (const [i, slot] of slots.entries()) {
+    const err = checkWindow(slot, `自訂時段 ${i + 1} `)
+    if (err) return NextResponse.json({ error: err }, { status: 400 })
+    for (const other of slots.slice(0, i)) {
+      if (slot.startMinute < other.endMinute && other.startMinute < slot.endMinute) {
+        return NextResponse.json({ error: `自訂時段 ${hhmm(slot.startMinute)}–${hhmm(slot.endMinute)} 與 ${hhmm(other.startMinute)}–${hhmm(other.endMinute)} 重疊` }, { status: 400 })
+      }
     }
+  }
 
-    if (!circuit) {
-      return NextResponse.json({ error: 'Circuit not found' }, { status: 404 })
-    }
-
-    const circuitId = circuit.id
-
-    // 查詢舊的排程設定用於審計
-    const oldSchedules = await prisma.circuitSchedule.findMany({
-      where: {
-        circuitId,
-        category: payload.category,
+  const old = await prisma.circuitSchedule.findMany({ where: { circuitId: circuit.id, category } })
+  const rows = [
+    { startMinute: main!.startMinute, endMinute: main!.endMinute, weekdays: main!.weekdays ?? '0,1,2,3,4,5,6', note: null as string | null },
+    ...slots.map((x) => ({ startMinute: x.startMinute, endMinute: x.endMinute, weekdays: x.weekdays ?? '0,1,2,3,4,5,6', note: (x.note ?? '').trim().slice(0, 60) || '自訂時段' })),
+  ]
+  await prisma.$transaction(async (tx) => {
+    await tx.circuitSchedule.deleteMany({ where: { circuitId: circuit.id, category } })
+    for (const r of rows) await tx.circuitSchedule.create({ data: { circuitId: circuit.id, category, ...r, enabled: true, modifiedBy } })
+    await tx.circuitScheduleAudit.create({
+      data: {
+        circuitNumber: circuit.circuitNumber,
+        category,
+        operation: old.length > 0 ? 'UPDATE' : 'CREATE',
+        previousValue: old.map((o) => ({ startMinute: o.startMinute, endMinute: o.endMinute, weekdays: o.weekdays, note: o.note })),
+        newValue: rows,
+        modifiedBy,
       },
     })
-
-    // 更新預約動態控制
-    if (payload.category === 'RESERVATION_DYNAMIC' && payload.reservationControl) {
-      await prisma.circuit.update({
-        where: { id: circuitId },
-        data: {
-          reservationAdvanceMinutes: payload.reservationControl.advanceMinutes,
-          reservationDelayMinutes: payload.reservationControl.delayMinutes,
-        },
-      })
-    }
-
-    // 更新營業時間或夜間控制
-    if ((payload.category === 'OPERATING_HOURS' || payload.category === 'NIGHT_AMBIENT') && payload.operatingHours) {
-      const validation = validateTimeRange(payload.operatingHours.startMinute, payload.operatingHours.endMinute)
-      if (!validation.valid) {
-        return NextResponse.json({ error: validation.error }, { status: 400 })
-      }
-
-      // 刪除舊的主排程記錄
-      await prisma.circuitSchedule.deleteMany({
-        where: {
-          circuitId,
-          category: payload.category,
-          note: null, // 只刪除預設時段，保留自訂時段
-        },
-      })
-
-      // 新增主排程記錄
-      const newSchedule = await prisma.circuitSchedule.create({
-        data: {
-          circuitId,
-          category: payload.category,
-          startMinute: payload.operatingHours.startMinute,
-          endMinute: payload.operatingHours.endMinute,
-          weekdays: payload.operatingHours.weekdays,
-          modifiedBy,
-          enabled: true,
-        },
-      })
-
-      // 記錄審計日誌
-      await prisma.circuitScheduleAudit.create({
-        data: {
-          scheduleId: newSchedule.id,
-          circuitNumber: payload.circuitNumber || circuit.circuitNumber,
-          category: payload.category,
-          operation: oldSchedules.length > 0 ? 'UPDATE' : 'CREATE',
-          previousValue: oldSchedules.length > 0 ? JSON.parse(JSON.stringify(oldSchedules[0])) : null,
-          newValue: JSON.parse(JSON.stringify(newSchedule)),
-          modifiedBy,
-        },
-      })
-    }
-
-    // 更新自訂時段（如果有）
-    if (payload.customSlots && payload.customSlots.length > 0) {
-      // 先檢測衝突
-      const existingSlots = oldSchedules
-        .filter(s => s.note && s.startMinute !== null && s.endMinute !== null) // 只檢查自訂時段
-        .map(s => ({ startMinute: s.startMinute!, endMinute: s.endMinute! }))
-
-      for (const slot of payload.customSlots) {
-        const validation = validateTimeRange(slot.startMinute, slot.endMinute)
-        if (!validation.valid) {
-          return NextResponse.json(
-            { error: `自訂時段驗證失敗: ${validation.error}` },
-            { status: 400 }
-          )
-        }
-
-        // 檢測與其他自訂時段的衝突
-        const otherSlots = existingSlots.filter((_, idx) => {
-          if (slot.id) {
-            const oldIdx = oldSchedules.findIndex(os => os.id === slot.id)
-            return idx !== oldIdx
-          }
-          return true
-        })
-        const conflict = detectTimeConflicts(slot.startMinute, slot.endMinute, otherSlots)
-        if (conflict.hasConflict) {
-          return NextResponse.json(
-            { error: `時段衝突: ${conflict.conflicts.join('、')}` },
-            { status: 400 }
-          )
-        }
-
-        if (slot.id) {
-          // 更新現有時段
-          await prisma.circuitSchedule.update({
-            where: { id: slot.id },
-            data: {
-              startMinute: slot.startMinute,
-              endMinute: slot.endMinute,
-              weekdays: slot.weekdays || '0,1,2,3,4,5,6',
-              note: slot.note,
-              modifiedBy,
-            },
-          })
-        } else {
-          // 新增自訂時段
-          await prisma.circuitSchedule.create({
-            data: {
-              circuitId,
-              category: payload.category || 'OPERATING_HOURS',
-              startMinute: slot.startMinute,
-              endMinute: slot.endMinute,
-              weekdays: slot.weekdays || '0,1,2,3,4,5,6',
-              note: slot.note,
-              modifiedBy,
-              enabled: true,
-            },
-          })
-        }
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Schedule settings saved successfully',
-    })
-  } catch (error) {
-    console.error('Schedule update error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  })
+  return NextResponse.json({ success: true, message: '設定已保存' })
 }
 
 export async function GET(request: NextRequest) {

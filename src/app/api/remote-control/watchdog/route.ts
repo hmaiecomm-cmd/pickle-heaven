@@ -15,8 +15,12 @@ import {
   markDeviceOffline,
   markDeviceOnline,
 } from '@/server/remote-control-watchdog'
+import { requireAdminApi, unauthorized } from '@/lib/admin-api'
+
+// 不在 middleware 的 /api/admin 範圍內，必須在這裡自行檢查後台登入與權限
 
 export async function GET(request: NextRequest) {
+  if (!(await requireAdminApi('monitor'))) return unauthorized()
   try {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
@@ -64,6 +68,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await requireAdminApi('device.control'))) return unauthorized()
   try {
     const body = await request.json()
     const { action, deviceId, clientId, reason } = body

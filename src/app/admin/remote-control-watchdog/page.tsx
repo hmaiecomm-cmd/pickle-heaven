@@ -2,9 +2,14 @@
  * Remote Control Watchdog 管理頁面
  */
 
+import { pagePermission } from '@/lib/admin-auth'
+import { Forbidden } from '@/components/admin/page-bits'
 import { RemoteControlWatchdogClient } from './remote-control-watchdog-client'
 
-export default function RemoteControlWatchdogPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function RemoteControlWatchdogPage() {
+  if ((await pagePermission('monitor')) === 'forbidden') return <Forbidden />
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="space-y-6">

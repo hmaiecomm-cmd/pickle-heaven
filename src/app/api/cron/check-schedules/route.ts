@@ -4,8 +4,9 @@
  * Vercel Cron 設定：
  *   cron: "* * * * *"  (每分鐘)
  *
- * 或手動測試：
- *   curl -X GET "http://localhost:3000/api/cron/check-schedules?secret=YOUR_CRON_SECRET"
+ * 驗證：Vercel Cron 會帶入 Authorization: Bearer $CRON_SECRET（與其他 cron 一致）
+ * 手動測試：
+ *   curl -H "Authorization: Bearer YOUR_CRON_SECRET" http://localhost:3000/api/cron/check-schedules
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -15,22 +16,12 @@ import { checkMqttHeartbeat } from '@/server/mqtt-service'
 export const maxDuration = 60 // 最長執行時間 60 秒
 
 export async function GET(req: NextRequest) {
-  // 驗證 Cron secret
-  const secret = req.nextUrl.searchParams.get('secret')
   const expectedSecret = process.env.CRON_SECRET
-
   if (!expectedSecret) {
-    return NextResponse.json(
-      { error: 'CRON_SECRET 未設定' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: 'CRON_SECRET 未設定' }, { status: 500 })
   }
-
-  if (secret !== expectedSecret) {
-    return NextResponse.json(
-      { error: '無效的 Cron secret' },
-      { status: 401 },
-    )
+  if (req.headers.get('authorization') !== `Bearer ${expectedSecret}`) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
 
   try {

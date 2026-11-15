@@ -8,7 +8,7 @@ import { CATEGORY_INFO, CIRCUIT_NUMBERS, type CircuitCategory } from '@/lib/venu
 
 const SCHEDULABLE = CIRCUIT_NUMBERS.filter((n) => CIRCUIT_DEFINITIONS[n].scheduleControlEnabled).sort()
 
-export function SchedulePicker({ initial }: { initial: CircuitNumber }) {
+export function SchedulePicker({ initial, canEdit, businessHours }: { initial: CircuitNumber; canEdit: boolean; businessHours?: { openMinute: number; closeMinute: number } }) {
   const router = useRouter()
   const [circuit, setCircuit] = React.useState<CircuitNumber>(initial)
   const groups = (Object.keys(CATEGORY_INFO) as CircuitCategory[])
@@ -39,7 +39,7 @@ export function SchedulePicker({ initial }: { initial: CircuitNumber }) {
           ))}
         </select>
       </label>
-      <ControlSchedulePanel key={circuit} circuitNumber={circuit} category={CIRCUIT_DEFINITIONS[circuit].category} />
+      <ControlSchedulePanel key={circuit} circuitNumber={circuit} category={CIRCUIT_DEFINITIONS[circuit].category} canEdit={canEdit} businessHours={businessHours} />
     </div>
   )
 }

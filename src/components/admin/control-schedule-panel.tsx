@@ -11,8 +11,9 @@ const timeToMinutes = (time: string): number => {
   return h * 60 + m
 }
 
+// 時間欄位無法輸入 24:00：午夜顯示為 00:00，結束時間的 00:00 存回 1440
 const minutesToTime = (minutes: number): string => {
-  const h = Math.floor(minutes / 60)
+  const h = Math.floor((minutes % 1440) / 60)
   const m = minutes % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
@@ -96,10 +97,14 @@ interface ScheduleState {
 
 interface ControlSchedulePanelProps {
   circuitNumber: CircuitNumber
+  /** 可修改並儲存（device.automation）；否則唯讀 */
+  canEdit?: boolean
+  /** 尚未儲存排程時，營業時間迴路預設採用場地設定的營業時間 */
+  businessHours?: { openMinute: number; closeMinute: number }
   category: CircuitCategory
 }
 
-export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedulePanelProps) {
+export function ControlSchedulePanel({ circuitNumber, category, canEdit = false, businessHours }: ControlSchedulePanelProps) {
   const [expanded, setExpanded] = React.useState<CircuitCategory | null>(category)
   const [isSaving, setIsSaving] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -111,8 +116,8 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
     },
     OPERATING_HOURS: {
       enabled: true,
-      defaultStart: '08:00',
-      defaultEnd: '22:00',
+      defaultStart: businessHours ? minutesToTime(businessHours.openMinute) : '08:00',
+      defaultEnd: businessHours ? minutesToTime(businessHours.closeMinute) : '22:00',
       customSlots: [],
     },
     NIGHT_AMBIENT: {
@@ -209,7 +214,7 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
             saveCategory === 'OPERATING_HOURS'
               ? {
                   startMinute: timeToMinutes(schedules[saveCategory].defaultStart || '08:00'),
-                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00'),
+                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00') || 1440,
                   weekdays: '0,1,2,3,4,5,6',
                 }
               : undefined,
@@ -217,7 +222,7 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
             saveCategory === 'NIGHT_AMBIENT'
               ? {
                   startMinute: timeToMinutes(schedules[saveCategory].defaultStart || '18:00'),
-                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00'),
+                  endMinute: timeToMinutes(schedules[saveCategory].defaultEnd || '22:00') || 1440,
                   weekdays: '0,1,2,3,4,5,6',
                 }
               : undefined,
@@ -231,9 +236,8 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
           customSlots:
             (schedules[saveCategory].customSlots && schedules[saveCategory].customSlots.length > 0)
               ? schedules[saveCategory].customSlots.map((s) => ({
-                  id: s.id,
                   startMinute: timeToMinutes(s.startTime),
-                  endMinute: timeToMinutes(s.endTime),
+                  endMinute: timeToMinutes(s.endTime) || 1440,
                   weekdays: s.weekdays || '0,1,2,3,4,5,6',
                   note: s.note,
                 }))
@@ -338,7 +342,7 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
       <p className="mt-2 text-xs text-muted">{info?.rule}</p>
 
       <div className="mt-4 space-y-3">
-        {CONTROL_MODES.map((mode) => {
+        {CONTROL_MODES.filter((mode) => mode.category === category).map((mode) => {
           const info = CATEGORY_INFO[mode.category]
           const tone = TONE_STYLES[mode.color]
           const state = schedules[mode.category]
@@ -388,7 +392,7 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
               </button>
 
               {isExpanded && (
-                <div className="border-t border-zinc-200 px-4 py-3">
+                <fieldset disabled={!canEdit || isSaving} className="m-0 min-w-0 border-t border-zinc-200 p-0 px-4 py-3">
                   {mode.category === 'RESERVATION_DYNAMIC' && (
                     <div className="space-y-3 text-sm">
                       <div className="rounded-lg bg-zinc-50 p-3">
@@ -579,6 +583,7 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
                   )}
 
                   <div className="mt-4 flex gap-2 border-t border-zinc-200 pt-3">
+                    {canEdit ? (
                     <button
                       type="button"
                       disabled={isSaving}
@@ -588,14 +593,21 @@ export function ControlSchedulePanel({ circuitNumber, category }: ControlSchedul
                       {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
                       儲存設定
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(null)}
-                      className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      收合
-                    </button>
+                    ) : (
+                      <p className="flex-1 self-center text-xs text-muted">目前帳號只能檢視排程</p>
+                    )}
                   </div>
+                </fieldset>
+              )}
+              {isExpanded && (
+                <div className="px-4 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(null)}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    收合
+                  </button>
                 </div>
               )}
             </div>

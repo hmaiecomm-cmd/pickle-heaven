@@ -124,21 +124,21 @@ export const isPending = (v: string) => /待確認|未定/.test(v)
 export type CircuitCategory = (typeof CIRCUIT_DEFINITIONS)[CircuitNumber]['category']
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
-const { businessHours, nightAmbience } = DEFAULT_CIRCUIT_CONFIG
+const { nightAmbience } = DEFAULT_CIRCUIT_CONFIG
 
 export const CATEGORY_INFO: Record<CircuitCategory, { label: string; range: string; schedule: string; rule: string; tone: string }> = {
   RESERVATION_DYNAMIC: {
     label: '預約動態控制',
     range: '01–04',
     schedule: '依線上預約',
-    rule: '依線上預約自動開／關；開打前提前開啟、結束後延遲關閉的分鐘數待設定。',
+    rule: '依線上預約自動開／關；可在自動化策略設定開打前提前開啟、結束後延遲關閉的分鐘數。',
     tone: 'blue',
   },
   OPERATING_HOURS: {
     label: '營業時間控制',
     range: '05–09',
-    schedule: `${hhmm(businessHours.startMinute)}–${hhmm(businessHours.endMinute)}`,
-    rule: `營業時間 ${hhmm(businessHours.startMinute)}–${hhmm(businessHours.endMinute)} 供電（可調整）。`,
+    schedule: '依營業時間',
+    rule: '預設依「場地設定」的營業時間供電；可在自動化策略為個別迴路設定時段。',
     tone: 'green',
   },
   NIGHT_AMBIENT: {

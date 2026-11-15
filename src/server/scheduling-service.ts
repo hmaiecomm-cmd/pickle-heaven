@@ -11,8 +11,8 @@
 
 import 'server-only'
 import { prisma } from '@/lib/db'
-import { now, taipeiDateString, taipeiToUtc, addMinutes, addDays } from '@/lib/time'
-import { CircuitNumber, CIRCUIT_DEFINITIONS } from '@/lib/control-types'
+import { now, taipeiDateString, taipeiToUtc, addMinutes, addDays, taipeiMinuteOfDay, taipeiWeekday } from '@/lib/time'
+import { CircuitNumber, CIRCUIT_DEFINITIONS, DEFAULT_CIRCUIT_CONFIG } from '@/lib/control-types'
 import { randomUUID } from 'crypto'
 import { circuitCommandBlocker } from '@/lib/circuit-guard'
 
@@ -26,110 +26,77 @@ interface ScheduleSlot {
   reasonId?: string // reservationId / overrideId
 }
 
+/** 依球場排序對應的預約動態迴路：第 1 面球場 01、02，第 2 面球場 03、04 */
+const COURT_CIRCUITS: CircuitNumber[][] = [
+  ['01', '02'],
+  ['03', '04'],
+]
+const ALL_DAYS = '0,1,2,3,4,5,6'
+
+type Window = { startMinute: number | null; endMinute: number | null; weekdays: string }
+
 /**
- * 計算球場在特定時間應該的預期迴路狀態
+ * 計算場館在特定時間各迴路的預期狀態（台北時間）。
+ * - 預約動態（01–04）：該球場有預約／活動／封場，含每路迴路的提前開啟與延遲關閉分鐘數
+ * - 營業時間（05–09）：該迴路的主排程；沒有則用場地設定的營業時間；另加自訂時段
+ * - 夜間（10–11）：該迴路的主排程；沒有則用預設夜間時段；另加自訂時段
+ * - 不可排程的迴路（24 小時供電、預留、停用）一律不納入，維持 OFF 且不會送出指令
  */
 export async function calculateCircuitStates(
   venueId: string,
   atTime: Date,
 ): Promise<Record<CircuitNumber, CircuitState>> {
   const states = {} as Record<CircuitNumber, CircuitState>
-
-  // 初始化所有回路為 OFF
-  for (const num of Object.keys(CIRCUIT_DEFINITIONS) as CircuitNumber[]) {
-    states[num] = 'OFF'
-  }
+  for (const num of Object.keys(CIRCUIT_DEFINITIONS) as CircuitNumber[]) states[num] = 'OFF'
 
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
-    include: { circuits: true, operatingHours: true },
+    include: {
+      circuits: { include: { schedules: { where: { enabled: true } } } },
+      courts: { where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true } },
+    },
   })
   if (!venue) return states
 
-  const operatingHours = venue.operatingHours
-  const taipeiDate = taipeiDateString(atTime)
-  const minuteOfDay = getMinuteOfDay(atTime)
-
-  // 1. 預約動態控制（01-04）
-  const reservations = await prisma.reservation.findMany({
-    where: {
-      court: { venueId },
-      startsAt: { lte: atTime },
-      endsAt: { gt: atTime },
-      status: { in: ['BOOKED', 'EVENT', 'BLOCKED'] },
-    },
-    include: { court: true },
-  })
-
-  for (const res of reservations) {
-    const courtNum = res.court.sortOrder + 1
-    if (courtNum === 1 || courtNum === 2) {
-      // 球場 A: 迴路 01, 02
-      states['01'] = 'ON'
-      states['02'] = 'ON'
-    } else if (courtNum === 3 || courtNum === 4) {
-      // 球場 B: 迴路 03, 04
-      states['03'] = 'ON'
-      states['04'] = 'ON'
-    }
+  const minute = taipeiMinuteOfDay(atTime)
+  const weekday = taipeiWeekday(taipeiDateString(atTime))
+  const inWindow = (w: Window) => {
+    if (w.startMinute === null || w.endMinute === null) return false
+    if (!w.weekdays.split(',').map(Number).includes(weekday)) return false
+    const end = w.endMinute > 1440 ? w.endMinute - 1440 : w.endMinute
+    return isWithinTimeRange(minute, w.startMinute, end)
   }
 
-  // 2. 營業時間控制（05-09）
-  if (operatingHours) {
-    const isBizHours = isWithinTimeRange(
-      minuteOfDay,
-      operatingHours.businessStartMinute,
-      operatingHours.businessEndMinute,
-    )
+  for (const circuit of venue.circuits) {
+    const n = circuit.circuitNumber as CircuitNumber
+    const def = CIRCUIT_DEFINITIONS[n]
+    if (!def || circuitCommandBlocker(circuit, 'SCHEDULE')) continue
+    const own = circuit.schedules.filter((x) => x.category === def.category)
+    const main = own.find((x) => x.note === null)
+    const custom = own.filter((x) => x.note !== null)
 
-    if (isBizHours) {
-      // 檢查禁用日期
-      const disabledDates = operatingHours.disabledDates ? operatingHours.disabledDates.split(',') : []
-      if (!disabledDates.includes(taipeiDate)) {
-        // 檢查適用星期
-        const dayOfWeek = new Date(atTime).getDay()
-        const applicableWeekdays = operatingHours.applicableWeekdays
-          ? operatingHours.applicableWeekdays.split(',').map(Number)
-          : [0, 1, 2, 3, 4, 5, 6]
-
-        if (applicableWeekdays.includes(dayOfWeek)) {
-          states['05'] = 'ON'
-          states['06'] = 'ON'
-          states['07'] = 'ON'
-          states['08'] = 'ON'
-          states['09'] = 'ON'
-        }
-      }
+    if (def.category === 'RESERVATION_DYNAMIC') {
+      const court = venue.courts[COURT_CIRCUITS.findIndex((g) => g.includes(n))]
+      if (!court) continue
+      const advance = circuit.reservationAdvanceMinutes ?? DEFAULT_CIRCUIT_CONFIG.reservation.advanceMinutes
+      const delay = circuit.reservationDelayMinutes ?? DEFAULT_CIRCUIT_CONFIG.reservation.delayMinutes
+      const hit = await prisma.reservation.count({
+        where: {
+          courtId: court.id,
+          status: { in: ['BOOKED', 'EVENT', 'BLOCKED'] },
+          startsAt: { lte: addMinutes(atTime, advance) },
+          endsAt: { gt: addMinutes(atTime, -delay) },
+        },
+      })
+      if (hit > 0) states[n] = 'ON'
+    } else if (def.category === 'OPERATING_HOURS') {
+      const base: Window = main ?? { startMinute: venue.openMinute, endMinute: venue.closeMinute, weekdays: ALL_DAYS }
+      if (inWindow(base) || custom.some(inWindow)) states[n] = 'ON'
+    } else if (def.category === 'NIGHT_AMBIENT') {
+      const base: Window = main ?? DEFAULT_CIRCUIT_CONFIG.nightAmbience
+      if (inWindow(base) || custom.some(inWindow)) states[n] = 'ON'
     }
   }
-
-  // 3. 夜間情境控制（10-11）
-  if (operatingHours) {
-    const isNightTime = isWithinTimeRange(
-      minuteOfDay,
-      operatingHours.nightStartMinute,
-      operatingHours.nightEndMinute,
-    )
-
-    if (isNightTime) {
-      const disabledDates = operatingHours.disabledDates ? operatingHours.disabledDates.split(',') : []
-      if (!disabledDates.includes(taipeiDate)) {
-        const dayOfWeek = new Date(atTime).getDay()
-        const applicableWeekdays = operatingHours.applicableWeekdays
-          ? operatingHours.applicableWeekdays.split(',').map(Number)
-          : [0, 1, 2, 3, 4, 5, 6]
-
-        if (applicableWeekdays.includes(dayOfWeek)) {
-          states['10'] = 'ON'
-          states['11'] = 'ON'
-        }
-      }
-    }
-  }
-
-  // 4. 12-16 保持 OFF（24 小時供電，不納入排程控制）
-
-  // 5. 17-18 保持 OFF（預留且停用）
 
   return states
 }
@@ -340,15 +307,6 @@ function isWithinTimeRange(minuteOfDay: number, startMinute: number, endMinute: 
   }
 }
 
-/**
- * 取得當日分鐘數（Asia/Taipei）
- */
-function getMinuteOfDay(date: Date): number {
-  // 簡化計算：假設已轉換為台北時間
-  const hours = date.getUTCHours()
-  const minutes = date.getUTCMinutes()
-  return hours * 60 + minutes
-}
 
 /**
  * Cron 任務：每分鐘檢測排程狀態變化
@@ -364,11 +322,10 @@ export async function checkAndUpdateSchedules() {
   const currentTime = now()
 
   for (const venue of venues) {
-    // 檢查每個迴路的預期狀態
+    const states = await calculateCircuitStates(venue.id, currentTime)
     for (const circuit of venue.circuits) {
       // 24 小時供電、預留、停用或不接受排程的迴路不由排程改變狀態
       if (circuitCommandBlocker(circuit, 'SCHEDULE')) continue
-      const states = await calculateCircuitStates(venue.id, currentTime)
       const expectedState = states[circuit.circuitNumber as CircuitNumber]
 
       // 如果預期狀態與當前狀態不同，更新
