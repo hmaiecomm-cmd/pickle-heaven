@@ -18,7 +18,7 @@ import {
   updateIncident,
   type MonitorSnapshot,
 } from './monitor-service'
-import { CircuitCommandError, previewCircuitCommand, sendManualCircuitCommand } from './circuit-control'
+import { CircuitCommandError, previewCircuitCommand, resumeCircuitSchedule, sendManualCircuitCommand } from './circuit-control'
 
 /** 後台營運操作。每個動作在伺服器端檢查權限；AI 助理呼叫的也是同一組動作。 */
 
@@ -117,11 +117,19 @@ export async function circuitPreviewAction(circuitNumber: string, targetState: s
   return guard('device.control', () => previewCircuitCommand(circuitNumber, targetState))
 }
 
-export async function circuitSendAction(params: { circuitNumber: string; targetState: string; reason: string; idempotencyKey: string }) {
+export async function circuitSendAction(params: { circuitNumber: string; targetState: string; reason: string; idempotencyKey: string; hold?: { mode: string; minutes?: number } }) {
   return guard('device.control', async (actor) => {
     const c = await sendManualCircuitCommand({ ...params, actor })
     revalidatePath('/admin/control')
     return { id: c.id, status: c.status, simulated: c.simulated }
+  })
+}
+
+export async function circuitResumeAction(circuitNumber: string) {
+  return guard('device.control', async (actor) => {
+    await resumeCircuitSchedule(circuitNumber, actor)
+    revalidatePath('/admin/control')
+    return true as const
   })
 }
 

@@ -226,6 +226,7 @@ function CreateSheet({ data, onClose }: { data: Data; onClose: () => void }) {
     assignee: '',
     description: '',
     checklist: '',
+    lighting: true,
   })
   const [skipInput, setSkipInput] = React.useState('')
   const [avail, setAvail] = React.useState<{ courtId: string; name: string; ok: boolean; reasons: string[] }[] | null>(null)
@@ -250,6 +251,7 @@ function CreateSheet({ data, onClose }: { data: Data; onClose: () => void }) {
     assignee: f.assignee || null,
     description: f.description || null,
     checklist: f.checklist || null,
+    lighting: f.lighting,
   })
 
   // 時間變動即查詢每面場地可用性（以系列第一天為準；全部日期的衝突在預覽列出）
@@ -433,6 +435,10 @@ function CreateSheet({ data, onClose }: { data: Data; onClose: () => void }) {
           <Field label="檢查項目（一行一項）" htmlFor="m-check">
             <Textarea id="m-check" rows={3} value={f.checklist} onChange={(e) => set('checklist', e.target.value)} placeholder={'地面清掃\n球網檢查\n垃圾清運'} />
           </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={f.lighting} onChange={(e) => set('lighting', e.target.checked)} />
+            需要照明（維護期間開啟該場的燈與風扇）
+          </label>
 
           {preview && (
             <div className="space-y-2 rounded-xl border border-[rgb(var(--border))] p-3">

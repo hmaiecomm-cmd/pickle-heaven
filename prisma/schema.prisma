@@ -521,6 +521,8 @@ model Reservation {
   /// BLOCKED 且來自清潔／維護排程時指向該次事件
   maintenanceEventId String?
   note               String?
+  /// 人工封場是否需要開啟球場照明（清潔維護以 MaintenancePlan.lighting 為準）
+  lighting           Boolean           @default(true)
   createdAt          DateTime          @default(now())
 
   court            Court             @relation(fields: [courtId], references: [id], onDelete: Cascade)
@@ -1494,6 +1496,8 @@ model MaintenancePlan {
   assignee        String?
   description     String?
   checklist       String?
+  /// 維護期間是否開啟球場照明
+  lighting        Boolean  @default(true)
   /// ACTIVE / CANCELLED
   status          String   @default("ACTIVE")
   createdBy       String?
@@ -1695,6 +1699,15 @@ model Circuit {
   lastCommandStatus String?
   lastCommandAt     DateTime?
   lastCommandError  String?
+
+  /// 手動操作的維持方式：NEXT_CHANGE（到下一個排程切換點）、MINUTES（到 overrideUntil）、INDEFINITE（直到恢復排程）
+  overrideMode     String?
+  /// 手動設定的狀態 ON／OFF
+  overrideState    String?
+  /// NEXT_CHANGE 用：手動操作當下排程算出的狀態，排程結果改變即結束維持
+  overrideBaseline String?
+  overrideUntil    DateTime?
+  overrideBy       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

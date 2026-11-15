@@ -15,6 +15,7 @@ import { now, taipeiDateString, taipeiToUtc, addMinutes, addDays, taipeiMinuteOf
 import { CircuitNumber, CIRCUIT_DEFINITIONS, DEFAULT_CIRCUIT_CONFIG } from '@/lib/control-types'
 import { randomUUID } from 'crypto'
 import { circuitCommandBlocker } from '@/lib/circuit-guard'
+import { deviceIntegration } from './monitor-service'
 
 type CircuitState = 'ON' | 'OFF'
 
@@ -80,12 +81,17 @@ export async function calculateCircuitStates(
       if (!court) continue
       const advance = circuit.reservationAdvanceMinutes ?? DEFAULT_CIRCUIT_CONFIG.reservation.advanceMinutes
       const delay = circuit.reservationDelayMinutes ?? DEFAULT_CIRCUIT_CONFIG.reservation.delayMinutes
+      // 預約與活動一律開啟；人工封場依該筆設定，清潔維護依維護計畫設定是否需要照明
       const hit = await prisma.reservation.count({
         where: {
           courtId: court.id,
-          status: { in: ['BOOKED', 'EVENT', 'BLOCKED'] },
           startsAt: { lte: addMinutes(atTime, advance) },
           endsAt: { gt: addMinutes(atTime, -delay) },
+          OR: [
+            { status: { in: ['BOOKED', 'EVENT'] } },
+            { status: 'BLOCKED', maintenanceEventId: null, lighting: true },
+            { status: 'BLOCKED', maintenanceEvent: { plan: { lighting: true } } },
+          ],
         },
       })
       if (hit > 0) states[n] = 'ON'
@@ -308,18 +314,28 @@ function isWithinTimeRange(minuteOfDay: number, startMinute: number, endMinute: 
 }
 
 
+type OverrideFields = { overrideMode: string | null; overrideBaseline: string | null; overrideUntil: Date | null }
+
+/** 手動操作是否仍在維持期間（computed：排程此刻算出的狀態） */
+export function overrideActive(c: OverrideFields, computed: CircuitState, at: Date): boolean {
+  if (c.overrideMode === 'INDEFINITE') return true
+  if (c.overrideMode === 'MINUTES') return c.overrideUntil !== null && c.overrideUntil > at
+  if (c.overrideMode === 'NEXT_CHANGE') return c.overrideBaseline === computed
+  return false
+}
+
 /**
- * Cron 任務：每分鐘檢測排程狀態變化
- *
- * 這應該由 Vercel Cron 或類似的任務調度器呼叫
+ * Cron 任務：每分鐘依排程更新各迴路的預期狀態。
+ * - 手動操作維持期間內不改變；維持結束時清除並記錄 OVERRIDE_EXPIRED，交回排程
+ * - 未串接設備時只記錄預期狀態，不產生控制指令（避免累積無法送出的指令被 Watchdog 判為異常）
  */
 export async function checkAndUpdateSchedules() {
   const venues = await prisma.venue.findMany({
     where: { active: true },
     include: { circuits: true, courts: true },
   })
-
   const currentTime = now()
+  const connected = (await deviceIntegration()).mode !== 'NOT_CONNECTED'
 
   for (const venue of venues) {
     const states = await calculateCircuitStates(venue.id, currentTime)
@@ -327,16 +343,33 @@ export async function checkAndUpdateSchedules() {
       // 24 小時供電、預留、停用或不接受排程的迴路不由排程改變狀態
       if (circuitCommandBlocker(circuit, 'SCHEDULE')) continue
       const expectedState = states[circuit.circuitNumber as CircuitNumber]
+      let current = circuit.expectedState
 
-      // 如果預期狀態與當前狀態不同，更新
-      if (circuit.expectedState !== expectedState) {
+      if (circuit.overrideMode) {
+        if (overrideActive(circuit, expectedState, currentTime)) continue
         await prisma.circuit.update({
           where: { id: circuit.id },
-          data: { expectedState },
+          data: { overrideMode: null, overrideState: null, overrideBaseline: null, overrideUntil: null, overrideBy: null },
         })
+        await prisma.controlEvent.create({
+          data: {
+            eventId: randomUUID(),
+            venueId: venue.id,
+            circuitId: circuit.id,
+            eventType: 'OVERRIDE_EXPIRED',
+            severity: 'INFO',
+            environment: connected ? 'PRODUCTION' : 'SIMULATION',
+            title: `迴路 ${circuit.circuitNumber} 手動操作結束，交回排程`,
+            description: `維持方式 ${circuit.overrideMode}，排程目前為 ${expectedState}`,
+            data: { mode: circuit.overrideMode, overrideState: circuit.overrideState, scheduleState: expectedState },
+          },
+        })
+        current = circuit.overrideState ?? current
+      }
 
-        // 生成控制命令
-        await sendCircuitCommand(venue.id, [circuit.circuitNumber as CircuitNumber], expectedState, 'SCHEDULE')
+      if (current !== expectedState) {
+        await prisma.circuit.update({ where: { id: circuit.id }, data: { expectedState } })
+        if (connected) await sendCircuitCommand(venue.id, [circuit.circuitNumber as CircuitNumber], expectedState, 'SCHEDULE')
       }
     }
   }

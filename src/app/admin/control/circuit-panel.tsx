@@ -6,7 +6,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Field, Input } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { Pill } from '@/components/admin/page-bits'
-import { circuitPreviewAction, circuitSendAction } from '@/server/admin-ops-actions'
+import { circuitPreviewAction, circuitResumeAction, circuitSendAction } from '@/server/admin-ops-actions'
 
 export interface CircuitRow {
   number: string
@@ -15,9 +15,20 @@ export interface CircuitRow {
   range: string
   location: string
   state: 'ON' | 'OFF' | null
+  /** 排程算出的預期狀態（未串接設備時只有這個） */
+  expected: 'ON' | 'OFF' | null
+  /** 手動維持中 */
+  override: { mode: string; until: string | null } | null
   /** 不可由系統開關的原因（24 小時供電、預留等）；null 表示可操作 */
   locked: string | null
 }
+
+const HOLD_MINUTES = [15, 30, 60, 120, 240, 480]
+const fmtTime = (iso: string) => new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+const overrideLabel = (o: { mode: string; until: string | null }) =>
+  o.mode === 'INDEFINITE' ? '手動・一直維持' : o.mode === 'MINUTES' && o.until ? `手動・維持至 ${fmtTime(o.until)}` : '手動・維持到下一個排程時間點'
+const stateText = (c: CircuitRow) =>
+  c.state ? (c.state === 'ON' ? '開啟中' : '已關閉') : c.expected ? `排程預期：${c.expected === 'ON' ? '開啟' : '關閉'}` : '狀態未知'
 
 type Preview = Awaited<ReturnType<typeof circuitPreviewAction>> extends infer R ? (R extends { ok: true; data: infer D } ? D : never) : never
 
@@ -27,6 +38,8 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
   const { toast } = useToast()
   const [preview, setPreview] = React.useState<Preview | null>(null)
   const [reason, setReason] = React.useState('')
+  const [holdMode, setHoldMode] = React.useState<'NEXT_CHANGE' | 'MINUTES' | 'INDEFINITE'>('NEXT_CHANGE')
+  const [holdMinutes, setHoldMinutes] = React.useState(60)
   const [busy, setBusy] = React.useState(false)
   const keyRef = React.useRef('')
 
@@ -45,6 +58,7 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
       if (!res.ok) return toast(res.error, 'error')
       keyRef.current = `cir-${crypto.randomUUID()}`
       setReason('')
+      setHoldMode('NEXT_CHANGE')
       setPreview(res.data)
     } finally {
       setBusy(false)
@@ -54,10 +68,28 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
     if (!preview) return
     setBusy(true)
     try {
-      const res = await circuitSendAction({ circuitNumber: preview.circuit.number, targetState: preview.targetState, reason, idempotencyKey: keyRef.current })
+      const res = await circuitSendAction({
+        circuitNumber: preview.circuit.number,
+        targetState: preview.targetState,
+        reason,
+        idempotencyKey: keyRef.current,
+        hold: holdMode === 'MINUTES' ? { mode: holdMode, minutes: holdMinutes } : { mode: holdMode },
+      })
       if (!res.ok) return toast(res.error, 'error')
       toast(`迴路 ${preview.circuit.number} 已${preview.actionLabel}${res.data.simulated ? '（模擬）' : ''}`, 'success')
       setPreview(null)
+      router.refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const resume = async (n: string) => {
+    setBusy(true)
+    try {
+      const res = await circuitResumeAction(n)
+      if (!res.ok) return toast(res.error, 'error')
+      toast(`迴路 ${n} 已恢復排程，下一分鐘依排程更新`, 'success')
       router.refresh()
     } finally {
       setBusy(false)
@@ -86,8 +118,16 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
                 {c.locked ? (
                   <span className="text-xs text-violet-700">{c.locked}</span>
                 ) : (
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs text-muted">{c.state === 'ON' ? '開啟中' : c.state === 'OFF' ? '已關閉' : '狀態未知'}</span>
+                  <span className="flex flex-wrap items-center justify-end gap-2">
+                    {c.override && (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200">{overrideLabel(c.override)}</span>
+                    )}
+                    <span className="text-xs text-muted">{stateText(c)}</span>
+                    {c.override && canControl && (
+                      <button type="button" disabled={busy} onClick={() => resume(c.number)} className="h-9 rounded-lg px-2 text-xs font-medium text-brand-700 hover:underline disabled:opacity-40">
+                        恢復排程
+                      </button>
+                    )}
                     {(['ON', 'OFF'] as const).map((t) => (
                       <button
                         key={t}
@@ -129,6 +169,30 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
               {preview.blockers.map((b) => (
                 <p key={b} className="rounded-lg bg-red-50 px-2 py-1 text-xs text-red-800">無法執行：{b}</p>
               ))}
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm font-medium">維持方式</legend>
+                {(
+                  [
+                    ['NEXT_CHANGE', '維持到下一個排程時間點（例如營業結束或預約開始）'],
+                    ['MINUTES', '維持指定時間'],
+                    ['INDEFINITE', '一直維持，直到按「恢復排程」'],
+                  ] as const
+                ).map(([v, label]) => (
+                  <label key={v} className="flex flex-wrap items-center gap-2 text-sm">
+                    <input type="radio" name="cir-hold" value={v} checked={holdMode === v} onChange={() => setHoldMode(v)} />
+                    {label}
+                    {v === 'MINUTES' && holdMode === 'MINUTES' && (
+                      <select aria-label="維持分鐘數" value={holdMinutes} onChange={(e) => setHoldMinutes(Number(e.target.value))} className="h-8 rounded-lg border border-zinc-300 px-2 text-sm">
+                        {HOLD_MINUTES.map((m) => (
+                          <option key={m} value={m}>
+                            {m >= 60 ? `${m / 60} 小時` : `${m} 分鐘`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </label>
+                ))}
+              </fieldset>
               <Field label="原因（必填，記錄於操作紀錄）" htmlFor="cir-reason">
                 <Input id="cir-reason" value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="例：活動延長，需延後關燈" />
               </Field>

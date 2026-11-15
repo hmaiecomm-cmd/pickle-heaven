@@ -48,6 +48,7 @@ export const maintenanceInputSchema = z
     assignee: z.string().trim().max(60).nullable(),
     description: z.string().trim().max(2000).nullable(),
     checklist: z.string().trim().max(2000).nullable(),
+    lighting: z.boolean().default(true),
   })
   .refine((v) => v.endMinute > v.startMinute, { message: '結束時間必須晚於開始時間', path: ['endMinute'] })
 export type MaintenanceInput = z.infer<typeof maintenanceInputSchema>
@@ -139,6 +140,7 @@ export async function createMaintenance(params: { input: unknown; excludeDates?:
       assignee: v.assignee || null,
       description: v.description || null,
       checklist: v.checklist || null,
+      lighting: v.lighting,
       createdBy: params.actor,
     },
   })

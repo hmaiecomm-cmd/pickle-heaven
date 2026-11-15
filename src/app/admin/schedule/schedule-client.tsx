@@ -165,6 +165,7 @@ export function AdminScheduleClient({
               {detail?.kind === 'HOLD' && <p className="text-muted">客人已放入購物車、尚未完成付款；逾時未付款會自動釋放。</p>}
               {detail?.kind === 'BLOCK' && <p>封場原因：{detail.note}</p>}
               {detail?.kind === 'MAINTENANCE' && <p>維護排程：{detail.planName}</p>}
+              {(detail?.kind === 'BLOCK' || detail?.kind === 'MAINTENANCE') && <p className="text-muted">照明：{detail.lighting ? '開啟該場燈與風扇' : '不開啟'}</p>}
               {picked.state === 'AVAILABLE' && <p className="text-muted">這個時段目前開放預約。</p>}
               {picked.state === 'CUTOFF' && <p className="text-muted">已超過線上預約截止時間。</p>}
 

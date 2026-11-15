@@ -25,7 +25,7 @@ export default async function ControlPage() {
     getMonitorSnapshot(),
     recentCommands(15),
     recentCircuitCommands(15),
-    prisma.circuit.findMany({ select: { circuitNumber: true, category: true, enabled: true, remoteControlEnabled: true, scheduleControlEnabled: true, actualState: true } }),
+    prisma.circuit.findMany({ select: { circuitNumber: true, category: true, enabled: true, remoteControlEnabled: true, scheduleControlEnabled: true, actualState: true, expectedState: true, overrideMode: true, overrideUntil: true } }),
   ])
   if (!snap) return <p className="text-sm text-muted">尚未建立場館。</p>
 
@@ -40,7 +40,18 @@ export default async function ControlPage() {
         ? '預留未使用'
         : '24 小時供電・不可由系統開關'
       : circuitCommandBlocker(guarded, 'MANUAL_OVERRIDE')
-    return { number: n, name: def.name, categoryLabel: info.label, range: info.range, location: circuitLocation(n), state: db?.actualState === 'ON' || db?.actualState === 'OFF' ? db.actualState : null, locked }
+    const onOff = (v: string | null | undefined) => (v === 'ON' || v === 'OFF' ? v : null)
+    return {
+      number: n,
+      name: def.name,
+      categoryLabel: info.label,
+      range: info.range,
+      location: circuitLocation(n),
+      state: onOff(db?.actualState),
+      expected: onOff(db?.expectedState),
+      override: db?.overrideMode ? { mode: db.overrideMode, until: db.overrideUntil?.toISOString() ?? null } : null,
+      locked,
+    }
   })
 
   const commands = [

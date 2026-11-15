@@ -9,6 +9,7 @@
  *   targetState: "ON",       // 目標狀態
  *   reason: "手動測試",      // 操作原因（記錄於審計日誌）
  *   idempotencyKey: "...",  // 選填，同一個值只會建立一筆指令
+ *   hold: { mode: "NEXT_CHANGE" | "MINUTES" | "INDEFINITE", minutes?: 15|30|60|120|240|480 }  // 選填，預設 NEXT_CHANGE
  * }
  */
 
@@ -25,8 +26,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '權限不足' }, { status: 403 })
   }
 
-  const body = (await req.json().catch(() => null)) as { circuitNumber?: unknown; targetState?: unknown; reason?: unknown; idempotencyKey?: unknown } | null
-  const { circuitNumber, targetState, reason, idempotencyKey } = body ?? {}
+  const body = (await req.json().catch(() => null)) as { circuitNumber?: unknown; targetState?: unknown; reason?: unknown; idempotencyKey?: unknown; hold?: { mode?: string; minutes?: number } } | null
+  const { circuitNumber, targetState, reason, idempotencyKey, hold } = body ?? {}
   if (typeof circuitNumber !== 'string' || typeof targetState !== 'string' || typeof reason !== 'string' || !reason.trim()) {
     return NextResponse.json({ error: '缺少必要欄位: circuitNumber, targetState, reason' }, { status: 400 })
   }
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
       reason,
       idempotencyKey: typeof idempotencyKey === 'string' && idempotencyKey ? idempotencyKey : `api-${randomUUID()}`,
       actor: `admin:${ctx.username}`,
+      hold: hold && typeof hold === 'object' ? hold : undefined,
     })
     return NextResponse.json(
       {

@@ -23,6 +23,7 @@ export async function blockSlot(
   dateStr: string,
   startMinute: number,
   note: string,
+  lighting = false,
 ): Promise<AdminResult> {
   let admin: string
   try {
@@ -44,10 +45,10 @@ export async function blockSlot(
 
   try {
     await prisma.reservation.create({
-      data: { courtId, startsAt, endsAt, status: 'BLOCKED', note: note || '場館維護' },
+      data: { courtId, startsAt, endsAt, status: 'BLOCKED', note: note || '場館維護', lighting },
     })
     await prisma.auditLog.create({
-      data: { actor: admin, action: 'SLOT_BLOCKED', target: `${court.name} ${dateStr} ${startMinute}`, detail: { note } },
+      data: { actor: admin, action: 'SLOT_BLOCKED', target: `${court.name} ${dateStr} ${startMinute}`, detail: { note, lighting } },
     })
     revalidatePath('/admin/schedule')
     revalidatePath('/admin/maintenance')

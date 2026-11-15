@@ -22,8 +22,8 @@ export type ScheduleCellDetail =
       total?: number
     }
   | { kind: 'HOLD' }
-  | { kind: 'BLOCK'; note: string }
-  | { kind: 'MAINTENANCE'; planName: string; planType: string }
+  | { kind: 'BLOCK'; note: string; lighting: boolean }
+  | { kind: 'MAINTENANCE'; planName: string; planType: string; lighting: boolean }
 
 /**
  * 智慧排程格子的詳細資料，key 為 `${courtId}@${startMinute}`。
@@ -48,8 +48,9 @@ export async function getScheduleDetails(
       endsAt: true,
       status: true,
       note: true,
+      lighting: true,
       booking: { select: { code: true, status: true, contactName: true, contactPhone: true, total: true } },
-      maintenanceEvent: { select: { plan: { select: { name: true, type: true } } } },
+      maintenanceEvent: { select: { plan: { select: { name: true, type: true, lighting: true } } } },
     },
   })
 
@@ -59,8 +60,8 @@ export async function getScheduleDetails(
     if (r.status === 'HELD') detail = { kind: 'HOLD' }
     else if (r.status === 'BLOCKED') {
       detail = r.maintenanceEvent
-        ? { kind: 'MAINTENANCE', planName: r.maintenanceEvent.plan.name, planType: r.maintenanceEvent.plan.type }
-        : { kind: 'BLOCK', note: r.note ?? '場館維護' }
+        ? { kind: 'MAINTENANCE', planName: r.maintenanceEvent.plan.name, planType: r.maintenanceEvent.plan.type, lighting: r.maintenanceEvent.plan.lighting }
+        : { kind: 'BLOCK', note: r.note ?? '場館維護', lighting: r.lighting }
     } else {
       const b = r.booking
       detail = {

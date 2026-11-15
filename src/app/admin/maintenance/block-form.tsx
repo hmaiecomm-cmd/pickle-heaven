@@ -27,13 +27,14 @@ export function BlockForm({
   const [date, setDate] = React.useState(initial.date && initial.date >= today ? initial.date : today)
   const [start, setStart] = React.useState(initial.start !== undefined && starts.includes(initial.start) ? initial.start : (starts[0] ?? 0))
   const [note, setNote] = React.useState('場館維護')
+  const [lighting, setLighting] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setBusy(true)
     try {
-      const res = await blockSlot(courtId, date, start, note.trim())
+      const res = await blockSlot(courtId, date, start, note.trim(), lighting)
       toast(res.ok ? (res.message ?? '已封場') : res.error, res.ok ? 'success' : 'error')
       if (res.ok) router.refresh()
     } finally {
@@ -71,6 +72,10 @@ export function BlockForm({
       <Button type="submit" loading={busy} disabled={!courtId || starts.length === 0}>
         封場
       </Button>
+      <label className="flex items-center gap-2 text-sm sm:col-span-5">
+        <input type="checkbox" checked={lighting} onChange={(e) => setLighting(e.target.checked)} />
+        需要照明（封場期間開啟該場的燈與風扇）
+      </label>
     </form>
   )
 }

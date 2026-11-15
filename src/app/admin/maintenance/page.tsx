@@ -79,7 +79,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
                   <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
                     <span>
                       {b.court.name}　{formatDateTime(b.startsAt)}–{formatDateTime(b.endsAt).split(' ')[1]}
-                      <span className="ml-2 text-xs text-muted">{b.note ?? '場館維護'}</span>
+                      <span className="ml-2 text-xs text-muted">{b.note ?? '場館維護'}{b.lighting ? '・開燈' : '・不開燈'}</span>
                     </span>
                     {canManage && <UnblockButton courtId={b.courtId} date={taipeiDateString(b.startsAt)} start={taipeiMinuteOfDay(b.startsAt)} />}
                   </li>
