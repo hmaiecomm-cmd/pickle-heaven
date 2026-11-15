@@ -263,4 +263,58 @@ src/app/admin/courts/page.tsx、courts/courts-client.tsx、courts/venue-rules.ts
 - 無資料庫結構變更
 
 ### 下一階段
-Phase 4 設備總覽：只保留設備與 18 路迴路配置，排程編輯（ControlSchedulePanel）移出，待 Phase 6 放進自動化策略。
+Phase 4（已完成，見下方）。
+
+---
+
+## Phase 4：設備總覽 — ✅ 完成（2026-11-15）
+
+### 範圍決定
+排程編輯不在本階段刪除或改寫，而是原封不動移到「自動化策略」，避免功能空窗（規則「不得為了精簡畫面而刪除既有功能」）。排程儲存的 403 錯誤與後端分類檢查仍留到 Phase 6。
+
+### 已完成
+- 設備總覽詳情面板改為「迴路配置」：分類與規則、位置、數量、電壓、負載、說明、遠端控制、排程控制、連線狀態（Demo）
+  - 24 小時供電迴路（12–16）加註「不受預約與排程控制」，且不提供排程連結
+  - 可排程迴路提供「查看控制時間排程 →」連到自動化策略並帶入迴路
+- 平面配置圖、18 路清單、Demo Mode、設備圖示全部保留
+- 從迴路清單選取時自動捲動到詳情面板（橫式平板詳情在上方，原本看不到變化）
+- 自動化策略：
+  - 新增「控制時間排程」：迴路選單＋原有 ControlSchedulePanel；選單只列可排程迴路（01–11），網址 `?circuit=` 指定不可排程迴路時改用 01
+  - 明示「排程儲存功能維修中，目前僅供檢視」（儲存 API 角色檢查錯誤，所有人都會 403）
+  - 「自動化規則（尚未開放）」說明完整保留，含「開放前需要」清單
+  - 檢視權限由 `device.automation` 改為 `device`，操作員、檢視者仍看得到原本在設備總覽看得到的排程；選單仍標「未開放」
+
+### 未完成
+- 排程儲存 403、夜間排程欄位不符、後端未檢查迴路分類（Phase 6）
+- 共用常數 `CIRCUIT_NUMBERS` 以 `Object.keys` 產生，順序為 10–18、01–09（整數鍵優先）；本階段只在自動化策略頁排序，未改共用常數
+
+### 修改檔案（4 個，+136／−24）
+src/components/admin/device-manager.tsx、src/app/admin/automation/page.tsx、src/app/admin/automation/schedule-picker.tsx（新）、src/app/admin/admin-nav.ts
+
+### 測試結果
+- Type Check：通過
+- Lint：不適用（專案未設定 ESLint）
+- Build：通過
+- 瀏覽器測試：25／25（建置版本＋本機暫時 SQLite＋種子資料＋18 路迴路，測完刪除）
+  - 設備總覽：無錯誤、Demo Mode、平面圖、18 路清單、不再有排程編輯、01／12／17 詳情、清單選取後詳情可見
+  - 自動化策略：從設備總覽帶入迴路、面板顯示對應迴路、選單只有 01–11、切換更新網址、維修中提示、規則說明、`?circuit=12` 改用 01
+  - 檢視者：可看設備總覽、選單看得到自動化策略、可檢視排程
+  - 1366、1024、390 無水平捲動
+- 測試中修正：預設迴路因 `Object.keys` 排序變成 10（已排序後重測）
+
+### 截圖
+桌面 `V8_Phase4_設備總覽_截圖`（7 張）
+
+### Git／部署
+- Commit：`8810daf` feat(admin): V8-BC Phase 4 設備總覽
+- 備份點：標籤 `v8-phase4-start` → 43cb4d9
+- Preview：https://pickle-heaven-34a4mt5uo-karajankuo-7123s-projects.vercel.app（/api/health ok，連開發庫）
+- Preview 與 Commit 一致性：Vercel API 檔案清單比對，4／4 相同
+- Production：未部署（仍為 pickle-heaven-1bq34943y）
+
+### 回復方法
+- 程式：`git revert 8810daf`，或 `git switch -c restore v8-phase4-start`
+- 無資料庫結構變更
+
+### 下一階段
+Phase 5 控制中心（高風險）：18 路迴路操作、統一執行紀錄、24 小時迴路防護、門禁指令移交門禁系統。開始前需確認範圍。
