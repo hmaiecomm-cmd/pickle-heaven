@@ -672,3 +672,8 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 2. 以 d0e6bc0 執行 `vercel deploy --prod`
 3. 回退：Instant Rollback 至 `pickle-heaven-8oir7i4p1`
 - 正式展示庫 `pickle-heaven-db` 同樣缺表，DEMO 帳號在正式站按開門會出錯（token 失效，待使用者更新）
+
+### 正式庫建表（2026-11-16，使用者同意「同意修改正式庫，新增 DoorRemoteCommand 表」）
+- `pickle-heaven` 套用 `20261116_door_remote_command`：62 → 63 張表，只新增 DoorRemoteCommand
+- AdminAccount 2、Court 2、Booking 0、Reservation 38、DoorAccessGrant 0、AuditLog 1 前後相同
+- 正式站部署（d0e6bc0）尚待使用者同意
