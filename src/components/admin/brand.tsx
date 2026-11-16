@@ -7,18 +7,17 @@ export const BRAND_NAME_ZH = brand.name
 export const BRAND_NAME_EN = brand.englishName
 
 /**
- * 後台 Logo：使用官網首頁相同的 DXD Logo 資產
- * 透明背景綠色 DXD 圖形（100x72px）
- * 與 site-nav 重用同一份素材，保持品牌一致
+ * 後台 Logo：DXD Pickleball Court 綠色標誌
+ * 完整品牌版本，包含 PICKLEBALL COURT 文字
  */
 export function BrandLogo({ className, showText = true }: { className?: string; showText?: boolean }) {
   return (
     <div className={`flex items-center gap-3 ${className ?? ''}`}>
       <Image
-        src={images.logo.src}
-        alt={images.logo.alt}
-        width={images.logo.width}
-        height={images.logo.height}
+        src={images.logoFullBrand.src}
+        alt={images.logoFullBrand.alt}
+        width={images.logoFullBrand.width}
+        height={images.logoFullBrand.height}
         className="h-auto w-auto shrink-0"
         style={{ width: '100px', height: 'auto' }}
         priority
