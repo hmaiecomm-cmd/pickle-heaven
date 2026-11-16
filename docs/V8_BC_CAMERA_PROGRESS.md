@@ -216,7 +216,45 @@ public/monitor-demo/
 - Phase 4：更新入口、休息區及 Pro Shop 影像
 - Phase 5：同步四個監控子頁面
 - Phase 6：完整驗收
-### Phase 4：更新入口、休息區及 Pro Shop 影像 ⏸️ 待執行
+### Phase 4：更新入口、休息區及 Pro Shop 影像 ✅ 完成
+
+**執行時間**：2026-11-16
+
+#### 完成事項
+
+✅ **入口與 Pro Shop 照片上傳**
+- `public/monitor-demo/cam01-entrance-qr.jpg` (351 KB) ← 圖 16 (大門)
+- `public/monitor-demo/cam02-entrance-inside.jpg` (305 KB) ← 圖 17 (入口內側)
+- `public/monitor-demo/cam05-proshop.jpg` (296 KB) ← 圖 18 (販賣機)
+
+✅ **DEMO_MEDIA 配置全部對應**
+- Camera 01 → `/monitor-demo/cam01-entrance-qr.jpg` ✓
+- Camera 02 → `/monitor-demo/cam02-entrance-inside.jpg` ✓
+- Camera 03 → `/monitor-demo/cam03-indoor-lounge.jpg` ✓ (既有)
+- Camera 04 → `/monitor-demo/cam04-court-a.jpg` ✓
+- Camera 05 → `/monitor-demo/cam05-proshop.jpg` ✓
+- Camera 06 → `/monitor-demo/cam06-court-b.jpg` ✓
+
+✅ **六路攝影機 Demo 圖片完成**
+```
+public/monitor-demo/
+  ├── cam01-entrance-qr.jpg (351 KB) - Camera 01 ✓
+  ├── cam02-entrance-inside.jpg (305 KB) - Camera 02 ✓
+  ├── cam03-indoor-lounge.jpg (183 KB) - Camera 03 ✓
+  ├── cam04-court-a.jpg (267 KB) - Camera 04 ✓
+  ├── cam05-proshop.jpg (296 KB) - Camera 05 ✓
+  └── cam06-court-b.jpg (278 KB) - Camera 06 ✓
+```
+
+#### 資料完整性驗證
+- ✅ 所有六路攝影機的 Demo 圖片已上傳
+- ✅ DEMO_MEDIA 配置指向正確檔案
+- ✅ 檔案格式與命名規範無誤
+- ✅ 無衝突或重複
+
+#### 後續工作
+- Phase 5：同步四個監控子頁面
+- Phase 6：完整驗收
 ### Phase 5：同步即時影像、歷史回放、事件紀錄及攝影機管理 ⏸️ 待執行
 ### Phase 6：執行完整驗收 ⏸️ 待執行
 
