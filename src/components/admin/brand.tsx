@@ -3,9 +3,9 @@
 export const BRAND_NAME_ZH = '大新店森林匹克球'
 export const BRAND_NAME_EN = 'DAXINDIAN PICKLEBALL CLUB'
 
-// 臨時素材：從品牌展示圖（docs/brand-source/dxd-brand-sheet.jpg）黑底版本裁切去背，不是原始向量檔。
-// 取得正式透明 Logo 後替換此檔；設為 null 會改顯示中性佔位框。
-const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo-temp.png'
+// 正式 Logo：取自正式品牌展示圖（docs/brand-source/dxd-brand-sheet.jpg）黑底版本的 DXD 圖形，裁切去背的點陣圖（非向量原檔）。
+// 日後取得 SVG 或高解析透明檔時直接替換此檔；設為 null 會改顯示中性佔位框。
+const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo.png'
 
 export function BrandLogo({ className }: { className?: string }) {
   return (
