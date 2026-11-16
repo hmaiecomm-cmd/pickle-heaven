@@ -633,7 +633,7 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 5. 回退：Vercel Instant Rollback 至 `pickle-heaven-1bq34943y`（新增欄位不影響舊版）
 
 ### 已知限制（上線時決定接受）
-- **展示帳號（DEMO）**：正式站展示庫 `pickle-heaven-db` 尚未加入新欄位與 V8 新表（`.env` 的 PROD_DEMO_AUTH_TOKEN 已失效 401，不由 Claude 試其他憑證）。使用者決定先部署；DEMO 帳號在智慧排程、控制中心、自動化策略等頁面可能出錯，一般帳號不受影響。DEMO 最後登入為 2026-10-14
+- **展示帳號（DEMO）**（2026-11-16 已補齊，見下方）：正式站展示庫 `pickle-heaven-db` 尚未加入新欄位與 V8 新表（`.env` 的 PROD_DEMO_AUTH_TOKEN 已失效 401，不由 Claude 試其他憑證）。使用者決定先部署；DEMO 帳號在智慧排程、控制中心、自動化策略等頁面可能出錯，一般帳號不受影響。DEMO 最後登入為 2026-10-14
 - 補救：使用者執行 `turso db tokens create pickle-heaven-db` 更新 `.env` 的 PROD_DEMO_AUTH_TOKEN 後，以唯讀比對確認只需新增，再補齊
 
 ### 尚未處理（V8 範圍外或需另行決定）
@@ -682,3 +682,9 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 - 7／7 檔與 d0e6bc0 一致；/api/health ok（db up）；/、/booking、/admin/login 200；/admin/access 未登入 307；cron 未驗證 401；日誌無錯誤
 - 未以正式帳號登入實測（不代輸入密碼）
 - 回退：Instant Rollback 至 `pickle-heaven-8oir7i4p1`（新表可保留）
+
+### 正式展示庫補齊（2026-11-16，使用者同意「同意補齊展示庫」）
+- 使用者於 Turso 網站產生新金鑰並更新 .env 的 PROD_DEMO_AUTH_TOKEN
+- `pickle-heaven-db`：依正式庫結構只新增 20 張表、22 個欄位（皆可為空或有預設值）、索引；共 112 句，單一交易
+- 43 → 63 張表；既有 43 表筆數（共 824 筆）前後相同；再次比對與正式庫完全一致
+- DEMO 帳號在正式站的 V8 頁面與一鍵開門（模擬）不再因缺表出錯
