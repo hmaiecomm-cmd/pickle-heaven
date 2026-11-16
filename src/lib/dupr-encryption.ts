@@ -46,7 +46,7 @@ export function encryptToken(token: string): string {
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
 
     let encrypted = cipher.update(token, 'utf8', 'hex')
-    encrypted = encrypted + cipher.final('hex')
+    encrypted += cipher.final('hex')
 
     const authTag = cipher.getAuthTag()
 
@@ -87,7 +87,7 @@ export function decryptToken(encryptedToken: string): string {
     decipher.setAuthTag(authTag)
 
     let decrypted = decipher.update(encryptedData)
-    decrypted += decipher.final()
+    decrypted = Buffer.concat([decrypted, decipher.final()])
 
     return decrypted.toString('utf8')
   } catch (error) {
