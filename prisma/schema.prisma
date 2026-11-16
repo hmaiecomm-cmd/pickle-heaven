@@ -244,6 +244,7 @@ model User {
   restrictions   MemberRestriction[]
   pointsLedger   PointsLedger[]
   topUpOrders    TopUpOrder[]
+  duprPlayerLink DuprPlayerLink?
 
   @@index([createdAt])
 }
@@ -2375,4 +2376,90 @@ model DoorRemoteCommand {
   ackAt          DateTime?
 
   @@index([doorId, createdAt])
+}
+
+/**
+ * ─────────────────────────── DUPR 智慧賽事系統 ───────────────────────────
+ */
+
+/// DUPR 球員帳號連結（每個 GOHO 會員最多連結一個 DUPR 帳號）
+model DuprPlayerLink {
+  id               String    @id @default(cuid())
+  userId           String    @unique // GOHO 會員 ID
+
+  /// DUPR 官方球員 ID（例如 DUPR_12345）
+  duprPlayerId     String
+
+  /// 球員名稱（DUPR 官方）
+  playerName       String
+
+  /// OAuth Token（加密存儲）
+  /// 加密方式：AES-256-GCM，使用 process.env.ENCRYPTION_KEY
+  accessToken      String    // 格式：encrypted:[base64]
+
+  /// 刷新令牌（加密存儲）
+  refreshToken     String?   // 格式：encrypted:[base64]
+
+  /// Token 過期時間
+  tokenExpiresAt   DateTime
+
+  /// 評級快取（避免每次都查詢 DUPR API）
+  singlesRating    Float?
+  doublesRating    Float?
+  ratingUpdatedAt  DateTime?
+
+  /// 連結時間
+  linkedAt         DateTime  @default(now())
+
+  /// 解除連結時間（null 表示仍在連結）
+  unlinkedAt       DateTime?
+
+  /// 內部備註
+  note             String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([duprPlayerId])
+  @@index([linkedAt])
+  @@index([unlinkedAt])
+}
+
+/// DUPR API 呼叫日誌（用於除錯、稽核、監控限速）
+model DuprApiLog {
+  id          String    @id @default(cuid())
+  userId      String?   // 發起者（如適用）
+
+  /// API 端點（例如 GET /api/players/{id}）
+  endpoint    String
+
+  /// HTTP 方法
+  method      String    // GET, POST, etc.
+
+  /// HTTP 狀態碼
+  statusCode  Int
+
+  /// 呼叫耗時（毫秒）
+  duration    Int
+
+  /// 請求時間
+  requestAt   DateTime  @default(now())
+
+  /// 錯誤信息（失敗時）
+  errorMsg    String?
+
+  /// 請求大小（位元組，用於監控）
+  requestSize Int?
+
+  /// 回應大小（位元組，用於監控）
+  responseSize Int?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([endpoint, requestAt])
+  @@index([userId, requestAt])
+  @@index([statusCode])
+  @@index([requestAt]) // 用於按時間戳查詢日誌
 }
