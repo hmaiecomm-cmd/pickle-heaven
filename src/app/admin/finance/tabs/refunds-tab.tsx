@@ -20,8 +20,16 @@ export async function RefundsTab({ searchParams = {} }: { searchParams?: Record<
     where: status ? { status } : {},
     orderBy: { createdAt: 'desc' },
     take: 200,
-    include: { booking: { select: { id: true, code: true, contactName: true } }, items: true },
+    include: {
+      booking: { select: { id: true, code: true, contactName: true } },
+      items: true
+    },
   })
+
+  const rowsWithAmount = rows.map(r => ({
+    ...r,
+    amount: r.items.reduce((sum, item) => sum + (item.cashAmount ?? 0) + (item.pointsAmount ?? 0), 0)
+  }))
   const filters = [['', '全部'], ['PROCESSING', '處理中'], ['MANUAL_PENDING', '待人工處理'], ['FAILED', '失敗'], ['SUCCEEDED', '成功']]
 
   return (
@@ -38,15 +46,15 @@ export async function RefundsTab({ searchParams = {} }: { searchParams?: Record<
             <tr><th className="px-3 py-2 font-medium">時間</th><th className="px-3 py-2 font-medium">訂單</th><th className="px-3 py-2 font-medium">項目</th><th className="px-3 py-2 text-right font-medium">金額</th><th className="px-3 py-2 font-medium">方式</th><th className="px-3 py-2 font-medium">狀態</th><th className="px-3 py-2 font-medium">經手</th></tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {rows.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted">沒有退款紀錄</td></tr>}
-            {rows.map((r) => {
+            {rowsWithAmount.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted">沒有退款紀錄</td></tr>}
+            {rowsWithAmount.map((r) => {
               const [l, t] = STATE[r.status] ?? [r.status, 'blue']
               return (
                 <tr key={r.id}>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{r.createdAt.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</td>
                   <td className="px-3 py-2"><Link href={`/admin/finance?tab=bookings&order=${r.booking.id}`} className="font-mono text-brand-700 hover:underline">{r.booking.code}</Link><span className="block text-[11px] text-muted">{r.booking.contactName}</span></td>
                   <td className="max-w-[18rem] px-3 py-2 text-xs">{r.items.map((i) => i.label).join('；') || '整筆訂單'}<span className="block text-muted">原因：{r.reason}</span></td>
-                  <td className="px-3 py-2 text-right font-tabular">{r.amount}</td>
+                  <td className="px-3 py-2 text-right font-tabular">${r.cashAmount}{r.pointsAmount ? ` +${r.pointsAmount}P` : ''}</td>
                   <td className="px-3 py-2">{METHOD[r.method]}</td>
                   <td className="px-3 py-2"><Pill tone={t}>{l}</Pill></td>
                   <td className="px-3 py-2 text-xs text-muted">{r.handledByName ?? '—'}</td>
