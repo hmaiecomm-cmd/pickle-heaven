@@ -1,0 +1,189 @@
+{
+  "info": {
+    "_postman_id": "dupr-api-tests",
+    "name": "DUPR 智慧賽事系統 API 測試集",
+    "description": "DUPR OAuth 完整流程測試集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1️⃣ 初始化 - 查詢連結狀態",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dupr/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "dupr", "me"]
+        },
+        "description": "檢查初始連結狀態（應該未連結）"
+      },
+      "response": []
+    },
+    {
+      "name": "2️⃣ 授權 - 生成授權 URL",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/auth/dupr/authorize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "dupr", "authorize"]
+        },
+        "description": "生成授權 URL 和 state"
+      },
+      "response": []
+    },
+    {
+      "name": "3️⃣ Callback - 處理 OAuth 回調",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/auth/dupr/callback?code=mock_code_123&state={{oauth_state}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "dupr", "callback"],
+          "query": [
+            {
+              "key": "code",
+              "value": "mock_code_123"
+            },
+            {
+              "key": "state",
+              "value": "{{oauth_state}}"
+            }
+          ]
+        },
+        "description": "模擬 DUPR OAuth callback（應重定向到成功或失敗頁面）"
+      },
+      "response": []
+    },
+    {
+      "name": "4️⃣ 驗證 - 確認已連結",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dupr/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "dupr", "me"]
+        },
+        "description": "驗證已連結（應返回球員信息）"
+      },
+      "response": []
+    },
+    {
+      "name": "5️⃣ 同步 - 刷新評級",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dupr/sync-ratings",
+          "host": ["{{base_url}}"],
+          "path": ["api", "dupr", "sync-ratings"]
+        },
+        "description": "同步最新評級"
+      },
+      "response": []
+    },
+    {
+      "name": "6️⃣ 解除 - 移除連結",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dupr/link",
+          "host": ["{{base_url}}"],
+          "path": ["api", "dupr", "link"]
+        },
+        "description": "解除 DUPR 帳號連結"
+      },
+      "response": []
+    },
+    {
+      "name": "7️⃣ 驗證 - 確認已解除",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session={{test_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dupr/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "dupr", "me"]
+        },
+        "description": "驗證已解除（應返回 null）"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "test_user_id",
+      "value": "postman-test-user-{{$timestamp}}",
+      "type": "string"
+    },
+    {
+      "key": "oauth_state",
+      "value": "set-from-step-2-response",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "collection",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "console.log('DUPR API 測試集已加載');"
+        ]
+      }
+    }
+  ]
+}
