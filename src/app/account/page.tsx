@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import dynamicImport from 'next/dynamic'
+import { default as dynamicImport } from 'next/dynamic'
 import { CalendarPlus, ChevronRight, Coins, Ticket, Wallet } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
@@ -22,8 +22,8 @@ import { POINTS_KIND_LABEL, type PointsKind } from '@/server/points-ledger'
 import { listUserLedger, listUserTopUps, topUpAvailability, TOPUP_STATUS_LABEL, userPointsBreakdown, type TopUpStatus } from '@/server/topup-service'
 import { formatDateTime } from '@/lib/time'
 
-// 動態載入 DUPR 頁面（移除 ssr: false 以相容 Server Component）
-const DuprTab = dynamicImport(() => import('./dupr-tab/page'))
+// Client Component 動態加載
+const DuprTab = dynamicImport(() => import('./dupr-tab/page'), { loading: () => <div>載入中...</div> })
 
 export const metadata: Metadata = { title: '我的帳戶' }
 export const dynamic = 'force-dynamic'
