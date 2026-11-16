@@ -185,7 +185,37 @@ camera-plan.tsx (渲染攝影機標記)
   ↓ (使用新座標)
 平面圖顯示六路新位置 ✓
 ```
-### Phase 3：更新球場 A、B 的 Demo 影像 ⏸️ 待執行
+### Phase 3：更新球場 A、B 的 Demo 影像 ✅ 完成
+
+**執行時間**：2026-11-16
+
+#### 完成事項
+
+✅ **球場照片已上傳**
+- `public/monitor-demo/cam04-court-a.jpg` (274 KB) ← 圖 14
+- `public/monitor-demo/cam06-court-b.jpg` (285 KB) ← 圖 15
+
+✅ **DEMO_MEDIA 配置已對應**
+- Camera 04 → `/monitor-demo/cam04-court-a.jpg`
+- Camera 06 → `/monitor-demo/cam06-court-b.jpg`
+
+✅ **檔案驗證**
+- 兩個球場照片已正確存放於 public/monitor-demo/ 目錄
+- 檔案格式與檔名與 DEMO_MEDIA 設定相符
+
+#### 上傳檔案清單
+```
+public/monitor-demo/
+  ├── cam03-indoor-lounge.jpg (既有)
+  ├── cam04-court-a.jpg ✓ (新)
+  ├── cam06-court-b.jpg ✓ (新)
+  └── (cam04-entrance-full.jpg, cam04-entrance-lounge.jpg - 棄用)
+```
+
+#### 後續工作
+- Phase 4：更新入口、休息區及 Pro Shop 影像
+- Phase 5：同步四個監控子頁面
+- Phase 6：完整驗收
 ### Phase 4：更新入口、休息區及 Pro Shop 影像 ⏸️ 待執行
 ### Phase 5：同步即時影像、歷史回放、事件紀錄及攝影機管理 ⏸️ 待執行
 ### Phase 6：執行完整驗收 ⏸️ 待執行
