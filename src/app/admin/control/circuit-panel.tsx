@@ -45,7 +45,6 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
   const [expandedCircuit, setExpandedCircuit] = React.useState<string | null>(null)
   const [settingsState, setSettingsState] = React.useState<Record<string, {
     controlMode: 'reservation' | 'business' | 'night' | '24h' | 'off'
-    selectedCircuit: string
   }>>({})
   const keyRef = React.useRef('')
 
@@ -125,44 +124,14 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
             key={c.number}
             className="rounded-xl border border-zinc-200 bg-white overflow-hidden hover:border-zinc-300 transition-colors"
           >
-            {/* 卡片頭部：基本信息 */}
-            <div className="p-4 space-y-3 border-b border-zinc-100">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-xs text-zinc-500 font-bold">{c.number}</span>
-                    <h3 className="font-medium text-sm truncate">{c.name}</h3>
-                  </div>
-                  <p className="text-xs text-muted mt-1">{c.location}</p>
-                </div>
-                {c.state ? (
-                  <span className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${
-                    c.state === 'ON' ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-800'
-                  }`}>
-                    {c.state === 'ON' ? '開啟中' : '已關閉'}
-                  </span>
-                ) : (
-                  <span className="px-2 py-1 rounded-lg text-xs font-medium bg-zinc-50 text-zinc-600 whitespace-nowrap">
-                    {c.expected ? `預期：${c.expected === 'ON' ? '開' : '關'}` : '未知'}
-                  </span>
-                )}
+            {/* 卡片頭部：簡化版 */}
+            <div className="p-4 space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-xs font-bold text-zinc-700">迴路 {c.number}</span>
+                <h3 className="font-medium text-sm truncate">{c.name}</h3>
               </div>
-
-              {/* 迴路信息網格 */}
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <div>
-                  <p className="text-muted">分類</p>
-                  <p className="font-medium">{c.categoryLabel}</p>
-                </div>
-                <div>
-                  <p className="text-muted">範圍</p>
-                  <p className="font-medium">{c.range}</p>
-                </div>
-              </div>
-
-              {/* 覆蓋狀態 */}
               {c.override && (
-                <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 border border-amber-200">
+                <div className="rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800 border border-amber-200">
                   {overrideLabel(c.override)}
                 </div>
               )}
@@ -209,30 +178,23 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
 
                   {/* 展開設定區 */}
                   {expandedCircuit === c.number && (
-                    <div className="pt-3 border-t border-zinc-100 space-y-4">
+                    <div className="pt-3 space-y-3">
                       <div>
                         <label className="block text-xs font-medium text-zinc-700 mb-2">控制回路</label>
-                        <select
-                          value={settingsState[c.number]?.selectedCircuit ?? c.number}
-                          onChange={(e) => setSettingsState(prev => ({
-                            ...prev,
-                            [c.number]: { ...prev[c.number] || { controlMode: 'reservation' }, selectedCircuit: e.target.value }
-                          }))}
-                          className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
-                        >
+                        <select className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm">
                           {['01', '02', '03', '04', '05'].map(n => (
-                            <option key={n} value={n}>{n}｜球場 {String.fromCharCode(64 + parseInt(n))} {n > '02' ? '壁燈' : '主燈'}</option>
+                            <option key={n} value={n}>回路 {n}</option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-zinc-700 mb-2">控制模式</label>
+                        <label className="block text-xs font-medium text-zinc-700 mb-2">排程模式</label>
                         <select
                           value={settingsState[c.number]?.controlMode ?? 'reservation'}
                           onChange={(e) => setSettingsState(prev => ({
                             ...prev,
-                            [c.number]: { ...prev[c.number] || { selectedCircuit: c.number }, controlMode: e.target.value as any }
+                            [c.number]: { controlMode: e.target.value as any }
                           }))}
                           className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
                         >
@@ -240,9 +202,6 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
                             <option key={m.id} value={m.id}>{m.label}</option>
                           ))}
                         </select>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          {CONTROL_MODES.find(m => m.id === (settingsState[c.number]?.controlMode ?? 'reservation'))?.desc}
-                        </p>
                       </div>
 
                       {/* 模式別設定欄位 */}
