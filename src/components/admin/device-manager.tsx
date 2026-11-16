@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
+import { HEALTH_COLORS, type DeviceHealth } from '@/lib/device-health'
 import {
   CATEGORY_INFO,
   CIRCUIT_NUMBERS,
@@ -228,8 +229,20 @@ function DetailPanel({ selected }: { selected: Selection }) {
   const spec = CIRCUIT_SPECS[n]
   const yesNo = (v: boolean) => (v ? '可' : '不可')
 
+  // Demo: 模擬異常狀態（Phase 5 示範）
+  const demoHealth: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
+  const demoAnomalies = demoHealth !== 'healthy' ? (demoHealth === 'critical' ? 2 : 1) : 0
+  const healthColor = HEALTH_COLORS[demoHealth]
+
   return (
     <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
+      {/* 健康狀態指示 */}
+      <div className={cn('mb-3 flex items-center gap-2 rounded-lg px-3 py-2', healthColor.bg)}>
+        <div className={cn('h-3 w-3 rounded-full', demoHealth === 'critical' ? 'blink-critical' : '', healthColor.dot)} aria-hidden />
+        <span className={cn('text-xs font-semibold', healthColor.text)}>{healthColor.label}</span>
+        {demoAnomalies > 0 && <span className={cn('ml-auto text-xs font-medium', healthColor.text)}>{demoAnomalies} 個異常</span>}
+      </div>
+
       <p className="text-xs text-muted">迴路 {n}</p>
       <h3 className="mt-1 text-base font-semibold">{def.name}</h3>
       <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1', TONE[cat.tone].chip)}>
