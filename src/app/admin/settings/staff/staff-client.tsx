@@ -111,7 +111,12 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">新增後台帳號</h2>
-        <p className="text-xs text-muted">可建立管理員、營運人員、櫃台人員或只讀人員，並設定初始密碼；對方首次登入必須更換密碼。擁有者只能由既有擁有者在上方列表轉移。</p>
+        <p className="text-xs text-muted">可建立擁有者、管理員、營運人員、櫃台人員或只讀人員，並設定初始密碼；對方首次登入必須更換密碼。</p>
+        {form.role === 'OWNER' && (
+          <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            <span className="font-semibold">擁有者</span>擁有完整後台權限，包含帳號建立、角色管理、權限管理、財務、設備、門禁及系統設定。多位擁有者可同時存在並擁有相同權限。
+          </p>
+        )}
         <div className="mt-2 grid gap-2 sm:grid-cols-5">
           <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="登入帳號（英數字）" className={input} aria-label="登入帳號" />
           <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="顯示名稱" className={input} aria-label="顯示名稱" />

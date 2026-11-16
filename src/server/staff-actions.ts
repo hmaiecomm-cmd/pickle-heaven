@@ -31,7 +31,7 @@ const createSchema = z.object({
   displayName: z.string().trim().min(1, '請填寫顯示名稱').max(40),
   role: z.enum(ASSIGNABLE_ROLES as [AdminRole, ...AdminRole[]]),
   password: z.string().min(10, '初始密碼至少 10 個字').max(100),
-  venueId: z.string().nullable().default(null),
+  venueId: z.string().nullable().default(null).or(z.literal('')).transform(v => v === '' ? null : v),
 })
 
 export async function createStaffAction(input: z.infer<typeof createSchema>): Promise<R> {

@@ -267,8 +267,8 @@ export function can(role: string, p: Permission): boolean {
   return permissionsOf(role).includes(p)
 }
 
-/** 可由擁有者指派給其他人的角色（擁有者只能由既有擁有者轉移，展示帳號不可指派） */
-export const ASSIGNABLE_ROLES: AdminRole[] = ['MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER']
+/** 可由擁有者指派給其他人的角色；擁有者可以建立新擁有者或轉移既有擁有者；展示帳號不可指派 */
+export const ASSIGNABLE_ROLES: AdminRole[] = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER']
 
 /** 權限頁顯示的角色順序 */
 export const MATRIX_ROLES: AdminRole[] = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER']

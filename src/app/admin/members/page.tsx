@@ -15,7 +15,7 @@ const TABS: { key: PeopleTab; label: string }[] = [
 ]
 const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-sm'
 
-type SP = { tab?: string; q?: string; role?: string; status?: string; from?: string; to?: string; sort?: string; page?: string }
+type SP = { tab?: string; q?: string; role?: string; status?: string; membership?: string; from?: string; to?: string; sort?: string; page?: string }
 
 /**
  * 人員管理：會員（LINE 登入自動建立；另有停用前留下的 Google 會員）、教練、工作人員與管理員、黑名單。
@@ -30,6 +30,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     q: sp.q,
     role: (sp.role as 'member' | 'coach' | 'staff' | '') ?? '',
     status: (sp.status as 'normal' | 'restricted' | '') ?? '',
+    membership: (sp.membership as 'BASIC' | 'PREMIUM' | 'VIP' | '') ?? '',
     from: sp.from,
     to: sp.to,
     sort: (sp.sort as 'joined' | 'login' | 'points' | 'name') ?? 'joined',
@@ -91,6 +92,14 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 <option value="">全部狀態</option>
                 <option value="normal">正常</option>
                 <option value="restricted">受限（黑名單）</option>
+              </select>
+            )}
+            {tab === 'all' && (
+              <select name="membership" defaultValue={sp.membership ?? ''} className={sel} aria-label="會員等級">
+                <option value="">全部等級</option>
+                <option value="BASIC">普通會員</option>
+                <option value="PREMIUM">高級會員</option>
+                <option value="VIP">VIP 會員</option>
               </select>
             )}
             <input type="date" name="from" defaultValue={sp.from ?? ''} className={sel} aria-label="加入日期（起）" />
@@ -161,8 +170,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                     <td className="px-3 py-2 text-xs tabular">{m.phone ?? <span className="text-muted">未填寫</span>}</td>
                     <td className="px-3 py-2">
                       <span className="flex flex-wrap gap-1">
-                        {m.roles.map((r) => (
-                          <Pill key={r} tone={r === '會員' ? 'gray' : r === '教練' ? 'violet' : 'blue'}>{r}</Pill>
+                        <Pill tone="gray">會員</Pill>
+                        {m.membershipLevel === 'BASIC' && <Pill tone="gray">普通會員</Pill>}
+                        {m.membershipLevel === 'PREMIUM' && <Pill tone="amber">高級會員</Pill>}
+                        {m.membershipLevel === 'VIP' && <Pill tone="violet">VIP 會員</Pill>}
+                        {m.roles.slice(1).map((r) => (
+                          <Pill key={r} tone={r === '教練' ? 'violet' : 'blue'}>{r}</Pill>
                         ))}
                       </span>
                     </td>

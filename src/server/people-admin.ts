@@ -19,6 +19,7 @@ export interface PeopleQuery {
   q?: string
   role?: 'member' | 'coach' | 'staff' | ''
   status?: 'normal' | 'restricted' | ''
+  membership?: 'BASIC' | 'PREMIUM' | 'VIP' | ''
   from?: string
   to?: string
   sort?: 'joined' | 'login' | 'points' | 'name'
@@ -45,6 +46,7 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.tab === 'coaches' || qy.role === 'coach') and.push({ isCoach: true })
   if (qy.tab === 'blacklist' || qy.status === 'restricted') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
   if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
+  if (qy.membership && qy.membership !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'PREMIUM' | 'VIP' })
   if (and.length) where.AND = and
 
   // 工作人員與管理員：以後台帳號為主（正式資料庫），可對應會員
@@ -84,6 +86,7 @@ export async function listPeople(qy: PeopleQuery) {
         emailVerified: Boolean(u.googleSub && u.email),
         phone: u.phone,
         roles: ['會員', ...(u.isCoach ? ['教練'] : []), ...(staff ? [ROLE_LABEL[staff.role as keyof typeof ROLE_LABEL] ?? staff.role] : [])],
+        membershipLevel: u.membershipLevel,
         status: black ? ('restricted' as const) : noAct ? ('limited' as const) : ('normal' as const),
         statusLabel: black ? ACCOUNT_STATUS_LABEL.restricted : noAct ? ACCOUNT_STATUS_LABEL.limited : ACCOUNT_STATUS_LABEL.normal,
         points: u.points,
