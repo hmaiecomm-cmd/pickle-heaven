@@ -189,13 +189,9 @@ function SidebarNav({ user }: { user: ShellUser }) {
         href="/admin"
         aria-label={`${BRAND_NAME_ZH} 後台首頁`}
         aria-current={pathname === '/admin' ? 'page' : undefined}
-        className="flex items-center gap-2.5 px-4 py-4 hover:bg-white/5"
+        className="flex items-center gap-3 px-4 py-4 hover:bg-white/5"
       >
-        <BrandLogo className="h-6 w-[74px]" />
-        <div className="min-w-0">
-          <p className="whitespace-nowrap text-[15px] font-bold leading-tight tracking-wide">{BRAND_NAME_ZH}</p>
-          <p className="mt-0.5 whitespace-nowrap text-[8px] font-medium leading-tight tracking-[0.04em] text-white/70">{BRAND_NAME_EN}</p>
-        </div>
+        <BrandLogo showText={true} />
       </Link>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="後台選單">
