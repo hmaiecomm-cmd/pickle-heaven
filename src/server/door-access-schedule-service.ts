@@ -2,6 +2,7 @@ import 'server-only'
 import { prisma } from '@/lib/db'
 import { now } from '@/lib/time'
 import type { DoorAccessSchedule } from '@prisma/client'
+import { executeScheduleActivation, executeScheduleDeactivation } from './door-schedule-executor'
 
 export class DoorScheduleError extends Error {}
 
@@ -76,7 +77,7 @@ export async function createAccessSchedule(input: CreateScheduleInput): Promise<
     throw new DoorScheduleError(`該設備在 ${conflict.startAt.toISOString()} 至 ${conflict.endAt.toISOString()} 期間已有排程`)
   }
 
-  return prisma.doorAccessSchedule.create({
+  const schedule = await prisma.doorAccessSchedule.create({
     data: {
       venueId: input.venueId,
       doorId: input.doorId,
@@ -90,6 +91,24 @@ export async function createAccessSchedule(input: CreateScheduleInput): Promise<
       createdBy: input.createdBy,
     },
   })
+
+  // 記錄稽核日誌
+  await prisma.auditLog.create({
+    data: {
+      actor: input.createdBy,
+      action: 'access.schedule.create',
+      target: `schedule:${schedule.id}`,
+      detail: {
+        scheduleName: schedule.scheduleName,
+        doorId: schedule.doorId,
+        startAt: schedule.startAt.toISOString(),
+        endAt: schedule.endAt.toISOString(),
+        reason: schedule.reason,
+      },
+    },
+  })
+
+  return schedule
 }
 
 /**
@@ -168,7 +187,12 @@ export async function cancelAccessSchedule(
     throw new DoorScheduleError('已完成或已取消的排程無法再次取消')
   }
 
-  return prisma.doorAccessSchedule.update({
+  // 如果排程正在 ACTIVE 狀態，先關閉門禁
+  if (schedule.status === 'ACTIVE') {
+    await executeScheduleDeactivation(schedule, 'CANCELLED')
+  }
+
+  const updated = await prisma.doorAccessSchedule.update({
     where: { id: scheduleId },
     data: {
       status: 'CANCELLED',
@@ -177,6 +201,22 @@ export async function cancelAccessSchedule(
       cancellationReason: reason,
     },
   })
+
+  // 記錄稽核日誌
+  await prisma.auditLog.create({
+    data: {
+      actor: cancelledBy,
+      action: 'access.schedule.cancel',
+      target: `schedule:${scheduleId}`,
+      detail: {
+        scheduleName: updated.scheduleName,
+        reason: reason,
+        previousStatus: schedule.status,
+      },
+    },
+  })
+
+  return updated
 }
 
 /**
@@ -196,7 +236,10 @@ export async function terminateAccessSchedule(
     throw new DoorScheduleError('只能終止啟用中的排程')
   }
 
-  return prisma.doorAccessSchedule.update({
+  // 執行門禁關閉
+  await executeScheduleDeactivation(schedule, 'COMPLETED')
+
+  const updated = await prisma.doorAccessSchedule.update({
     where: { id: scheduleId },
     data: {
       status: 'COMPLETED',
@@ -205,6 +248,22 @@ export async function terminateAccessSchedule(
       cancellationReason: `提前終止：${reason}`,
     },
   })
+
+  // 記錄稽核日誌
+  await prisma.auditLog.create({
+    data: {
+      actor: terminatedBy,
+      action: 'access.schedule.terminate',
+      target: `schedule:${scheduleId}`,
+      detail: {
+        scheduleName: updated.scheduleName,
+        reason: reason,
+        previousStatus: schedule.status,
+      },
+    },
+  })
+
+  return updated
 }
 
 /**
@@ -223,16 +282,18 @@ export async function updateScheduleStatuses() {
     },
   })
 
+  const activationResults = []
   for (const schedule of toActivate) {
+    // 執行門禁開啟
+    const execution = await executeScheduleActivation(schedule)
+    activationResults.push(execution)
+
+    // 更新排程狀態為 ACTIVE
     await prisma.doorAccessSchedule.update({
       where: { id: schedule.id },
       data: {
         status: 'ACTIVE',
         lastStatusUpdate: currentTime,
-        executionLog: JSON.stringify({
-          event: 'activated',
-          timestamp: currentTime.toISOString(),
-        }),
       },
     })
   }
@@ -245,16 +306,18 @@ export async function updateScheduleStatuses() {
     },
   })
 
+  const completionResults = []
   for (const schedule of toComplete) {
+    // 執行門禁關閉
+    const execution = await executeScheduleDeactivation(schedule, 'COMPLETED')
+    completionResults.push(execution)
+
+    // 更新排程狀態為 COMPLETED
     await prisma.doorAccessSchedule.update({
       where: { id: schedule.id },
       data: {
         status: 'COMPLETED',
         lastStatusUpdate: currentTime,
-        executionLog: JSON.stringify({
-          event: 'completed',
-          timestamp: currentTime.toISOString(),
-        }),
       },
     })
   }
@@ -262,6 +325,8 @@ export async function updateScheduleStatuses() {
   return {
     activated: toActivate.length,
     completed: toComplete.length,
+    activationResults,
+    completionResults,
   }
 }
 
