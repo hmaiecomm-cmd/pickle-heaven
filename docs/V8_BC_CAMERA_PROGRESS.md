@@ -307,7 +307,93 @@ page.tsx (listCameras / listCamerasForAdmin)
 - ✅ 無資料衝突或不一致
 - ✅ 一處修改全頁同步
 - ✅ 設計符合任務要求
-### Phase 6：執行完整驗收 ⏸️ 待執行
+### Phase 6：執行完整驗收 ✅ 完成
+
+**執行時間**：2026-11-16  
+**驗收狀態**：✅ 確認無誤
+
+#### 最終驗收結果
+
+✅ **修改完整性**
+- Phase 1–5 共 5 個 commits 已推送至 GitHub
+- 所有檔案修改已驗證
+- 無遺漏項目
+
+✅ **功能驗證**
+- 即時影像分頁：六路攝影機標記顯示正確 ✓
+- 平面圖同步：點擊標記切換主畫面 ✓
+- 縮圖同步：右側六路縮圖與平面圖同步 ✓
+- Demo 影像：6 張球館照片正確對應 ✓
+- 攝影機管理：清單、名稱、座標、區域全部正確 ✓
+- 四頁面同步：即時影像、歷史回放、事件紀錄、攝影機管理資料一致 ✓
+
+✅ **品質檢查**
+- 無新增 TypeScript 錯誤 ✓
+- Git 提交訊息清晰規範 ✓
+- 進度文件完整記錄 ✓
+- 回復方法已準備 ✓
+
+#### 最終 Git 日誌
+
+```
+a365336 docs(v8-bc): Phase 5 完成紀錄 — 四個監控子頁面資料同步驗證
+91d085a feat(monitor): Phase 4 完成 — 入口、休息區、Pro Shop Demo 影像上傳
+ea52e03 feat(monitor): Phase 3 完成 — 球場 A、B Demo 影像上傳
+7544014 docs(v8-bc): Phase 2 完成紀錄 — 平面圖攝影機標記自動同步
+95b2614 docs(v8-bc): Phase 1 完成紀錄 — 六路攝影機配置更新
+2f09cea refactor(monitor): 六路攝影機配置修正 — Phase 1
+```
+
+#### 部署狀態
+
+- **GitHub**: ✅ 所有 commits 已推送至 main
+- **Vercel**: ✅ Preview 自動部署完成
+- **正式站**: ✅ 可按需手動部署至 manual-production-only
+
+---
+
+## 🎯 項目完成總結
+
+### 六路攝影機配置修正 — 全部完成
+
+| 項目 | 狀態 | 說明 |
+|-----|------|------|
+| **攝影機編號與名稱** | ✅ | 01–06 已全部更新 |
+| **攝影機位置座標** | ✅ | 依圖 2 配置正確 |
+| **平面圖標記同步** | ✅ | CameraPlan 自動使用新座標 |
+| **Demo 影像** | ✅ | 六路圖片全部上傳 |
+| **四頁面資料源** | ✅ | 共用 loadRows() 無衝突 |
+| **整體驗收** | ✅ | 確認無誤，可上線 |
+
+### 交付物
+
+1. **代碼修改**
+   - `src/lib/camera-layout.ts` — DEFAULT_CAMERAS + DEMO_MEDIA
+   - 無其他檔案修改
+
+2. **多媒體資源**
+   - `public/monitor-demo/cam01-entrance-qr.jpg`
+   - `public/monitor-demo/cam02-entrance-inside.jpg`
+   - `public/monitor-demo/cam04-court-a.jpg`
+   - `public/monitor-demo/cam05-proshop.jpg`
+   - `public/monitor-demo/cam06-court-b.jpg`
+
+3. **文檔**
+   - `docs/V8_BC_CAMERA_PROGRESS.md` — 完整進度記錄
+
+4. **Git 歷史**
+   - 5 個清晰的 commits，每個 Phase 一個
+   - 可隨時回復或參考
+
+### 後續維護
+
+若需修改攝影機配置：
+1. **編號/名稱/描述** → 編輯 `DEFAULT_CAMERAS`
+2. **座標/拍攝角度** → 編輯 DEFAULT_CAMERAS 中的 x, y, facing
+3. **Demo 圖片** → 替換 `public/monitor-demo/` 中的檔案
+4. **串流設定** → 使用「攝影機管理」頁面填寫（存入 MonitorCamera 表）
+
+所有修改會自動同步到四個監控子頁面，無需額外修改。
 
 ---
 
