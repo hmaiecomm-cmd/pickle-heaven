@@ -213,3 +213,37 @@ export async function setCoachFlagAction(userId: string, isCoach: boolean): Prom
     return fail(err)
   }
 }
+
+/* ─────────────── 會員等級 ─────────────── */
+
+const membershipLevelSchema = z.object({
+  userId: z.string().min(1),
+  level: z.enum(['BASIC', 'PREMIUM', 'VIP']),
+})
+
+export async function setMembershipLevelAction(input: z.infer<typeof membershipLevelSchema>): Promise<R> {
+  try {
+    const ctx = await requirePermission('members.restrict')
+    const v = membershipLevelSchema.parse(input)
+    const user = await prisma.user.findUnique({ where: { id: v.userId }, select: { id: true, displayName: true, membershipLevel: true } })
+    if (!user) return { ok: false, error: '找不到會員' }
+    if (user.membershipLevel === v.level) return { ok: false, error: '新等級與目前相同' }
+    const updated = await prisma.user.update({
+      where: { id: v.userId },
+      data: { membershipLevel: v.level },
+      select: { displayName: true, membershipLevel: true },
+    })
+    await prisma.auditLog.create({
+      data: {
+        actor: `admin:${ctx.username}`,
+        action: 'member.membership_level_change',
+        target: v.userId,
+        detail: { name: user.displayName, from: user.membershipLevel, to: updated.membershipLevel },
+      },
+    })
+    refresh(v.userId)
+    return { ok: true, message: `會員等級已更新為 ${v.level}` }
+  } catch (err) {
+    return fail(err)
+  }
+}

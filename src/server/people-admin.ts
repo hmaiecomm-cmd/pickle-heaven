@@ -146,6 +146,7 @@ export async function getMemberDetail(id: string, opts: { dateType?: 'created' |
       points: u.points,
       isCoach: u.isCoach,
       adminNote: u.adminNote,
+      membershipLevel: u.membershipLevel,
       joinedAt: formatDateTime(u.createdAt),
       lastLoginAt: u.lastLoginAt ? formatDateTime(u.lastLoginAt) : null,
       loginMethod: u.googleSub ? 'Google' : u.lineUserId ? 'LINE' : '—',

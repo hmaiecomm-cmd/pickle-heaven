@@ -12,6 +12,7 @@ import {
   revokeVoucherAction,
   setAdminNoteAction,
   setCoachFlagAction,
+  setMembershipLevelAction,
 } from '@/server/member-admin-actions'
 
 const input = 'h-9 rounded-lg border border-zinc-300 px-2 text-sm'
@@ -211,6 +212,56 @@ export function CoachToggle({ userId, isCoach, canEdit }: { userId: string; isCo
     >
       {isCoach ? '取消教練身分' : '標記為教練'}
     </button>
+  )
+}
+
+/* ─────────────── 會員等級 ─────────────── */
+
+const MEMBERSHIP_LEVEL_LABEL: Record<string, string> = { BASIC: '普通會員', PREMIUM: '高級會員', VIP: 'VIP 會員' }
+
+export function MembershipPanel({ userId, currentLevel, canEdit }: { userId: string; currentLevel: string; canEdit: boolean }) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [level, setLevel] = React.useState(currentLevel)
+  const [busy, setBusy] = React.useState(false)
+
+  const submit = async () => {
+    if (level === currentLevel) {
+      toast('新等級與目前相同', 'info')
+      return
+    }
+    if (!window.confirm(`確定將會員等級更改為「${MEMBERSHIP_LEVEL_LABEL[level] ?? level}」？此操作將記入審計日誌。`)) return
+    setBusy(true)
+    const res = await setMembershipLevelAction({ userId, level: level as 'BASIC' | 'PREMIUM' | 'VIP' })
+    setBusy(false)
+    if (!res.ok) return toast(res.error, 'error')
+    toast(res.message ?? '完成', 'success')
+    router.refresh()
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="space-y-2 text-sm">
+        <p className="text-muted">目前帳號沒有修改會員等級的權限。</p>
+        <p>當前等級：<span className="font-semibold">{MEMBERSHIP_LEVEL_LABEL[currentLevel] ?? currentLevel}</span></p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <select value={level} onChange={(e) => setLevel(e.target.value)} className={input} aria-label="會員等級">
+          <option value="BASIC">普通會員</option>
+          <option value="PREMIUM">高級會員</option>
+          <option value="VIP">VIP 會員</option>
+        </select>
+        <button type="button" disabled={busy || level === currentLevel} onClick={submit} className={`${btn} bg-brand-600 text-white`}>
+          更新會員等級
+        </button>
+      </div>
+      <p className="text-xs text-muted">當前等級：<span className="font-semibold">{MEMBERSHIP_LEVEL_LABEL[currentLevel] ?? currentLevel}</span></p>
+    </div>
   )
 }
 

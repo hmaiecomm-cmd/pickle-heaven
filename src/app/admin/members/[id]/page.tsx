@@ -5,7 +5,7 @@ import { pagePermission } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { Forbidden, PageTitle, Pill, SourceNote } from '@/components/admin/page-bits'
 import { getMemberDetail, type MemberDetailTab } from '@/server/people-admin'
-import { CoachToggle, NotePanel, PointsPanel, RestrictionPanel, VoucherIssuePanel, VoucherRevokeButton } from './panels'
+import { CoachToggle, MembershipPanel, NotePanel, PointsPanel, RestrictionPanel, VoucherIssuePanel, VoucherRevokeButton } from './panels'
 
 export const metadata: Metadata = { title: '會員詳情' }
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,7 @@ const TABS: { key: MemberDetailTab; label: string }[] = [
   { key: 'bookings', label: '預約與活動' },
   { key: 'orders', label: '訂單與消費' },
   { key: 'points', label: '點數與票券' },
-  { key: 'roles', label: '角色與預約資格' },
+  { key: 'roles', label: '會員身份與活動資格' },
   { key: 'logs', label: '管理紀錄' },
 ]
 const money = (n: number) => `NT$${n.toLocaleString()}`
@@ -220,6 +220,9 @@ export default async function MemberDetailPage({ params, searchParams }: { param
 
       {tab === 'roles' && (
         <div className="grid gap-4 lg:grid-cols-2">
+          <Card title="會員身份">
+            <MembershipPanel userId={u.id} currentLevel={u.membershipLevel} canEdit={canRestrict} />
+          </Card>
           <Card title="角色">
             <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
               <dt className="text-muted">會員</dt><dd>是（Google 或 LINE 登入自動建立）</dd>
