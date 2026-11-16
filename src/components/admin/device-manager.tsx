@@ -340,24 +340,43 @@ function AnomalyPanel({ selected }: { selected: Selection }) {
 
       <ul className="space-y-2">
         {demoAnomalies.map((a) => (
-          <li key={a.id} className={cn('rounded-lg border px-3 py-2', severityColor[a.severity])}>
+          <li key={a.id} className={cn('rounded-lg border px-3 py-2.5', severityColor[a.severity])}>
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs font-semibold">{ANOMALY_TYPE_LABEL[a.type]}</p>
                 <p className="mt-0.5 text-xs opacity-75">嚴重程度：{severityLabel[a.severity]}</p>
               </div>
               <span className="shrink-0 text-[10px] opacity-70">{a.time}</span>
             </div>
+            <div className="mt-2 flex gap-1.5">
+              <button
+                type="button"
+                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60"
+              >
+                確認
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60"
+              >
+                解決
+              </button>
+            </div>
           </li>
         ))}
       </ul>
 
-      <button
-        type="button"
-        className="mt-3 inline-flex h-8 items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-xs font-medium hover:bg-zinc-50"
-      >
-        查看詳情 →
-      </button>
+      <div className="mt-4 rounded-lg bg-zinc-50 px-3 py-2">
+        <label htmlFor="anomaly-notes" className="block text-xs font-medium text-zinc-700">
+          備註或說明
+        </label>
+        <textarea
+          id="anomaly-notes"
+          placeholder="記錄異常處理過程或備註..."
+          className="mt-1 block w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          rows={2}
+        />
+      </div>
     </aside>
   )
 }
