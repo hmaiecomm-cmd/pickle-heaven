@@ -688,3 +688,9 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 - `pickle-heaven-db`：依正式庫結構只新增 20 張表、22 個欄位（皆可為空或有預設值）、索引；共 112 句，單一交易
 - 43 → 63 張表；既有 43 表筆數（共 824 筆）前後相同；再次比對與正式庫完全一致
 - DEMO 帳號在正式站的 V8 頁面與一鍵開門（模擬）不再因缺表出錯
+
+### .env 整理與 Vercel 連接 GitHub（2026-11-16）
+- .env：移除尾端重複的 TURSO_*（指向空庫 pickle-heaven-prod，會蓋掉開發庫設定）與失效的重複 PRODUCTION_AUTH_TOKEN；備份 `.env.bak-20261116`；開發／正式／展示三庫連線驗證成功
+- Vercel 專案 pickle-heaven 已連接 GitHub `hmaiecomm-cmd/pickle-heaven`（使用者在 GitHub 端授權 Vercel App）
+- 部署方式（使用者選方式一）：正式分支設為 `manual-production-only`（指向 d0e6bc0，不要推送）；推送 main 只會自動建 Preview；正式站仍須使用者同意後以 `vercel deploy --prod` 部署
+- 事件：連接後、改正式分支前，其他工作推送 main（91d085a、a365336）自動觸發兩次正式部署，皆因型別錯誤建置失敗（NonSharedBuffer +=），未上線；正式站維持 kl9evw2tt
