@@ -639,9 +639,36 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 ### 尚未處理（V8 範圍外或需另行決定）
 - 自動化規則（AutomationRule）UI 與執行引擎（需真實硬體）
 - PriceRule 費率編輯仍未開放
-- 門禁權限管理沒有遠端開門
+- 門禁權限管理遠端開門：已完成 Preview（見下方「一鍵開啟大門」），正式站待同意
 - 專案未設定 ESLint
-- Commit 只在本機，尚未推送 GitHub；Vercel 未連 GitHub
+- Vercel 未連 GitHub（目前以 CLI 部署）
 - Dropbox 內的 Prisma Client 未更新（引擎檔被鎖住），本機開發前需停掉 node 程序後執行 `npm run db:generate`
 - `.env` 尾端重複的 TURSO_DATABASE_URL（指向空庫）；三組已出現在對話中的金鑰建議更換
-- 正式 Logo 仍為臨時裁切素材
+- 正式 Logo 為點陣圖（已由使用者確認），尚無向量原檔
+
+
+## 一鍵開啟大門（2026-11-16）
+
+位置：門禁權限管理 → 授權管理分頁最上方「大門即時控制」。使用者決定：Demo 提供模擬結果選單、10 秒冷卻、每次點擊一個 idempotencyKey、開門脈衝 3 秒。
+
+### 第 1 步：檢查（只讀）
+- 既有 door-access-service 的 queryControllerStatus 寫死回傳 online:true，不可用來判斷設備連線，因此另建 door-remote 服務
+- 權限 access.remote 只有 OWNER、MANAGER、DEMO
+
+### 第 2 步：實作（d0e6bc0）
+- 新表 DoorRemoteCommand（migration `20261116_door_remote_command`，只新增）
+- src/lib/door-devices.ts、src/server/door-remote.ts、access/door-remote-card.tsx；actions.ts 新增 remoteOpenDoorAction；page.tsx 放入卡片、操作紀錄新增「遠端開門」
+- 只有設備回報成功才顯示成功；真實模式設備非 ONLINE 一律拒絕；不建立／修改任何門禁授權；不永久解鎖
+- 尚未串接門禁控制器 → Demo 模式，只產生模擬結果並註明「未實際開門」，不呼叫任何設備
+- 測試：本機瀏覽器 29／29 通過（含取消不送出、處理中停用、冷卻、離線／逾時／失敗、操作紀錄、手動授權與重新比對不受影響、操作員／檢視者停用、登入中降權後端拒絕、櫃台無法進入、DEMO 模擬、1366／1024／390 無水平捲動）；伺服器錯誤 0 筆
+- 型別檢查、建置通過；專案未設定 ESLint
+- 截圖：桌面「一鍵開啟大門_截圖」
+- 開發庫 `pickle-heaven-dev` 已新增 DoorRemoteCommand（64 → 65 張表）
+- Preview：`pickle-heaven-iha1u0hom`（dpl_F7QiMhoua3akbCVQ2cbPMoMXLu1K），7／7 檔與 d0e6bc0 一致
+- 回復：`git revert d0e6bc0`；新表不影響舊版程式，可保留
+
+### 上正式站需要使用者同意
+1. 正式庫 `pickle-heaven` 新增 DoorRemoteCommand 表（只新增，不改既有資料）
+2. 以 d0e6bc0 執行 `vercel deploy --prod`
+3. 回退：Instant Rollback 至 `pickle-heaven-8oir7i4p1`
+- 正式展示庫 `pickle-heaven-db` 同樣缺表，DEMO 帳號在正式站按開門會出錯（token 失效，待使用者更新）
