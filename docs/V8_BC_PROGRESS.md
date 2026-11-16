@@ -676,4 +676,9 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 ### 正式庫建表（2026-11-16，使用者同意「同意修改正式庫，新增 DoorRemoteCommand 表」）
 - `pickle-heaven` 套用 `20261116_door_remote_command`：62 → 63 張表，只新增 DoorRemoteCommand
 - AdminAccount 2、Court 2、Booking 0、Reservation 38、DoorAccessGrant 0、AuditLog 1 前後相同
-- 正式站部署（d0e6bc0）尚待使用者同意
+
+### 正式部署（2026-11-16，使用者同意「同意部署正式站」）
+- d0e6bc0 → `pickle-heaven-kl9evw2tt`（dpl_Dzy2JezKUNm147L8Hynr7sfgqEQG，已綁定 pickle-heaven.vercel.app）
+- 7／7 檔與 d0e6bc0 一致；/api/health ok（db up）；/、/booking、/admin/login 200；/admin/access 未登入 307；cron 未驗證 401；日誌無錯誤
+- 未以正式帳號登入實測（不代輸入密碼）
+- 回退：Instant Rollback 至 `pickle-heaven-8oir7i4p1`（新表可保留）
