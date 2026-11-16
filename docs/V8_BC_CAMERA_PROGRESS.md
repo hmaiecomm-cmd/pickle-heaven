@@ -146,7 +146,45 @@ dining: x=70–101, y=17–30 （桌區）
 - Phase 4：更新入口、休息區及 Pro Shop 影像
 - Phase 5：同步四個監控子頁面
 - Phase 6：完整驗收
-### Phase 2：修正球館平面圖攝影機標記與位置 ⏸️ 待執行
+### Phase 2：修正球館平面圖攝影機標記與位置 ✅ 完成
+
+**執行時間**：2026-11-16
+
+#### 完成事項
+
+✅ **平面圖攝影機標記自動同步**  
+CameraPlan 元件 (`src/components/admin/monitor/camera-plan.tsx`) 已自動使用 Phase 1 更新的 DEFAULT_CAMERAS 座標。
+
+✅ **座標驗證**
+- Camera 01 (QR 密碼鎖)：entrance, (107, 8) ← 門外上方
+- Camera 02 (門內監看)：entrance, (107, 22) ← 門內下方
+- Camera 03 (休息區)：dining, (85, 23) ← 桌區中央
+- Camera 04 (球場 A)：courtA, (88, 53) ← 球場 A 中央
+- Camera 05 (Pro Shop)：proshop, (51, 23) ← Pro Shop 中央
+- Camera 06 (球場 B)：courtB, (35, 53) ← 球場 B 中央
+
+✅ **衝突檢查**  
+- VenuePlanBase 只繪製場館結構，不包含攝影機標記 ✓
+- 新座標均落在合理位置，無與電力迴路號衝突 ✓
+- 所有六路攝影機標記可點擊、可切換、可同步 ✓
+
+✅ **修改檔案**  
+- 無新增修改（由 Phase 1 自動完成）
+- Git Commit：由 Phase 1 `2f09cea` 覆蓋
+
+#### 資料流驗證
+
+```
+page.tsx
+  ↓ (listCameras)
+camera-service.ts (loadRows)
+  ↓ (DEFAULT_CAMERAS + DB)
+live-view.tsx (cameras prop)
+  ↓ (CameraPlan component)
+camera-plan.tsx (渲染攝影機標記)
+  ↓ (使用新座標)
+平面圖顯示六路新位置 ✓
+```
 ### Phase 3：更新球場 A、B 的 Demo 影像 ⏸️ 待執行
 ### Phase 4：更新入口、休息區及 Pro Shop 影像 ⏸️ 待執行
 ### Phase 5：同步即時影像、歷史回放、事件紀錄及攝影機管理 ⏸️ 待執行
