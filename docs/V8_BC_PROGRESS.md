@@ -622,6 +622,20 @@ Phase 8 最終驗收與 Preview 部署（已完成，見下方）。
 4. 回復：Vercel Instant Rollback 到 `pickle-heaven-1bq34943y`；新增的欄位不影響舊版程式，不需移除
 - 注意：部署後每分鐘排程會開始執行；正式庫迴路資料 0 筆，實際不會有動作
 
+### 正式上線（2026-11-16，使用者同意「同意部署正式站」「先部署」）
+1. 正式庫 `pickle-heaven` 套用 migration `20261115_v8_override_lighting`：7 個欄位新增成功；AdminAccount 2、Court 2、Booking 0、Reservation 38、MaintenancePlan 0、Circuit 0 前後相同
+2. 正式 Logo：使用者確認正式 Logo 即品牌展示圖中的 DXD；`dxd-logo-temp.png` 更名為 `dxd-logo.png`（b6e4239，仍為點陣圖）
+3. 推送 GitHub：`main` 9d8ccf0 → b6e4239（20 個 commit，推送前掃描無金鑰）
+4. 正式部署：b6e4239 → `pickle-heaven-8oir7i4p1`（已綁定 pickle-heaven.vercel.app）
+   - V8 修改 45／45 個檔案與 b6e4239 一致
+   - /api/health ok；/、/booking、/admin/login 200；後台頁未登入 307 → 登入；遠端連線監控 API 與 cron 未驗證皆 401；瀏覽器標題「大新店森林匹克球後台」
+   - Vercel Cron 已呼叫 /api/cron/check-schedules（日誌無錯誤）；正式庫迴路 0 筆，排程不會產生動作
+5. 回退：Vercel Instant Rollback 至 `pickle-heaven-1bq34943y`（新增欄位不影響舊版）
+
+### 已知限制（上線時決定接受）
+- **展示帳號（DEMO）**：正式站展示庫 `pickle-heaven-db` 尚未加入新欄位與 V8 新表（`.env` 的 PROD_DEMO_AUTH_TOKEN 已失效 401，不由 Claude 試其他憑證）。使用者決定先部署；DEMO 帳號在智慧排程、控制中心、自動化策略等頁面可能出錯，一般帳號不受影響。DEMO 最後登入為 2026-10-14
+- 補救：使用者執行 `turso db tokens create pickle-heaven-db` 更新 `.env` 的 PROD_DEMO_AUTH_TOKEN 後，以唯讀比對確認只需新增，再補齊
+
 ### 尚未處理（V8 範圍外或需另行決定）
 - 自動化規則（AutomationRule）UI 與執行引擎（需真實硬體）
 - PriceRule 費率編輯仍未開放
