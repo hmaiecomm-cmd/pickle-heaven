@@ -5,6 +5,7 @@ import { CalendarPlus, ChevronRight, Coins, Ticket, Wallet } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
 import { listUserBookings } from '@/server/booking-service'
+import { getMemberRestrictionsSummary } from '@/server/member-restrictions'
 import { formatRange, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc } from '@/lib/time'
 import { shortDateLabel } from '@/lib/activity-shared'
 import { LoginPrompt } from '@/components/login-prompt'
@@ -64,7 +65,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     )
   }
 
-  const [{ upcoming, past, cancelled, all }, regs, vouchers, profile, courts] = await Promise.all([
+  const [{ upcoming, past, cancelled, all }, regs, vouchers, profile, courts, restrictions] = await Promise.all([
     listUserBookings(user.id),
     prisma.sessionRegistration.findMany({
       where: { userId: user.id, status: { notIn: ['EXPIRED'] } },
@@ -80,6 +81,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { email: true, googleSub: true, lineUserId: true, createdAt: true } }),
     prisma.court.findMany({ where: { active: true }, select: { id: true, name: true } }),
+    getMemberRestrictionsSummary(user.id),
   ])
   const [ledger, topUps, breakdown] = tab === 'points' ? await Promise.all([listUserLedger(user.id), listUserTopUps(user.id), userPointsBreakdown(user.id)]) : [[], [], null]
   const topUpOpen = topUpAvailability().open
@@ -120,6 +122,28 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      {/* 顯示限制警告 */}
+      {restrictions && restrictions.all.length > 0 && (
+        <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 p-4">
+          <div className="space-y-2">
+            <p className="font-medium text-amber-900">帳戶限制通知</p>
+            <ul className="space-y-1 text-sm text-amber-800">
+              {restrictions.all.map((r) => (
+                <li key={r.type}>
+                  • {r.label}
+                  {r.expiresAt && (
+                    <span className="text-xs">
+                      （至 {new Date(r.expiresAt).toLocaleDateString('zh-TW')}）
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-amber-700">若有疑問，請聯絡場館客服。</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         {user.pictureUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -135,13 +159,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
-          <Button asChild size="sm">
+          <Button asChild size="sm" disabled={restrictions?.hasBlacklist || restrictions?.hasNoOrder}>
             <Link href="/account/topup" aria-label="儲值點數">
               <Wallet className="h-4 w-4" aria-hidden />
               儲值點數
             </Link>
           </Button>
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="sm" variant="secondary" disabled={restrictions?.hasBlacklist || restrictions?.hasNoBooking}>
             <Link href="/booking">
               <CalendarPlus className="h-4 w-4" aria-hidden />
               預約場地

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { groupIntoCards } from '@/lib/activity-shared'
 import { getUpcomingSessions } from '@/server/activity-service'
+import { getMemberRestrictionsSummary } from '@/server/member-restrictions'
 import { ActivityList } from '@/components/activities/activity-list'
 
 export const metadata: Metadata = {
@@ -26,6 +27,13 @@ export default async function ActivitiesPage({
     getSessionUser(),
     prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } }),
   ])
+
+  // 檢查會員限制
+  let restrictions = null
+  if (user) {
+    restrictions = await getMemberRestrictionsSummary(user.id)
+  }
+
   const sessions = venue ? await getUpcomingSessions(venue.id, user?.id ?? null, { days: 90, limit: 120 }) : []
   const cards = groupIntoCards(sessions)
   const qty = Number(sp.qty)
@@ -43,11 +51,36 @@ export default async function ActivitiesPage({
           。
         </p>
       </header>
-      <ActivityList
-        cards={cards}
-        initialSessionId={sp.session ?? null}
-        initialQuantity={Number.isInteger(qty) && qty > 0 ? qty : undefined}
-      />
+
+      {/* 顯示會員限制警告 */}
+      {restrictions && (restrictions.hasBlacklist || restrictions.hasNoActivity) && (
+        <div className="mx-4 rounded-lg border-l-4 border-orange-500 bg-orange-50 p-4 sm:mx-8">
+          <p className="text-sm font-medium text-orange-900">
+            {restrictions.hasBlacklist
+              ? '⛔ 您的帳戶目前受到限制，無法報名活動。'
+              : '⛔ 您目前禁止報名新的活動。'}
+          </p>
+          {restrictions.all[0]?.expiresAt && (
+            <p className="mt-1 text-xs text-orange-700">
+              限制將在 {new Date(restrictions.all[0].expiresAt).toLocaleDateString('zh-TW')} 解除。
+            </p>
+          )}
+          <p className="mt-1 text-xs text-orange-700">若有疑問，請聯絡場館客服。</p>
+        </div>
+      )}
+
+      {/* 如果被黑名單限制，不顯示活動列表 */}
+      {restrictions?.hasBlacklist ? (
+        <div className="mx-4 rounded-lg bg-gray-50 p-8 text-center text-sm text-gray-600 sm:mx-8">
+          請解除限制後再報名活動。
+        </div>
+      ) : (
+        <ActivityList
+          cards={cards}
+          initialSessionId={sp.session ?? null}
+          initialQuantity={Number.isInteger(qty) && qty > 0 ? qty : undefined}
+        />
+      )}
     </div>
   )
 }
