@@ -103,3 +103,80 @@ export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: st
     return { ok: false, error: '操作失敗，請稍後再試' }
   }
 }
+
+// ─────── 常開排程 Server Actions ───────
+
+type ScheduleResult = { ok: true; message: string } | { ok: false; error: string }
+
+export async function createAccessScheduleAction(_: ScheduleResult | null, form: FormData): Promise<ScheduleResult> {
+  try {
+    await requirePermission('access.remote')
+  } catch (err) {
+    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有排程權限' }
+    throw err
+  }
+
+  const scheduleName = String(form.get('scheduleName') ?? '')
+  const startAt = String(form.get('startAt') ?? '')
+  const endAt = String(form.get('endAt') ?? '')
+  const reason = String(form.get('reason') ?? '')
+  const notes = String(form.get('notes') ?? '') || undefined
+
+  if (!scheduleName || !startAt || !endAt || !reason) {
+    return { ok: false, error: '必填欄位不能為空' }
+  }
+
+  try {
+    const response = await fetch('/api/door/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        doorId: 'main-entrance',
+        scheduleName,
+        startAt,
+        endAt,
+        reason,
+        notes,
+      }),
+    })
+
+    const result = await response.json()
+    if (!response.ok) {
+      return { ok: false, error: result.error || '建立失敗' }
+    }
+
+    revalidatePath('/admin/access')
+    return { ok: true, message: `已建立排程「${scheduleName}」` }
+  } catch (err) {
+    console.error('[door-schedule] 建立失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
+  }
+}
+
+export async function cancelAccessScheduleAction(scheduleId: string, reason: string): Promise<ScheduleResult> {
+  try {
+    await requirePermission('access.remote')
+  } catch (err) {
+    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有排程權限' }
+    throw err
+  }
+
+  try {
+    const response = await fetch(`/api/door/schedule/${scheduleId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    })
+
+    const result = await response.json()
+    if (!response.ok) {
+      return { ok: false, error: result.error || '取消失敗' }
+    }
+
+    revalidatePath('/admin/access')
+    return { ok: true, message: '已取消排程' }
+  } catch (err) {
+    console.error('[door-schedule] 取消失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
+  }
+}
