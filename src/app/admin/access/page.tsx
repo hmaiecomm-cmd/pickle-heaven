@@ -18,6 +18,7 @@ import {
 } from '@/server/door-access-grants'
 import { ManualGrantForm, ReconcileButton, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
+import { AccessScheduleManager } from './access-schedule-manager'
 import { getDoorRemoteState } from '@/server/door-remote'
 
 export const metadata: Metadata = { title: '門禁權限管理' }
@@ -110,10 +111,15 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
   const counts = grants.reduce<Record<GrantPhase, number>>((acc, g) => ((acc[grantPhase(g, at)] += 1), acc), { ACTIVE: 0, UPCOMING: 0, EXPIRED: 0, REVOKED: 0 })
+  // TODO: Phase 2 - 從數據庫查詢排程
+  const schedules: any[] = []
 
   return (
     <div className="space-y-5">
-      <DoorRemoteCard state={doorState} canRemote={canRemote} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <DoorRemoteCard state={doorState} canRemote={canRemote} />
+        <AccessScheduleManager schedules={schedules} canManage={canRemote} />
+      </div>
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">預約自動授權規則</h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700">

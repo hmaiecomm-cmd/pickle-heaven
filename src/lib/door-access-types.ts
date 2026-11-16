@@ -628,3 +628,72 @@ export function isDoorHeldOpenTooLong(
   const seconds = (currentTime.getTime() - doorOpenAt.getTime()) / 1000
   return seconds > TIME_CONSTANTS.DOOR_HELD_OPEN_TIMEOUT_SECONDS
 }
+
+// ─────── 常開排程（Version B 新增） ───────
+
+export type AccessScheduleStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+
+export interface AccessSchedule {
+  id: string
+  venueId: string
+  doorId: string
+  scheduleName: string
+  startAt: Date
+  endAt: Date
+  reason: string
+  status: AccessScheduleStatus
+  enabled: boolean
+  createdBy: string
+  cancelledBy?: string | null
+  cancelledAt?: Date | null
+  cancellationReason?: string | null
+  notes?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface AccessScheduleInput {
+  scheduleName: string
+  startAt: string // ISO 8601
+  endAt: string // ISO 8601
+  reason: string
+  notes?: string
+}
+
+export const ACCESS_SCHEDULE_STATUS_LABEL: Record<AccessScheduleStatus, string> = {
+  SCHEDULED: '排程中',
+  ACTIVE: '常開中',
+  COMPLETED: '已結束',
+  CANCELLED: '已取消',
+}
+
+export const ACCESS_SCHEDULE_STATUS_TONE: Record<AccessScheduleStatus, 'blue' | 'green' | 'gray' | 'red'> = {
+  SCHEDULED: 'blue',
+  ACTIVE: 'green',
+  COMPLETED: 'gray',
+  CANCELLED: 'red',
+}
+
+export function validateScheduleTimeRange(startAtStr: string, endAtStr: string): { valid: boolean; error?: string } {
+  try {
+    const start = new Date(startAtStr)
+    const end = new Date(endAtStr)
+    const now = new Date()
+
+    if (isNaN(start.getTime())) return { valid: false, error: '開始時間無效' }
+    if (isNaN(end.getTime())) return { valid: false, error: '結束時間無效' }
+    if (start >= end) return { valid: false, error: '開始時間必須早於結束時間' }
+    if (start <= now) return { valid: false, error: '不能排程已過期的時段' }
+
+    return { valid: true }
+  } catch {
+    return { valid: false, error: '時間格式錯誤' }
+  }
+}
+
+export function getSchedulePhase(schedule: AccessSchedule, now: Date): AccessScheduleStatus {
+  if (schedule.status === 'CANCELLED') return 'CANCELLED'
+  if (now < schedule.startAt) return 'SCHEDULED'
+  if (now < schedule.endAt) return 'ACTIVE'
+  return 'COMPLETED'
+}
