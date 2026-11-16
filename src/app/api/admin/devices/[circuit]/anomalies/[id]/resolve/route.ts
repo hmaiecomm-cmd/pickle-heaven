@@ -9,9 +9,9 @@ type Params = { circuit: string; id: string }
  * POST /api/admin/devices/[circuit]/anomalies/[id]/resolve
  * 解決異常（標記為已解決）
  */
-export async function POST(req: NextRequest, { params }: { params: Params }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
-    const { circuit, id } = params
+    const { circuit, id } = await params
     const body = await req.json()
     const { resolvedBy, notes } = body
 

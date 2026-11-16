@@ -48,8 +48,8 @@ export async function RefundsTab({ searchParams = {} }: { searchParams?: Record<
                 <tr key={r.id}>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{r.createdAt.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</td>
                   <td className="px-3 py-2"><Link href={`/admin/finance?tab=bookings&order=${r.booking.id}`} className="font-mono text-brand-700 hover:underline">{r.booking.code}</Link><span className="block text-[11px] text-muted">{r.booking.contactName}</span></td>
-                  <td className="max-w-[18rem] px-3 py-2 text-xs">{r.items.map((i) => i.label).join('；') || '整筆訂單'}<span className="block text-muted">原因：{r.reason}</span></td>
-                  <td className="px-3 py-2 text-right font-tabular">${r.amount ?? (r.items?.reduce((sum: number, item: any) => sum + (item.cashAmount ?? 0), 0) ?? 0)}</td>
+                  <td className="max-w-[18rem] px-3 py-2 text-xs">{r.items.map((i: any) => i.label).join('；') || '整筆訂單'}<span className="block text-muted">原因：{r.reason}</span></td>
+                  <td className="px-3 py-2 text-right font-tabular">${r.cashAmount}{r.pointsAmount ? ` +${r.pointsAmount}P` : ''}</td>
                   <td className="px-3 py-2">{METHOD[r.method]}</td>
                   <td className="px-3 py-2"><Pill tone={t}>{l}</Pill></td>
                   <td className="px-3 py-2 text-xs text-muted">{r.createdBy === 'USER' ? '—' : r.createdBy}</td>

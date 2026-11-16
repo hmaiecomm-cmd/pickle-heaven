@@ -6,6 +6,10 @@ CREATE TABLE "User" (
     "lastLoginAt" DATETIME,
     "adminNote" TEXT,
     "isCoach" BOOLEAN NOT NULL DEFAULT false,
+    "consentVersion" TEXT,
+    "consentAt" DATETIME,
+    "marketingOptIn" BOOLEAN NOT NULL DEFAULT false,
+    "marketingOptInAt" DATETIME,
     "displayName" TEXT NOT NULL,
     "pictureUrl" TEXT,
     "phone" TEXT,
@@ -199,6 +203,7 @@ CREATE TABLE "Reservation" (
     "sessionId" TEXT,
     "maintenanceEventId" TEXT,
     "note" TEXT,
+    "lighting" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Reservation_courtId_fkey" FOREIGN KEY ("courtId") REFERENCES "Court" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Reservation_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
@@ -229,6 +234,14 @@ CREATE TABLE "Booking" (
     "cancelledAt" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
+    "termsAckedAt" DATETIME,
+    "termsVersion" TEXT,
+    "lastCancelAttempt" DATETIME,
+    "cancelAttemptReason" TEXT,
+    "checkedInAt" DATETIME,
+    "noShowReason" TEXT,
+    "cancelDeadlineAt" DATETIME,
+    "refundEligible" BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT "Booking_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Booking_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -618,7 +631,25 @@ CREATE TABLE "Refund" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" DATETIME,
     "note" TEXT,
+    "fullRefundEligible" BOOLEAN NOT NULL DEFAULT false,
+    "cancelDeadlineAt" DATETIME,
+    "actualCancelledAt" DATETIME,
+    "isLateRefund" BOOLEAN NOT NULL DEFAULT false,
+    "refundBreakdown" JSONB,
     CONSTRAINT "Refund_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "CancellationLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "bookingId" TEXT NOT NULL,
+    "attemptAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL,
+    "rejectionReason" TEXT,
+    "minutesBeforeStart" INTEGER,
+    "operatedBy" TEXT NOT NULL DEFAULT 'USER',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CancellationLog_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -739,6 +770,7 @@ CREATE TABLE "MaintenancePlan" (
     "assignee" TEXT,
     "description" TEXT,
     "checklist" TEXT,
+    "lighting" BOOLEAN NOT NULL DEFAULT true,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "createdBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -854,6 +886,430 @@ CREATE TABLE "ExpenseRevision" (
     CONSTRAINT "ExpenseRevision_expenseId_fkey" FOREIGN KEY ("expenseId") REFERENCES "Expense" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "Circuit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "circuitNumber" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "category" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "remoteControlEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "scheduleControlEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "deviceMapping" JSONB,
+    "reservationAdvanceMinutes" INTEGER,
+    "reservationDelayMinutes" INTEGER,
+    "expectedState" TEXT,
+    "actualState" TEXT,
+    "lastStateChange" DATETIME,
+    "lastDeviceReport" DATETIME,
+    "lastCommandStatus" TEXT,
+    "lastCommandAt" DATETIME,
+    "lastCommandError" TEXT,
+    "overrideMode" TEXT,
+    "overrideState" TEXT,
+    "overrideBaseline" TEXT,
+    "overrideUntil" DATETIME,
+    "overrideBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Circuit_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DeviceAnomaly" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "circuitId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "occurredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastReportedAt" DATETIME NOT NULL,
+    "acknowledgedBy" TEXT,
+    "acknowledgedAt" DATETIME,
+    "resolvedBy" TEXT,
+    "resolvedAt" DATETIME,
+    "notes" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "DeviceAnomaly_circuitId_fkey" FOREIGN KEY ("circuitId") REFERENCES "Circuit" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "CircuitSchedule" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "circuitId" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "startMinute" INTEGER,
+    "endMinute" INTEGER,
+    "weekdays" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+    "note" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "modifiedBy" TEXT,
+    "modifiedAt" DATETIME NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CircuitSchedule_circuitId_fkey" FOREIGN KEY ("circuitId") REFERENCES "Circuit" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "CircuitScheduleAudit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "scheduleId" TEXT,
+    "circuitNumber" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "operation" TEXT NOT NULL,
+    "previousValue" JSONB,
+    "newValue" JSONB,
+    "modifiedBy" TEXT,
+    "reason" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "ControlCommand" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "commandId" TEXT NOT NULL,
+    "circuitId" TEXT NOT NULL,
+    "source" TEXT NOT NULL DEFAULT 'SCHEDULE',
+    "targetState" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "scheduleId" TEXT,
+    "reservationId" TEXT,
+    "requestedBy" TEXT,
+    "mqttTopic" TEXT,
+    "mqttPayload" JSONB,
+    "sentAt" DATETIME,
+    "ackedAt" DATETIME,
+    "error" TEXT,
+    "expiresAt" DATETIME NOT NULL,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ControlCommand_circuitId_fkey" FOREIGN KEY ("circuitId") REFERENCES "Circuit" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ControlCommand_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "Reservation" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "OperatingHours" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "businessStartMinute" INTEGER NOT NULL DEFAULT 480,
+    "businessEndMinute" INTEGER NOT NULL DEFAULT 1320,
+    "nightStartMinute" INTEGER NOT NULL DEFAULT 1080,
+    "nightEndMinute" INTEGER NOT NULL DEFAULT 1320,
+    "disabledDates" TEXT NOT NULL DEFAULT '',
+    "applicableWeekdays" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "OperatingHours_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DeviceAdapter" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "deviceType" TEXT NOT NULL,
+    "macId" TEXT NOT NULL,
+    "mqttBrokerUrl" TEXT,
+    "mqttPort" INTEGER NOT NULL DEFAULT 1883,
+    "mqttUseTls" BOOLEAN NOT NULL DEFAULT false,
+    "mqttUsername" TEXT,
+    "mqttPassword" TEXT,
+    "mqttTopicPrefix" TEXT NOT NULL,
+    "totalChannels" INTEGER NOT NULL DEFAULT 18,
+    "mqttControlTopic" TEXT NOT NULL,
+    "mqttStatusTopic" TEXT NOT NULL,
+    "deviceStateMapping" JSONB,
+    "connectionStatus" TEXT NOT NULL DEFAULT 'UNKNOWN',
+    "lastHeartbeat" DATETIME,
+    "tlsCertReference" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "DeviceAdapter_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ControlEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "eventId" TEXT NOT NULL,
+    "venueId" TEXT NOT NULL,
+    "circuitId" TEXT,
+    "commandId" TEXT,
+    "reservationId" TEXT,
+    "userId" TEXT,
+    "eventType" TEXT NOT NULL,
+    "severity" TEXT NOT NULL DEFAULT 'INFO',
+    "environment" TEXT NOT NULL DEFAULT 'PRODUCTION',
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "data" JSONB,
+    "correlationId" TEXT,
+    "syncedToNeon" BOOLEAN NOT NULL DEFAULT false,
+    "syncedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "ControlEvent_circuitId_fkey" FOREIGN KEY ("circuitId") REFERENCES "Circuit" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "ControlEvent_commandId_fkey" FOREIGN KEY ("commandId") REFERENCES "ControlCommand" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "ControlEvent_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "Reservation" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "ControlEvent_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "WatchdogAlert" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "alertType" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "component" TEXT,
+    "componentId" TEXT,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "detectionSource" TEXT,
+    "detectionCount" INTEGER NOT NULL DEFAULT 1,
+    "expectedValue" TEXT,
+    "actualValue" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "acknowledgedBy" TEXT,
+    "acknowledgedAt" DATETIME,
+    "acknowledgedNote" TEXT,
+    "resolvedAt" DATETIME,
+    "resolvedBy" TEXT,
+    "resolveNote" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "WatchdogAlert_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "AccessSession" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "reservationId" TEXT NOT NULL,
+    "bookingVersion" INTEGER NOT NULL DEFAULT 1,
+    "credentialState" TEXT NOT NULL DEFAULT 'CREATED',
+    "controllerMacId" TEXT NOT NULL,
+    "userSlotNumber" INTEGER,
+    "credentialHash" TEXT,
+    "credentialType" TEXT NOT NULL DEFAULT 'PIN',
+    "validFromUtc" DATETIME NOT NULL,
+    "validUntilUtc" DATETIME NOT NULL,
+    "lastAppliedAt" DATETIME,
+    "lastRevokedAt" DATETIME,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "AccessSession_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "AccessSession_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "Reservation" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DoorAccessCommand" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "commandId" TEXT NOT NULL,
+    "accessSessionId" TEXT NOT NULL,
+    "bookingVersion" INTEGER NOT NULL,
+    "commandSequence" INTEGER NOT NULL,
+    "commandType" TEXT NOT NULL DEFAULT 'PROVISION_CREDENTIAL',
+    "issuedAt" DATETIME NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "targetState" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "mqttTopic" TEXT,
+    "mqttPayload" JSONB,
+    "sentAt" DATETIME,
+    "ackedAt" DATETIME,
+    "deviceResponse" JSONB,
+    "deviceStatus" TEXT,
+    "error" TEXT,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "DoorAccessCommand_accessSessionId_fkey" FOREIGN KEY ("accessSessionId") REFERENCES "AccessSession" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "AccessLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "accessSessionId" TEXT NOT NULL,
+    "commandId" TEXT,
+    "venueId" TEXT NOT NULL,
+    "controllerMacId" TEXT NOT NULL,
+    "attemptAt" DATETIME NOT NULL,
+    "accessStatus" TEXT NOT NULL DEFAULT 'UNKNOWN',
+    "accessMethod" TEXT NOT NULL DEFAULT 'PIN_ENTRY',
+    "resultCode" TEXT,
+    "resultDescription" TEXT,
+    "doorState" TEXT,
+    "doorOpenAt" DATETIME,
+    "doorClosedAt" DATETIME,
+    "clockDriftSeconds" INTEGER,
+    "details" JSONB,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AccessLog_accessSessionId_fkey" FOREIGN KEY ("accessSessionId") REFERENCES "AccessSession" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "AccessLog_commandId_fkey" FOREIGN KEY ("commandId") REFERENCES "DoorAccessCommand" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "CredentialAlert" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "accessSessionId" TEXT,
+    "alertType" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "affectedResource" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "triggeredBy" TEXT NOT NULL DEFAULT 'WATCHDOG',
+    "detectionCount" INTEGER NOT NULL DEFAULT 1,
+    "acknowledgedBy" TEXT,
+    "acknowledgedAt" DATETIME,
+    "acknowledgedNote" TEXT,
+    "resolvedBy" TEXT,
+    "resolvedAt" DATETIME,
+    "resolveNote" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "CredentialAlert_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "CredentialAlert_accessSessionId_fkey" FOREIGN KEY ("accessSessionId") REFERENCES "AccessSession" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DoorAccessGrant" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "bookingId" TEXT,
+    "userId" TEXT,
+    "holderName" TEXT NOT NULL,
+    "holderPhone" TEXT,
+    "validFrom" DATETIME NOT NULL,
+    "validUntil" DATETIME NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "note" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "revokedAt" DATETIME,
+    "revokedBy" TEXT,
+    "revokeReason" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "MonitorCamera" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "zone" TEXT NOT NULL,
+    "x" REAL NOT NULL,
+    "y" REAL NOT NULL,
+    "facing" INTEGER NOT NULL DEFAULT 0,
+    "coverage" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "protocol" TEXT,
+    "host" TEXT,
+    "port" INTEGER,
+    "channel" TEXT,
+    "credentialEnv" TEXT,
+    "viewRoles" TEXT NOT NULL DEFAULT 'OWNER,MANAGER,OPERATOR,VIEWER',
+    "lastTestAt" DATETIME,
+    "lastTestResult" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "AutomationRule" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "triggerType" TEXT NOT NULL,
+    "triggerConfig" TEXT NOT NULL,
+    "circuitNumbers" TEXT NOT NULL,
+    "actionType" TEXT NOT NULL,
+    "actionConfig" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 5,
+    "exceptDates" TEXT,
+    "weekdays" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+    "paused" BOOLEAN NOT NULL DEFAULT false,
+    "pauseReason" TEXT,
+    "note" TEXT,
+    "lastTriggeredAt" DATETIME,
+    "lastResult" TEXT,
+    "lastError" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "modifiedBy" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "AutomationLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "ruleId" TEXT NOT NULL,
+    "venueId" TEXT NOT NULL,
+    "triggeredAt" DATETIME NOT NULL,
+    "result" TEXT NOT NULL,
+    "action" TEXT,
+    "errorMessage" TEXT,
+    "affectedCircuits" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "DoorRemoteCommand" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "doorId" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "simulated" BOOLEAN NOT NULL DEFAULT false,
+    "pulseSeconds" INTEGER NOT NULL,
+    "requestedBy" TEXT NOT NULL,
+    "error" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sentAt" DATETIME,
+    "ackAt" DATETIME
+);
+
+-- CreateTable
+CREATE TABLE "DuprPlayerLink" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "duprPlayerId" TEXT NOT NULL,
+    "playerName" TEXT NOT NULL,
+    "accessToken" TEXT NOT NULL,
+    "refreshToken" TEXT,
+    "tokenExpiresAt" DATETIME NOT NULL,
+    "singlesRating" REAL,
+    "doublesRating" REAL,
+    "ratingUpdatedAt" DATETIME,
+    "linkedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "unlinkedAt" DATETIME,
+    "note" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "DuprPlayerLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "DuprApiLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT,
+    "endpoint" TEXT NOT NULL,
+    "method" TEXT NOT NULL,
+    "statusCode" INTEGER NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "requestAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "errorMsg" TEXT,
+    "requestSize" INTEGER,
+    "responseSize" INTEGER,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_lineUserId_key" ON "User"("lineUserId");
 
@@ -949,6 +1405,12 @@ CREATE INDEX "Booking_venueId_playDate_idx" ON "Booking"("venueId", "playDate");
 
 -- CreateIndex
 CREATE INDEX "Booking_status_idx" ON "Booking"("status");
+
+-- CreateIndex
+CREATE INDEX "Booking_checkedInAt_idx" ON "Booking"("checkedInAt");
+
+-- CreateIndex
+CREATE INDEX "Booking_cancelDeadlineAt_idx" ON "Booking"("cancelDeadlineAt");
 
 -- CreateIndex
 CREATE INDEX "BookingItem_bookingId_idx" ON "BookingItem"("bookingId");
@@ -1083,6 +1545,12 @@ CREATE INDEX "Refund_bookingId_idx" ON "Refund"("bookingId");
 CREATE INDEX "Refund_status_createdAt_idx" ON "Refund"("status", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "CancellationLog_bookingId_attemptAt_idx" ON "CancellationLog"("bookingId", "attemptAt");
+
+-- CreateIndex
+CREATE INDEX "CancellationLog_status_idx" ON "CancellationLog"("status");
+
+-- CreateIndex
 CREATE INDEX "RefundItem_refundId_idx" ON "RefundItem"("refundId");
 
 -- CreateIndex
@@ -1153,4 +1621,223 @@ CREATE INDEX "ExpenseAttachment_sha256_idx" ON "ExpenseAttachment"("sha256");
 
 -- CreateIndex
 CREATE INDEX "ExpenseRevision_expenseId_createdAt_idx" ON "ExpenseRevision"("expenseId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Circuit_circuitNumber_key" ON "Circuit"("circuitNumber");
+
+-- CreateIndex
+CREATE INDEX "Circuit_venueId_idx" ON "Circuit"("venueId");
+
+-- CreateIndex
+CREATE INDEX "Circuit_category_idx" ON "Circuit"("category");
+
+-- CreateIndex
+CREATE INDEX "Circuit_enabled_idx" ON "Circuit"("enabled");
+
+-- CreateIndex
+CREATE INDEX "DeviceAnomaly_circuitId_idx" ON "DeviceAnomaly"("circuitId");
+
+-- CreateIndex
+CREATE INDEX "DeviceAnomaly_status_idx" ON "DeviceAnomaly"("status");
+
+-- CreateIndex
+CREATE INDEX "DeviceAnomaly_severity_idx" ON "DeviceAnomaly"("severity");
+
+-- CreateIndex
+CREATE INDEX "DeviceAnomaly_occurredAt_idx" ON "DeviceAnomaly"("occurredAt");
+
+-- CreateIndex
+CREATE INDEX "CircuitSchedule_circuitId_idx" ON "CircuitSchedule"("circuitId");
+
+-- CreateIndex
+CREATE INDEX "CircuitSchedule_category_idx" ON "CircuitSchedule"("category");
+
+-- CreateIndex
+CREATE INDEX "CircuitSchedule_enabled_idx" ON "CircuitSchedule"("enabled");
+
+-- CreateIndex
+CREATE INDEX "CircuitScheduleAudit_circuitNumber_idx" ON "CircuitScheduleAudit"("circuitNumber");
+
+-- CreateIndex
+CREATE INDEX "CircuitScheduleAudit_operation_idx" ON "CircuitScheduleAudit"("operation");
+
+-- CreateIndex
+CREATE INDEX "CircuitScheduleAudit_createdAt_idx" ON "CircuitScheduleAudit"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircuitScheduleAudit_modifiedBy_idx" ON "CircuitScheduleAudit"("modifiedBy");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ControlCommand_commandId_key" ON "ControlCommand"("commandId");
+
+-- CreateIndex
+CREATE INDEX "ControlCommand_circuitId_createdAt_idx" ON "ControlCommand"("circuitId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ControlCommand_status_createdAt_idx" ON "ControlCommand"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ControlCommand_commandId_idx" ON "ControlCommand"("commandId");
+
+-- CreateIndex
+CREATE INDEX "ControlCommand_expiresAt_idx" ON "ControlCommand"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "ControlCommand_reservationId_idx" ON "ControlCommand"("reservationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OperatingHours_venueId_key" ON "OperatingHours"("venueId");
+
+-- CreateIndex
+CREATE INDEX "OperatingHours_venueId_idx" ON "OperatingHours"("venueId");
+
+-- CreateIndex
+CREATE INDEX "DeviceAdapter_venueId_idx" ON "DeviceAdapter"("venueId");
+
+-- CreateIndex
+CREATE INDEX "DeviceAdapter_macId_idx" ON "DeviceAdapter"("macId");
+
+-- CreateIndex
+CREATE INDEX "DeviceAdapter_enabled_idx" ON "DeviceAdapter"("enabled");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ControlEvent_eventId_key" ON "ControlEvent"("eventId");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_venueId_createdAt_idx" ON "ControlEvent"("venueId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_eventType_createdAt_idx" ON "ControlEvent"("eventType", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_severity_idx" ON "ControlEvent"("severity");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_environment_idx" ON "ControlEvent"("environment");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_syncedToNeon_idx" ON "ControlEvent"("syncedToNeon");
+
+-- CreateIndex
+CREATE INDEX "ControlEvent_correlationId_idx" ON "ControlEvent"("correlationId");
+
+-- CreateIndex
+CREATE INDEX "WatchdogAlert_venueId_status_idx" ON "WatchdogAlert"("venueId", "status");
+
+-- CreateIndex
+CREATE INDEX "WatchdogAlert_alertType_idx" ON "WatchdogAlert"("alertType");
+
+-- CreateIndex
+CREATE INDEX "WatchdogAlert_severity_idx" ON "WatchdogAlert"("severity");
+
+-- CreateIndex
+CREATE INDEX "WatchdogAlert_createdAt_idx" ON "WatchdogAlert"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AccessSession_reservationId_key" ON "AccessSession"("reservationId");
+
+-- CreateIndex
+CREATE INDEX "AccessSession_venueId_reservationId_idx" ON "AccessSession"("venueId", "reservationId");
+
+-- CreateIndex
+CREATE INDEX "AccessSession_controllerMacId_userSlotNumber_idx" ON "AccessSession"("controllerMacId", "userSlotNumber");
+
+-- CreateIndex
+CREATE INDEX "AccessSession_validFromUtc_validUntilUtc_idx" ON "AccessSession"("validFromUtc", "validUntilUtc");
+
+-- CreateIndex
+CREATE INDEX "AccessSession_status_idx" ON "AccessSession"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DoorAccessCommand_commandId_key" ON "DoorAccessCommand"("commandId");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessCommand_accessSessionId_commandType_idx" ON "DoorAccessCommand"("accessSessionId", "commandType");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessCommand_status_createdAt_idx" ON "DoorAccessCommand"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessCommand_commandId_idx" ON "DoorAccessCommand"("commandId");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessCommand_expiresAt_idx" ON "DoorAccessCommand"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "AccessLog_accessSessionId_attemptAt_idx" ON "AccessLog"("accessSessionId", "attemptAt");
+
+-- CreateIndex
+CREATE INDEX "AccessLog_venueId_attemptAt_idx" ON "AccessLog"("venueId", "attemptAt");
+
+-- CreateIndex
+CREATE INDEX "AccessLog_accessStatus_idx" ON "AccessLog"("accessStatus");
+
+-- CreateIndex
+CREATE INDEX "AccessLog_controllerMacId_attemptAt_idx" ON "AccessLog"("controllerMacId", "attemptAt");
+
+-- CreateIndex
+CREATE INDEX "CredentialAlert_venueId_status_idx" ON "CredentialAlert"("venueId", "status");
+
+-- CreateIndex
+CREATE INDEX "CredentialAlert_alertType_severity_idx" ON "CredentialAlert"("alertType", "severity");
+
+-- CreateIndex
+CREATE INDEX "CredentialAlert_createdAt_idx" ON "CredentialAlert"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DoorAccessGrant_bookingId_key" ON "DoorAccessGrant"("bookingId");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessGrant_venueId_validFrom_validUntil_idx" ON "DoorAccessGrant"("venueId", "validFrom", "validUntil");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessGrant_userId_idx" ON "DoorAccessGrant"("userId");
+
+-- CreateIndex
+CREATE INDEX "DoorAccessGrant_status_idx" ON "DoorAccessGrant"("status");
+
+-- CreateIndex
+CREATE INDEX "AutomationRule_venueId_enabled_idx" ON "AutomationRule"("venueId", "enabled");
+
+-- CreateIndex
+CREATE INDEX "AutomationRule_triggerType_idx" ON "AutomationRule"("triggerType");
+
+-- CreateIndex
+CREATE INDEX "AutomationLog_ruleId_idx" ON "AutomationLog"("ruleId");
+
+-- CreateIndex
+CREATE INDEX "AutomationLog_venueId_idx" ON "AutomationLog"("venueId");
+
+-- CreateIndex
+CREATE INDEX "AutomationLog_triggeredAt_idx" ON "AutomationLog"("triggeredAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DoorRemoteCommand_idempotencyKey_key" ON "DoorRemoteCommand"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "DoorRemoteCommand_doorId_createdAt_idx" ON "DoorRemoteCommand"("doorId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DuprPlayerLink_userId_key" ON "DuprPlayerLink"("userId");
+
+-- CreateIndex
+CREATE INDEX "DuprPlayerLink_duprPlayerId_idx" ON "DuprPlayerLink"("duprPlayerId");
+
+-- CreateIndex
+CREATE INDEX "DuprPlayerLink_linkedAt_idx" ON "DuprPlayerLink"("linkedAt");
+
+-- CreateIndex
+CREATE INDEX "DuprPlayerLink_unlinkedAt_idx" ON "DuprPlayerLink"("unlinkedAt");
+
+-- CreateIndex
+CREATE INDEX "DuprApiLog_endpoint_requestAt_idx" ON "DuprApiLog"("endpoint", "requestAt");
+
+-- CreateIndex
+CREATE INDEX "DuprApiLog_userId_requestAt_idx" ON "DuprApiLog"("userId", "requestAt");
+
+-- CreateIndex
+CREATE INDEX "DuprApiLog_statusCode_idx" ON "DuprApiLog"("statusCode");
+
+-- CreateIndex
+CREATE INDEX "DuprApiLog_requestAt_idx" ON "DuprApiLog"("requestAt");
 
