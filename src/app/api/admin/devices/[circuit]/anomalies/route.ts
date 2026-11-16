@@ -17,9 +17,9 @@ type Params = { circuit: string }
  * - limit: 分頁大小（預設 50）
  * - offset: 分頁偏移（預設 0）
  */
-export async function GET(req: NextRequest, { params }: { params: Params }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
-    const { circuit } = params
+    const { circuit } = await params
     const { searchParams } = new URL(req.url)
 
     const status = searchParams.get('status') || undefined
