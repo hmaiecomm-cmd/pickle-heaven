@@ -39,6 +39,7 @@ export function SessionPanel({
   const [qty, setQty] = React.useState(initialQuantity ?? 1)
   const [pending, setPending] = React.useState(false)
   const [added, setAdded] = React.useState(false)
+  const [restrictionCode, setRestrictionCode] = React.useState<string | null>(null)
 
   const load = React.useCallback(async (id: string) => {
     setError(null)
@@ -91,6 +92,9 @@ export function SessionPanel({
       if (!res.ok) {
         toast(res.error, 'error')
         if (res.code === 'UNAUTHORIZED') signIn()
+        if (res.code === 'BLACKLIST' || res.code === 'NO_ACTIVITY') {
+          setRestrictionCode(res.code)
+        }
         await load(dto.id)
         return
       }
@@ -98,6 +102,7 @@ export function SessionPanel({
       onCartChange?.(res.cart)
       if (res.session) setDto(res.session)
       setAdded(true)
+      setRestrictionCode(null)
       toast('已保留名額並加入購物車，請於時限內完成結帳', 'success')
     } finally {
       setPending(false)
@@ -162,6 +167,7 @@ export function SessionPanel({
                 pending={pending}
                 added={added}
                 alertsEnabled={alertsEnabled}
+                restrictionCode={restrictionCode}
                 onSignIn={signIn}
                 onAdd={addToCart}
                 onToggleAlert={toggleAlert}
@@ -326,6 +332,7 @@ function Cta(props: {
   pending: boolean
   added: boolean
   alertsEnabled: boolean
+  restrictionCode: string | null
   onSignIn: () => void
   onAdd: () => void
   onToggleAlert: () => void
@@ -338,6 +345,24 @@ function Cta(props: {
       {text}
     </button>
   )
+
+  // 會員限制訊息
+  if (props.restrictionCode === 'BLACKLIST') {
+    return (
+      <div className="space-y-2">
+        <p className="text-center text-sm font-semibold text-rose-700">此會員目前受到黑名單限制，無法報名活動、加入候補或建立新的預約。</p>
+        <p className="text-center text-xs text-[#191D1A]/65">如有問題，請聯絡場館客服。</p>
+      </div>
+    )
+  }
+  if (props.restrictionCode === 'NO_ACTIVITY') {
+    return (
+      <div className="space-y-2">
+        <p className="text-center text-sm font-semibold text-rose-700">此會員目前禁止報名活動及加入候補，但歷史紀錄仍然保留。</p>
+        <p className="text-center text-xs text-[#191D1A]/65">如有問題，請聯絡場館客服。</p>
+      </div>
+    )
+  }
 
   if (dto.mine?.status === 'CONFIRMED') {
     return (

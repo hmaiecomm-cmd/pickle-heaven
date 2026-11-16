@@ -1,6 +1,7 @@
 import 'server-only'
 import { Prisma, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { activeRestrictions } from './member-restrictions'
 
 /**
  * 球敘（Open Play）核心邏輯：報名、取消、候補遞補。
@@ -20,6 +21,8 @@ export type JoinRejection =
   | 'SESSION_CANCELLED'
   | 'ALREADY_REGISTERED'
   | 'FULL_NO_WAITLIST'
+  | 'BLACKLIST'
+  | 'NO_ACTIVITY'
 
 export type JoinResult =
   | { ok: true; status: 'CONFIRMED' }
@@ -124,6 +127,17 @@ export async function joinSession(
   byOrganizer = false,
 ): Promise<JoinResult> {
   const now = new Date()
+
+  // 檢查會員限制（在交易外，避免交易內過多操作）
+  if (!byOrganizer) {
+    const restricted = await activeRestrictions(userId)
+    if (restricted.some((r) => r.type === 'BLACKLIST')) {
+      return { ok: false, reason: 'BLACKLIST' }
+    }
+    if (restricted.some((r) => r.type === 'NO_ACTIVITY')) {
+      return { ok: false, reason: 'NO_ACTIVITY' }
+    }
+  }
 
   const result = await prisma.$transaction(async (tx): Promise<JoinResult> => {
     const session = await lockSession(tx, sessionId)

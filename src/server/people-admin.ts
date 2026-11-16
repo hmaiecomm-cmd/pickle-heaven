@@ -46,7 +46,7 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.tab === 'coaches' || qy.role === 'coach') and.push({ isCoach: true })
   if (qy.tab === 'blacklist' || qy.status === 'restricted') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
   if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
-  if (qy.membership && qy.membership !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'PREMIUM' | 'VIP' })
+  if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'PREMIUM' | 'VIP' })
   if (and.length) where.AND = and
 
   // 工作人員與管理員：以後台帳號為主（正式資料庫），可對應會員

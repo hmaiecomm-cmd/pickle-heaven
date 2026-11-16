@@ -40,7 +40,9 @@ export class SignupError extends Error {
       | 'ALREADY'
       | 'PENDING_ORDER'
       | 'INVALID_INPUT'
-      | 'UNAVAILABLE' = 'INVALID_INPUT',
+      | 'UNAVAILABLE'
+      | 'BLACKLIST'
+      | 'NO_ACTIVITY' = 'INVALID_INPUT',
   ) {
     super(message)
     this.name = 'SignupError'
@@ -311,8 +313,13 @@ export async function holdSeats(params: {
   const quantity = Math.floor(params.quantity)
   if (!Number.isFinite(quantity) || quantity < 1) throw new SignupError('請選擇報名人數')
   const restricted = await activeRestrictions(params.userId)
-  if (restricted.some((r) => r.type === 'BLACKLIST' || r.type === 'NO_ACTIVITY')) {
-    throw new SignupError('您的帳號目前無法報名活動，請聯絡場館', 'UNAUTHORIZED')
+  const blacklist = restricted.find((r) => r.type === 'BLACKLIST')
+  const noActivity = restricted.find((r) => r.type === 'NO_ACTIVITY')
+  if (blacklist) {
+    throw new SignupError('此會員目前受到黑名單限制，無法報名活動、加入候補或建立新的預約。', 'BLACKLIST')
+  }
+  if (noActivity) {
+    throw new SignupError('此會員目前禁止報名活動及加入候補，但歷史紀錄仍然保留。', 'NO_ACTIVITY')
   }
 
   return prisma.$transaction(async (tx) => {
