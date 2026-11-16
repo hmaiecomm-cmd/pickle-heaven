@@ -1,0 +1,2344 @@
+// 匹克精靈 Pickle Heaven — Pickleball Court Booking Platform (Taiwan / LINE MINI App)
+// Database: PostgreSQL (Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // 實際連線由 prisma.config.ts / src/lib/db.ts 的 libSQL adapter 提供（連到 Turso）。
+  // SQLite connector 規定這裡必須是 file: 開頭，此值不會被使用。
+  url      = "file:./placeholder.db"
+}
+
+enum Role {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum RateKind {
+  PEAK // 尖峰
+  OFFPEAK // 離峰
+}
+
+enum DayType {
+  ALL
+  WEEKDAY
+  WEEKEND
+}
+
+enum ReservationStatus {
+  HELD // 購物車暫扣
+  BOOKED // 已成立
+  BLOCKED // 場館維護 / 課程鎖定
+  EVENT // 活動場次佔用（sessionId 指向場次；holdExpiresAt 有值時為草稿「保留場地」，到期自動釋放）
+}
+
+enum CourtStatus {
+  ACTIVE // 營運中
+  MAINTENANCE // 維護中
+  INACTIVE // 停用
+}
+
+enum DeviceType {
+  DOOR
+  LIGHTS
+  FANS
+  CAMERA
+  SPEAKER
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  WARNING
+}
+
+enum ExpenseCategory {
+  MAINTENANCE
+  SUPPLIES
+  UTILITIES
+  LABOR
+  OTHER
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum OcrStatus {
+  DRAFT // 辨識結果尚未人工確認
+  CONFIRMED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum MembershipLevel {
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum CoachStatus {
+  ACTIVE // 在職
+  ON_LEAVE // 請假中
+  INACTIVE // 停用
+}
+
+enum BookingStatus {
+  PENDING // 待付款
+  PAID // 已付款
+  CANCELLED // 已取消
+  EXPIRED // 逾時未付款
+  COMPLETED // 已完成（打完球）
+  REFUND_PENDING // 款項已收但時段／名額已失效（逾時後才付款成功、場次已取消），待退款
+}
+
+enum ControlCategory {
+  RESERVATION_DYNAMIC // 01-04：預約動態控制
+  OPERATING_HOURS // 05-09：營業時間控制
+  NIGHT_AMBIENT // 10-11：環境夜間控制
+  ALWAYS_ON // 12-16：24 小時供電（不納入排程）
+  RESERVED // 17-18：預留回路（停用）
+}
+
+enum CommandStatus {
+  PENDING // 等待發送
+  SENT // 已發送給 MQTT Broker
+  ACKED // 設備已確認
+  FAILED // 設備執行失敗
+  TIMEOUT // 等待確認逾時
+  EXPIRED // 命令已過期（離線期間產生）
+}
+
+enum ControlEventType {
+  RESERVATION_CREATED // 預約建立
+  RESERVATION_CONFIRMED // 預約確認
+  RESERVATION_CANCELLED // 預約取消
+  RESERVATION_MODIFIED // 預約改期
+  SCHEDULE_RECALCULATED // 排程重新計算
+  SCHEDULE_EXECUTED // 排程執行
+  COMMAND_SENT // 命令發送
+  COMMAND_ACKED // 設備確認
+  COMMAND_FAILED // 命令失敗
+  OPERATING_HOURS_CHANGED // 營業時間變更
+  NIGHT_SCHEDULE_CHANGED // 夜間排程變更
+  MANUAL_OVERRIDE // 人工覆寫
+  OVERRIDE_EXPIRED // 覆寫過期
+  DEVICE_ONLINE // 設備上線
+  DEVICE_OFFLINE // 設備離線
+  STATUS_MISMATCH // 狀態不一致
+  MQTT_CONNECTED // MQTT 已連接
+  MQTT_DISCONNECTED // MQTT 已斷線
+  WATCHDOG_ALERT // Watchdog 告警
+  SYSTEM_ERROR // 系統錯誤
+}
+
+enum WatchdogAlertSeverity {
+  HEALTHY // 正常
+  DEGRADED // 降級（暫時延遲或部分功能受影響）
+  OFFLINE // 設備\/服務離線
+  ERROR // 錯誤（需要人工介入）
+}
+
+enum EventEnvironment {
+  SIMULATION
+  PRODUCTION
+}
+
+enum CredentialState {
+  CREATED // 雲端已建立要求
+  APPLIED // 設備已套用
+  FAILED // 設備拒絕或失敗
+  UNKNOWN // 無法確認
+  REVOKED // 已撤銷
+  REVOKE_PENDING // 撤銷命令已發，待確認
+}
+
+enum AccessStatus {
+  GRANTED // 通行已授予
+  DENIED // 拒絕通行
+  UNKNOWN // 結果未知（離線）
+  NOT_USED // 憑證未使用
+}
+
+enum DoorAccessCommandType {
+  PROVISION_CREDENTIAL // 設定憑證
+  REVOKE_CREDENTIAL // 撤銷憑證
+  QUERY_STATUS // 查詢狀態
+  SYNC_CLOCK // 校時
+  REMOTE_UNLOCK // 遠端開門
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  LINE_PAY
+}
+
+enum VoucherType {
+  AMOUNT // 折抵固定金額
+  PERCENT // 折扣百分比（90 = 9 折）
+}
+
+/// 會員（以 LINE userId 為主要識別）
+model User {
+  id               String          @id @default(cuid())
+  lineUserId       String?         @unique
+  /// Google 登入的 subject（sub）；前台改用 Google 授權登入後的主要識別
+  googleSub        String?         @unique
+  /// 最近一次成功登入
+  lastLoginAt      DateTime?
+  /// 後台內部備註（不會出現在前台）
+  adminNote        String?
+  /// 教練身分（與後台管理角色分開；不授予後台權限）
+  isCoach          Boolean         @default(false)
+  /// 已同意的個資告知事項與服務條款版本（legal.consentVersion）；與目前版本不同時，登入後須重新同意
+  consentVersion   String?
+  consentAt        DateTime?
+  /// 行銷訊息同意（另行勾選、不預設勾選；可隨時取消）
+  marketingOptIn   Boolean         @default(false)
+  marketingOptInAt DateTime?
+  displayName      String
+  pictureUrl       String?
+  phone            String?
+  email            String?
+  role             Role            @default(USER)
+  /// 點數餘額（1 點 = NT$1，取消退款時回補）
+  points           Int             @default(0)
+  /// 會員等級，影響折扣（見 MembershipTier）
+  membershipLevel  MembershipLevel @default(BASIC)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  /// 出席信賴度統計（僅記錄，初期不做任何處罰）
+  sessionsJoined    Int @default(0)
+  sessionsCompleted Int @default(0)
+  normalCancelCount Int @default(0)
+  lateCancelCount   Int @default(0)
+  noShowCount       Int @default(0)
+
+  bookings       Booking[]
+  invoices       Invoice[]
+  vouchers       Voucher[]
+  registrations  SessionRegistration[]
+  notifications  NotificationLog[]
+  sessionWatches SessionWatch[]
+  restrictions   MemberRestriction[]
+  pointsLedger   PointsLedger[]
+  topUpOrders    TopUpOrder[]
+
+  @@index([createdAt])
+}
+
+/// 場館
+model Venue {
+  id                   String  @id @default(cuid())
+  organizationId       String
+  slug                 String  @unique
+  name                 String
+  address              String
+  phone                String
+  description          String?
+  coverUrl             String?
+  /// 營業起始（自午夜起算分鐘）600 = 10:00
+  openMinute           Int     @default(600)
+  /// 營業結束，可跨日。1440 = 隔日 00:00
+  closeMinute          Int     @default(1440)
+  /// 每時段長度（分鐘）
+  slotMinutes          Int     @default(60)
+  /// 開放預約未來天數
+  bookAheadDays        Int     @default(14)
+  /// 購物車暫扣保留時間（分鐘）
+  holdMinutes          Int     @default(10)
+  /// 預約截止：開打前幾分鐘停止線上預約（0 = 可預約到開打前一刻）
+  bookingCutoffMinutes Int     @default(0)
+  active               Boolean @default(true)
+  notice               String?
+  policy               String?
+
+  /// IANA 時區名稱。取消截止等業務規則一律以此計算。
+  timezone String @default("Asia/Taipei")
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  courts           Court[]
+  priceRules       PriceRule[]
+  bookings         Booking[]
+  sessionTemplates SessionTemplate[]
+  sessions         Session[]
+  activities       Activity[]
+  hosts            Host[]
+  maintenancePlans MaintenancePlan[]
+  circuits         Circuit[]
+  operatingHours   OperatingHours?
+  deviceAdapters   DeviceAdapter[]
+  controlEvents    ControlEvent[]
+  watchdogAlerts   WatchdogAlert[]
+  accessSessions   AccessSession[]
+  credentialAlerts CredentialAlert[]
+}
+
+/// 場地（球場）
+model Court {
+  id        String      @id @default(cuid())
+  venueId   String
+  name      String
+  sortOrder Int         @default(0)
+  /// 室內球場
+  indoor    Boolean     @default(true)
+  /// 室外球場是否有雨棚遮蔽
+  covered   Boolean     @default(false)
+  surface   String?
+  active    Boolean     @default(true)
+  /// 營運狀態；MAINTENANCE / INACTIVE 時 active 同步為 false
+  status    CourtStatus @default(ACTIVE)
+  /// 建議同時上場人數
+  capacity  Int         @default(4)
+
+  venue            Venue             @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  devices          Device[]
+  reservations     Reservation[]
+  bookingItems     BookingItem[]
+  sessionTemplates SessionTemplate[]
+  sessions         Session[]
+  sessionCourts    SessionCourt[]
+
+  @@index([venueId, sortOrder])
+}
+
+/// 價格規則（尖峰 / 離峰）
+/// 球場設備（門禁、照明、風扇、攝影機、喇叭）
+model Device {
+  id         String       @id @default(cuid())
+  courtId    String
+  type       DeviceType
+  name       String
+  status     DeviceStatus @default(ONLINE)
+  lastSeen   DateTime     @default(now())
+  /// 最後一次動作，例如 ON / OFF / LOCKED / UNLOCKED
+  lastAction String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  court    Court           @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  commands DeviceCommand[]
+
+  @@index([courtId])
+}
+
+/// 場館支出
+model Expense {
+  id             String          @id @default(cuid())
+  expenseNumber  String          @unique
+  category       ExpenseCategory @default(OTHER)
+  amount         Int
+  status         ExpenseStatus   @default(DRAFT)
+  description    String
+  submittedAt    DateTime        @default(now())
+  approvedAt     DateTime?
+  approvedBy     String?
+  /// 申請人（admin:帳號）；管理員與工作人員只能看自己的申請
+  submittedBy    String?
+  /// 支出日期（與提交日期分開）
+  expenseDate    DateTime?
+  /// 商家／供應商
+  vendorName     String?
+  /// 發票或收據號碼（如有）
+  docNumber      String?
+  currency       String          @default("TWD")
+  /// 審核說明（退回原因或核對方式）
+  reviewNote     String?
+  reviewedAt     DateTime?
+  /// 防重複提交：同一表單送出多次只建立一筆
+  idempotencyKey String?         @unique
+  /// 來源收據（舊流程，選填）
+  receiptId      String?         @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  receipt     Receipt?            @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  attachments ExpenseAttachment[]
+  revisions   ExpenseRevision[]
+
+  @@index([status, submittedAt])
+  @@index([category])
+  @@index([submittedBy])
+  @@index([docNumber])
+}
+
+/// 收據歸檔；OCR 辨識結果一律先為草稿，人工確認後才標示 CONFIRMED
+model Receipt {
+  id            String     @id @default(cuid())
+  receiptNumber String     @unique
+  /// 對應的付款（系統開立的收據才有）
+  paymentId     String?
+  amount        Int
+  issueDate     DateTime
+  paymentMethod String
+  vendorName    String
+  ocrStatus     OcrStatus?
+  ocrFields     Json?
+  ocrConfidence Float?
+  imageUrl      String?
+  /// 登錄人（admin:帳號）
+  createdBy     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  expense Expense?
+
+  @@index([issueDate])
+}
+
+/// 開立給會員的發票
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  userId         String?
+  bookingId      String?
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime
+  amount         Int
+  status         InvoiceStatus @default(DRAFT)
+  /// [{ description, quantity, unitPrice, amount }]
+  items          Json
+  /// 電子發票服務商代號；null 表示尚未串接，僅為內部紀錄
+  provider       String?
+  /// 服務商端狀態：ISSUING / ISSUED / MODIFYING / MODIFY_FAILED / VOIDED
+  providerStatus String?
+  /// 收件 Email（補寄用）
+  recipientEmail String?
+  /// 作廢重開時，新發票的 id
+  replacedById   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user    User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  events  InvoiceEvent[]
+
+  @@index([status, dueDate])
+  @@index([userId])
+}
+
+/// 會員等級與折扣設定（三列固定：BASIC / PREMIUM / VIP）
+model MembershipTier {
+  level       MembershipLevel @id
+  label       String
+  /// 折扣百分比，10 = 九折
+  discountPct Int             @default(0)
+  sortOrder   Int             @default(0)
+  updatedAt   DateTime        @updatedAt
+}
+
+/// 教練
+model Coach {
+  id          String      @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  status      CoachStatus @default(ACTIVE)
+  /// 專長清單（字串陣列）
+  specialties Json
+  /// 每小時課程費用（新台幣整數元）
+  hourlyRate  Int         @default(0)
+  bio         String?
+  /// 對應的前台會員（選填）
+  userId      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  availability CoachAvailability[]
+
+  @@index([status])
+}
+
+/// 教練每週可授課時段
+model CoachAvailability {
+  id          String @id @default(cuid())
+  coachId     String
+  /// 0=週日 … 6=週六
+  dayOfWeek   Int
+  /// 自午夜起算分鐘
+  startMinute Int
+  endMinute   Int
+
+  coach Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([coachId])
+}
+
+model PriceRule {
+  id          String   @id @default(cuid())
+  venueId     String
+  name        String
+  kind        RateKind @default(OFFPEAK)
+  dayType     DayType  @default(ALL)
+  startMinute Int
+  endMinute   Int
+  /// 每時段價格（新台幣整數元）
+  price       Int
+  priority    Int      @default(0)
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, dayType])
+}
+
+/// 佔用列 — 場地可用性的唯一真實來源。
+/// (courtId, startsAt) 唯一鍵即為防止超賣的併發鎖。
+/// 取消訂單時刪除本列以釋放時段，歷史快照保留於 BookingItem。
+model Reservation {
+  id                 String            @id @default(cuid())
+  courtId            String
+  startsAt           DateTime
+  endsAt             DateTime
+  status             ReservationStatus
+  /// HELD 專用：暫扣到期時間
+  holdExpiresAt      DateTime?
+  /// HELD 專用：購物車識別碼（用以區分「已選取」與「他人暫扣」）
+  cartToken          String?
+  bookingId          String?
+  /// EVENT 專用：佔用此時段的活動場次
+  sessionId          String?
+  /// BLOCKED 且來自清潔／維護排程時指向該次事件
+  maintenanceEventId String?
+  note               String?
+  createdAt          DateTime          @default(now())
+
+  court            Court             @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  booking          Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  session          Session?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  maintenanceEvent MaintenanceEvent? @relation(fields: [maintenanceEventId], references: [id], onDelete: Cascade)
+  commands         ControlCommand[]
+  events           ControlEvent[]
+  accessSession    AccessSession?
+
+  @@unique([courtId, startsAt])
+  @@index([startsAt])
+  @@index([bookingId])
+  @@index([sessionId])
+  @@index([maintenanceEventId])
+  @@index([holdExpiresAt])
+  @@index([cartToken])
+}
+
+/// 訂單
+model Booking {
+  id       String        @id @default(cuid())
+  code     String        @unique
+  userId   String
+  venueId  String
+  /// 預約日期（Asia/Taipei 的 YYYY-MM-DD）
+  playDate String
+  status   BookingStatus @default(PENDING)
+
+  subtotal   Int
+  discount   Int @default(0)
+  pointsUsed Int @default(0)
+  total      Int
+
+  contactName    String
+  contactPhone   String
+  note           String?
+  voucherCode    String?
+  /// 已退款的實付金額合計（由退款流程維護）
+  refundedAmount Int     @default(0)
+  /// 退款狀態：NONE / PROCESSING / PARTIAL / FULL / FAILED / MANUAL
+  refundStatus   String  @default("NONE")
+
+  /// 待付款訂單的付款期限
+  expiresAt   DateTime?
+  paidAt      DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  /// 訂單簽署狀態（預約條款）
+  termsAckedAt DateTime?
+  termsVersion String?
+
+  /// 最近一次自助取消嘗試
+  lastCancelAttempt   DateTime?
+  cancelAttemptReason String?
+
+  /// Check-in 狀態
+  checkedInAt  DateTime?
+  noShowReason String?
+
+  /// 退款期限信息
+  cancelDeadlineAt DateTime?
+  refundEligible   Boolean   @default(false)
+
+  user            User                  @relation(fields: [userId], references: [id])
+  venue           Venue                 @relation(fields: [venueId], references: [id])
+  items           BookingItem[]
+  activityItems   BookingActivityItem[]
+  refunds         Refund[]
+  payments        Payment[]
+  reservations    Reservation[]
+  voucher         Voucher?
+  invoices        Invoice[]
+  cancellationLog CancellationLog[]
+
+  @@index([userId, createdAt])
+  @@index([venueId, playDate])
+  @@index([status])
+  @@index([checkedInAt])
+  @@index([cancelDeadlineAt])
+}
+
+/// 訂單明細（下單當下的快照）
+model BookingItem {
+  id             String   @id @default(cuid())
+  bookingId      String
+  courtId        String
+  courtName      String
+  startsAt       DateTime
+  endsAt         DateTime
+  price          Int
+  rateName       String
+  /// ACTIVE / CANCELLED（已取消並釋放時段）
+  status         String   @default("ACTIVE")
+  /// 已退款的實付金額（不含點數）
+  refundedAmount Int      @default(0)
+  /// 已退回的點數
+  refundedPoints Int      @default(0)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id])
+
+  @@index([bookingId])
+  @@index([startsAt])
+}
+
+/// 金流交易紀錄。
+/// 僅保存金流商回傳的交易識別碼與遮罩後末四碼，
+/// 絕不儲存卡號、CVV 或任何持卡人敏感資料。
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String
+  /// mock | tappay | newebpay | linepay
+  provider    String
+  method      PaymentMethod @default(CREDIT_CARD)
+  amount      Int
+  status      PaymentStatus @default(PENDING)
+  /// 金流商交易序號（對帳用）
+  providerRef String?
+  /// 卡號末四碼（金流商回傳的遮罩資訊，非完整卡號）
+  cardLast4   String?
+  cardBrand   String?
+  /// 金流商回呼原始內容（已移除敏感欄位）
+  rawResponse Json?
+  failReason  String?
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+  refundedAt  DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([providerRef])
+}
+
+/// 折價券
+model Voucher {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  title        String
+  type         VoucherType @default(AMOUNT)
+  value        Int
+  minSpend     Int         @default(0)
+  userId       String?
+  expiresAt    DateTime?
+  usedAt       DateTime?
+  bookingId    String?     @unique
+  createdAt    DateTime    @default(now())
+  /// 使用券：OFFPEAK 離峰券／PEAK 尖峰券／GENERAL 通用券；null 為折價券
+  ticketKind   String?
+  /// 每張時數／次數
+  units        Int         @default(1)
+  /// 適用場地 id（逗號分隔；空 = 全部）
+  courtIds     String      @default("")
+  issuedBy     String?
+  issueReason  String?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+/// 後台操作稽核
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Open Play / 球敘 Session
+//
+//  與既有「訂場」模型（Booking / Reservation）並存：
+//    訂場   = 租下某場地的某個時段，論時段計費
+//    球敘   = 報名參加一場有人數上限的揪團，論人計費
+//  兩者共用 User / Venue / Court。
+//
+//  所有生命週期時間都以「時間戳」儲存（booking_open_at 等），
+//  由排程任務定期掃描推進狀態，不為每場球敘建立獨立計時器。
+//  時間一律存 UTC，顯示與業務規則計算時換算成 Venue.timezone。
+// ════════════════════════════════════════════════════════════════
+
+enum SessionStatus {
+  DRAFT // 主辦者編輯中
+  SCHEDULED // 已建立，報名尚未開放
+  OPEN // 開放報名且仍有正取名額
+  FULL // 正取已滿，仍可加入候補
+  LOCKED // 已過取消截止，最終名單已產生
+  PLAYING // 進行中
+  COMPLETED // 已結束
+  CANCELLED // 整場取消
+}
+
+enum RegistrationStatus {
+  PENDING // 購物車暫留或待付款，holdExpiresAt 到期即失效
+  EXPIRED // 暫留逾時或訂單逾時未付款
+  CONFIRMED // 正取
+  WAITLISTED // 候補
+  CANCELLED // 於截止前正常取消
+  LATE_CANCEL // 於截止後取消
+  NO_SHOW // 未到
+  COMPLETED // 已完成出席
+}
+
+enum CancellationMode {
+  PREVIOUS_DAY_MIDNIGHT // 前一日 00:00（場館時區）
+  HOURS_BEFORE_START // 開打前 N 小時
+  CUSTOM_TIMESTAMP // 每場自訂
+}
+
+enum SnapshotType {
+  FINAL_ROSTER // 鎖定時產生的最終名單
+  MANUAL // 主辦者手動留存
+}
+
+enum NotificationType {
+  REGISTERED // 報名成功
+  WAITLISTED // 已加入候補
+  PROMOTED // 候補遞補成功
+  CANCELLED // 取消確認
+  FINAL_ROSTER // 最終名單
+  REMINDER // 開打提醒
+  SESSION_CANCELLED // 整場取消通知
+  SESSION_CHANGED // 場次時間、場地等異動通知
+  SEAT_AVAILABLE // 有名額通知
+}
+
+enum ActivityType {
+  OPEN_PLAY // 球友集合
+  BEGINNER // 新手體驗
+  LESSON // 課程
+  SOCIAL // 交流活動
+  OTHER
+}
+
+enum ActivityStatus {
+  DRAFT // 草稿：前台不顯示，預設不佔場地
+  PUBLISHED // 已發布
+  ARCHIVED // 已下架
+}
+
+enum PriceUnit {
+  PER_PERSON // 每人
+  PER_PAIR // 每組（2 人）
+}
+
+enum NotificationChannel {
+  LINE
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// 最上層租戶。一個經營者底下可有多個場館。
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venues           Venue[]
+  sessionTemplates SessionTemplate[]
+  sessions         Session[]
+  activities       Activity[]
+
+  @@index([active])
+}
+
+/// 週期性球敘的設定範本，未來場次由它自動產生。
+model SessionTemplate {
+  id             String  @id @default(cuid())
+  organizationId String
+  venueId        String
+  courtId        String?
+  title          String
+
+  /// 0=週日 … 6=週六，以場館時區判定。weekdays 有值時僅作排序用（取第一天）
+  weekday     Int
+  /// 重複的星期，逗號分隔，例如 "2" 為每週二、"0,1,2,3,4,5,6" 為每天；空字串時沿用 weekday
+  weekdays    String @default("")
+  /// 一日之中的分鐘數，例如 12:00 為 720
+  startMinute Int
+  endMinute   Int
+
+  capacity         Int @default(8)
+  /// 保留給教練／來賓／主辦的名額，不開放一般報名
+  reservedCapacity Int @default(0)
+
+  skillLevelMin Float?
+  skillLevelMax Float?
+  price         Int    @default(0)
+
+  /// 報名於開打前幾天開放
+  bookingOpenDaysBefore Int @default(7)
+  /// 於該日的幾小時後開放（相對於 startMinute），例如 +1 表示 13:00
+  bookingOpenHourOffset Int @default(1)
+
+  cancellationMode        CancellationMode @default(PREVIOUS_DAY_MIDNIGHT)
+  cancellationHoursBefore Int?
+
+  waitlistEnabled          Boolean @default(true)
+  autoPromote              Boolean @default(true)
+  /// 鎖定後若有人 late cancel，是否仍自動遞補
+  allowPostLockReplacement Boolean @default(false)
+
+  /// 自動產生未來幾週的場次
+  generateWeeksAhead Int @default(10)
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue        Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  court        Court?       @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+
+  @@index([organizationId, active])
+  @@index([venueId, active])
+  @@index([active, weekday])
+}
+
+/// 一場實際的球敘。所有狀態轉換都由排程比對下列時間戳推進。
+model Session {
+  id             String  @id @default(cuid())
+  organizationId String
+  templateId     String?
+  venueId        String
+  courtId        String?
+  title          String
+  description    String?
+
+  startAt DateTime
+  endAt   DateTime
+
+  bookingOpenAt  DateTime
+  /// 報名截止；預設與 cancelDeadline 相同（鎖定即停止報名），可另行設定
+  bookingCloseAt DateTime
+  cancelDeadline DateTime
+  finalizeAt     DateTime
+
+  capacity         Int @default(8)
+  reservedCapacity Int @default(0)
+
+  skillLevelMin Float?
+  skillLevelMax Float?
+  price         Int    @default(0)
+
+  waitlistEnabled          Boolean @default(true)
+  autoPromote              Boolean @default(true)
+  allowPostLockReplacement Boolean @default(false)
+
+  status SessionStatus @default(SCHEDULED)
+
+  /// 整場取消時的說明
+  cancelReason String?
+  lockedAt     DateTime?
+  /// 後台刪除的時間。範本產生的場次改為軟刪除，避免排程依 @@unique 又把它補回來
+  deletedAt    DateTime?
+
+  /// 所屬活動；活動的基本資料（類型、介紹、封面）由此帶入
+  activityId          String?
+  /// 本場覆寫的封面（null 時沿用活動封面）
+  coverAssetId        String?
+  /// 本場的準備／清場緩衝（分鐘）
+  bufferBeforeMinutes Int     @default(0)
+  bufferAfterMinutes  Int     @default(0)
+  /// 個別場次備註（後台）
+  note                String?
+  coverFocusX         Int?
+  coverFocusY         Int?
+  /// 系列中的順序（1 起算），單次活動為 1
+  seriesIndex         Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activity      Activity?               @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  coverAsset    MediaAsset?             @relation("SessionCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  courts        SessionCourt[]
+  occupancy     Reservation[]
+  activityItems BookingActivityItem[]
+  watches       SessionWatch[]
+  organization  Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template      SessionTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  venue         Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  court         Court?                  @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  registrations SessionRegistration[]
+  snapshots     SessionRosterSnapshot[]
+  notifications NotificationLog[]
+
+  @@unique([templateId, startAt])
+  // 排程掃描用：依狀態 + 時間戳查詢待推進的場次
+  @@index([status, bookingOpenAt])
+  @@index([status, finalizeAt])
+  @@index([status, startAt])
+  @@index([venueId, startAt])
+  @@index([activityId, startAt])
+}
+
+/// 單一使用者對單一球敘的報名紀錄。
+model SessionRegistration {
+  id        String @id @default(cuid())
+  sessionId String
+  userId    String
+
+  status           RegistrationStatus @default(CONFIRMED)
+  /// 僅 WAITLISTED 時有值，從 1 開始（FIFO）
+  waitlistPosition Int?
+
+  /// 主辦者手動加入（保留名額）而非玩家自行報名
+  addedByOrganizer Boolean @default(false)
+  note             String?
+
+  /// 報名單位數（PER_PAIR 時一單位佔 2 個名額，見 seats）
+  quantity      Int       @default(1)
+  /// 實際佔用名額 = quantity × 每單位人數
+  seats         Int       @default(1)
+  /// 加入購物車時的單價（結帳時以伺服器重算為準）
+  unitPrice     Int?
+  /// PENDING 專用：暫留到期時間
+  holdExpiresAt DateTime?
+  cartToken     String?
+  bookingId     String?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  registeredAt DateTime  @default(now())
+  cancelledAt  DateTime?
+  promotedAt   DateTime?
+  checkedInAt  DateTime?
+
+  session       Session           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications NotificationLog[]
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, status])
+  @@index([cartToken])
+  @@index([bookingId])
+  @@index([sessionId, status, waitlistPosition])
+  @@index([userId, status])
+}
+
+/// 名單快照。鎖定後即為歷史紀錄，之後的異動不覆寫它。
+model SessionRosterSnapshot {
+  id           String       @id @default(cuid())
+  sessionId    String
+  snapshotType SnapshotType @default(FINAL_ROSTER)
+  /// 序列化的名單內容（正取 / 候補），SQLite 以 Json 欄位存放
+  rosterJson   Json
+  createdAt    DateTime     @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, snapshotType])
+}
+
+/// 通知發送紀錄，供重試與稽核。
+model NotificationLog {
+  id             String  @id @default(cuid())
+  userId         String?
+  sessionId      String?
+  registrationId String?
+
+  /// 冪等鍵。同一件事重跑時以此避免重複發送，例如
+  /// "FINAL_ROSTER:<sessionId>:<userId>"。規格 §12 要求排程可安全重跑。
+  dedupeKey String? @unique
+
+  type    NotificationType
+  channel NotificationChannel @default(LINE)
+  status  NotificationStatus  @default(PENDING)
+
+  payload Json?
+  error   String?
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user         User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session      Session?             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  registration SessionRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([sessionId, type])
+}
+
+/// 活動（系列）。基本資料與排程規則；每個日期各自是一筆 Session（獨立名額、狀態、訂單）。
+model Activity {
+  id             String         @id @default(cuid())
+  organizationId String
+  venueId        String
+  title          String
+  type           ActivityType   @default(OPEN_PLAY)
+  status         ActivityStatus @default(DRAFT)
+
+  /// 卡片上的一句簡介
+  summary      String?
+  description  String?
+  /// 適合程度，例如「新手友善」「3.0 以上」
+  levelLabel   String?
+  /// 參加條件，例如「請自備球拍」
+  requirements String?
+  /// 費用包含項目
+  includes     String?
+  /// 取消與退款補充說明（退款比例一律依系統規則計算）
+  refundNote   String?
+
+  coverAssetId String?
+  coverFocusX  Int     @default(50)
+  coverFocusY  Int     @default(50)
+
+  /// 預設每單位價格（新台幣整數元），各場可覆寫
+  price            Int       @default(0)
+  priceUnit        PriceUnit @default(PER_PERSON)
+  /// 預設名額上限（人），各場可覆寫
+  capacity         Int       @default(8)
+  /// 保留給內部安排的名額（總名額 − 保留 = 對外開放名額）
+  reservedCapacity Int       @default(0)
+  /// 單筆報名最多幾個單位
+  maxPerOrder      Int       @default(4)
+
+  /// ONCE 單次 / WEEKLY 每週
+  repeatKind      String  @default("ONCE")
+  /// 0=週日 … 6=週六，逗號分隔
+  weekdays        String  @default("")
+  intervalWeeks   Int     @default(1)
+  /// 自場館日期 00:00 起算的分鐘數；超過 1440 代表翌日
+  startMinute     Int
+  endMinute       Int
+  /// 系列開始日期 YYYY-MM-DD（Asia/Taipei）
+  seriesStartDate String
+  seriesEndDate   String?
+  occurrenceCount Int?
+  /// 跳過的日期，逗號分隔 YYYY-MM-DD
+  skipDates       String  @default("")
+  /// 使用場地 id，逗號分隔
+  courtIds        String  @default("")
+
+  /// 每場開始前幾天開放報名
+  openDaysBefore     Int  @default(7)
+  /// 固定開放時刻（分鐘）；null 時與開始時刻相同
+  openMinute         Int?
+  /// 開始前幾分鐘截止報名
+  closeMinutesBefore Int  @default(60)
+
+  /// 草稿的「保留場地」到期時間；null 代表草稿不佔場地
+  holdUntil DateTime?
+
+  /// 公開方式：PUBLIC 公開列表／UNLISTED 僅連結／PRIVATE 不公開（仍占用場地）
+  visibility          String  @default("PUBLIC")
+  /// type = OTHER 時的自訂分類名稱
+  customTypeLabel     String?
+  /// 場館與地點補充說明（例如集合地點）
+  locationNote        String?
+  /// 準備／清場緩衝（分鐘），占用時段會往前後延伸
+  bufferBeforeMinutes Int     @default(0)
+  bufferAfterMinutes  Int     @default(0)
+  hostId              String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue        Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  coverAsset   MediaAsset?  @relation("ActivityCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  host         Host?        @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+
+  @@index([venueId, status])
+}
+
+/// 場次使用的場地（可多面）。佔用本身記在 Reservation（status = EVENT）。
+model SessionCourt {
+  sessionId String
+  courtId   String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, courtId])
+  @@index([courtId])
+}
+
+/// 訂單中的活動報名明細（下單當下的快照，之後場次異動不會回寫價格）
+model BookingActivityItem {
+  id             String    @id @default(cuid())
+  bookingId      String
+  sessionId      String
+  registrationId String
+  title          String
+  startsAt       DateTime
+  endsAt         DateTime
+  courtNames     String    @default("")
+  quantity       Int
+  seats          Int
+  unitPrice      Int
+  amount         Int
+  priceUnit      PriceUnit @default(PER_PERSON)
+  /// ACTIVE / CANCELLED / REFUNDED
+  status         String    @default("ACTIVE")
+  refundedAmount Int       @default(0)
+  refundedPoints Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([sessionId])
+  /// 同一筆報名在前一張訂單逾時後可再下單，因此不設唯一
+  @@index([registrationId])
+}
+
+/// 「有名額通知我」訂閱。不保留名額。
+model SessionWatch {
+  id          String    @id @default(cuid())
+  sessionId   String
+  userId      String
+  createdAt   DateTime  @default(now())
+  notifiedAt  DateTime?
+  cancelledAt DateTime?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, cancelledAt])
+}
+
+/// 上傳的圖片（壓縮後的 WebP 與縮圖存在資料庫，經 /media/[id] 公開讀取）
+model MediaAsset {
+  id           String   @id @default(cuid())
+  mime         String
+  width        Int
+  height       Int
+  sizeBytes    Int
+  bytes        Bytes
+  thumbBytes   Bytes
+  thumbWidth   Int
+  thumbHeight  Int
+  /// 原圖內容雜湊，同一張圖重複上傳時沿用同一筆
+  sha256       String   @unique
+  originalName String?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
+  activities Activity[] @relation("ActivityCover")
+  hosts      Host[]     @relation("HostPhoto")
+  sessions   Session[]  @relation("SessionCover")
+}
+
+/**
+ * ─────────────────────────── 後台帳號與權限 ───────────────────────────
+ */
+
+/// 後台帳號（僅存在主資料庫）。role：OWNER / MANAGER / STAFF / DEMO
+model AdminAccount {
+  id                 String    @id @default(cuid())
+  /// 顯示用帳號（保留大小寫，例如 DEMO）
+  username           String
+  /// 比對用（小寫）
+  usernameKey        String    @unique
+  displayName        String
+  passwordHash       String
+  role               String
+  /// 資料範圍：main（正式）或 demo（展示資料庫）
+  tenant             String    @default("main")
+  active             Boolean   @default(true)
+  lastLoginAt        DateTime?
+  createdBy          String?
+  /// 對應的前台會員（選填）；黑名單會員不能進入後台
+  userId             String?
+  /// 首次登入（或密碼被重設後）必須更換密碼
+  mustChangePassword Boolean   @default(false)
+  /// 授權場館（null = 全部場館）
+  venueId            String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sessions AdminSession[]
+}
+
+/// 後台登入 session；登出或停用帳號時撤銷，伺服器每次請求都會核對
+model AdminSession {
+  id         String    @id @default(cuid())
+  accountId  String
+  tenant     String
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+
+  account AdminAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+/// 登入嘗試紀錄（限制暴力嘗試）
+model AdminLoginAttempt {
+  id          String   @id @default(cuid())
+  usernameKey String
+  ip          String
+  success     Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([usernameKey, createdAt])
+  @@index([ip, createdAt])
+}
+
+/**
+ * ─────────────────────────── 退款 ───────────────────────────
+ */
+
+/// 一次退款申請。金額由後端計算；idempotencyKey 防止連點與重送造成重複退款
+model Refund {
+  id             String    @id @default(cuid())
+  bookingId      String
+  idempotencyKey String    @unique
+  /// PROCESSING 處理中 / SUCCEEDED 成功 / FAILED 失敗 / MANUAL_PENDING 待人工處理 / MANUAL_DONE 人工已完成
+  status         String
+  /// ORIGINAL 原付款方式 / POINTS 點數 / MANUAL 人工（金流不支援時）
+  method         String
+  cashAmount     Int
+  pointsAmount   Int
+  reason         String
+  /// 是否同時取消預約並釋放場地／名額
+  cancelItems    Boolean
+  /// 付款與退款使用的金流；mock 表示模擬金流（非真實款項）
+  provider       String?
+  providerRef    String?
+  failReason     String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+  note           String?
+
+  /// 退款是否符合「全額退款」條件
+  fullRefundEligible Boolean @default(false)
+
+  /// 取消截止點時間
+  cancelDeadlineAt DateTime?
+
+  /// 實際取消時間
+  actualCancelledAt DateTime?
+
+  /// 是否為超期退款（可能需人工審核）
+  isLateRefund Boolean @default(false)
+
+  /// 退款流程狀態細節（JSON 結構化數據）
+  refundBreakdown Json?
+
+  booking Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  items   RefundItem[]
+
+  @@index([bookingId])
+  @@index([status, createdAt])
+}
+
+/// 訂單取消日誌
+model CancellationLog {
+  id        String @id @default(cuid())
+  bookingId String
+
+  /// 嘗試時間
+  attemptAt DateTime @default(now())
+
+  /// 狀態：SUCCESS / REJECTED_TOO_LATE / REJECTED_CHECKED_IN / REJECTED_OTHER
+  status String
+
+  /// 拒絕原因說明
+  rejectionReason String?
+
+  /// 距開打時間（分鐘）— 用於稽核
+  minutesBeforeStart Int?
+
+  /// 操作人（自助或人工）
+  operatedBy String @default("USER") // USER / ADMIN
+
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, attemptAt])
+  @@index([status])
+}
+
+model RefundItem {
+  id           String @id @default(cuid())
+  refundId     String
+  /// COURT / ACTIVITY
+  itemType     String
+  itemId       String
+  label        String
+  cashAmount   Int
+  pointsAmount Int
+
+  refund Refund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  @@index([refundId])
+  @@index([itemId])
+}
+
+/**
+ * ─────────────────────────── 發票異動 ───────────────────────────
+ */
+
+/// 發票操作：補寄、作廢重開。idempotencyKey 防止重複寄送或重複開立
+model InvoiceEvent {
+  id             String    @id @default(cuid())
+  invoiceId      String
+  /// RESEND / VOID_REISSUE
+  type           String
+  idempotencyKey String    @unique
+  /// PROCESSING / SUCCEEDED / FAILED / BLOCKED
+  status         String
+  reason         String?
+  detail         Json?
+  /// 是否為模擬服務的結果（展示環境）
+  simulated      Boolean   @default(false)
+  newInvoiceId   String?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+  error          String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+/**
+ * ─────────────────────────── 設備指令與異常 ───────────────────────────
+ */
+
+/// 設備指令。API 接受不等於設備已動作：SENT 之後要收到設備回報才是 ACKED
+model DeviceCommand {
+  id             String    @id @default(cuid())
+  deviceId       String
+  /// ON / OFF / UNLOCK / LOCK
+  action         String
+  /// SENT 已送出 / ACKED 設備已確認 / FAILED 失敗 / TIMEOUT 逾時
+  status         String
+  idempotencyKey String    @unique
+  reason         String?
+  /// 是否為模擬設備
+  simulated      Boolean   @default(false)
+  requestedBy    String
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+  ackAt          DateTime?
+  error          String?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+}
+
+/// 營運異常事件與處理紀錄（dedupeKey 避免同一事件重複建立）
+model Incident {
+  id         String    @id @default(cuid())
+  dedupeKey  String    @unique
+  /// DEVICE_OFFLINE / DEVICE_STALE / PAYMENT_AFTER_EXPIRY / REFUND_FAILED / REFUND_MANUAL / OCCUPANCY_CONFLICT / PAYMENT_FAILED
+  type       String
+  /// HIGH / MEDIUM / LOW
+  severity   String
+  title      String
+  detail     String?
+  /// 連到相關紀錄，例如 /admin/bookings?order=xxx
+  link       String?
+  /// OPEN / ACKED / RESOLVED
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+  resolvedBy String?
+  note       String?
+
+  @@index([status, createdAt])
+}
+
+/**
+ * ─────────────────────────── 會員限制 ───────────────────────────
+ */
+
+/// 會員限制與黑名單。需權限與原因；撤銷保留紀錄
+model MemberRestriction {
+  id           String    @id @default(cuid())
+  userId       String
+  /// BLACKLIST 黑名單（禁止所有線上預約）/ NO_ACTIVITY 禁止報名活動
+  type         String
+  reason       String
+  /// 內部備註（不公開）
+  internalNote String?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+/// 活動主持人／負責人。前台只公開 name、photo、bio、publicContact；內部聯絡資料僅後台可見。
+/// 綁定會員（userId）只用來對應人員，不授予任何後台權限。
+model Host {
+  id            String   @id @default(cuid())
+  venueId       String
+  name          String
+  photoAssetId  String?
+  /// 前台公開的簡介
+  bio           String?
+  /// 前台公開的聯絡方式（例如 IG 帳號），可留空
+  publicContact String?
+  internalPhone String?
+  internalEmail String?
+  internalNote  String?
+  userId        String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  venue      Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  photoAsset MediaAsset? @relation("HostPhoto", fields: [photoAssetId], references: [id], onDelete: SetNull)
+  activities Activity[]
+
+  @@index([venueId, active])
+}
+
+/// 清潔／維護排程（系列規則）。內部排程：不開放報名、不進購物車、不顯示價格。
+model MaintenancePlan {
+  id              String   @id @default(cuid())
+  venueId         String
+  name            String
+  /// CLEANING 清潔 / DISINFECT 消毒 / EQUIPMENT 設備保養 / REPAIR 場地維修
+  type            String   @default("CLEANING")
+  /// 使用場地 id，逗號分隔（實際占用以每次事件為準）
+  courtIds        String
+  startMinute     Int
+  endMinute       Int
+  repeatKind      String   @default("ONCE")
+  weekdays        String   @default("")
+  intervalWeeks   Int      @default(1)
+  seriesStartDate String
+  seriesEndDate   String?
+  occurrenceCount Int?
+  skipDates       String   @default("")
+  assignee        String?
+  description     String?
+  checklist       String?
+  /// ACTIVE / CANCELLED
+  status          String   @default("ACTIVE")
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  venue  Venue              @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  events MaintenanceEvent[]
+
+  @@index([venueId, status])
+}
+
+/// 清潔／維護的單次事件；占用寫在 Reservation（status = BLOCKED，maintenanceEventId 指向本筆）。
+/// 標記完成不會釋放封場；提前開放需另行「提前解除封場」（releasedAt）。
+model MaintenanceEvent {
+  id           String    @id @default(cuid())
+  planId       String
+  venueId      String
+  date         String
+  startAt      DateTime
+  endAt        DateTime
+  courtIds     String
+  /// SCHEDULED / IN_PROGRESS / DONE / CANCELLED
+  status       String    @default("SCHEDULED")
+  note         String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  releasedAt   DateTime?
+  cancelReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  plan      MaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  occupancy Reservation[]
+
+  @@index([planId, startAt])
+  @@index([venueId, startAt])
+}
+
+/// 點數異動帳本：每筆異動記錄數量、前後餘額、原因與操作人；餘額只能由帳本推進，不直接覆寫。
+model PointsLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  /// 正數加點、負數扣點
+  delta          Int
+  balanceAfter   Int
+  /// ADMIN_ADD 後台加點／ADMIN_DEDUCT 後台扣點／REDEEM 結帳折抵／REFUND 退款回補／RELEASE 訂單取消歸還
+  kind           String
+  reason         String
+  actor          String
+  /// 防重複提交（同一鍵只會記一筆）
+  idempotencyKey String   @unique
+  bookingId      String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// 儲值方案：由擁有者設定；售價、點數、贈點分開，不假設 1 元 = 1 點
+model TopUpPlan {
+  id           String   @id @default(cuid())
+  name         String
+  /// 支付金額（新台幣整數元）
+  price        Int
+  /// 購買點數
+  points       Int
+  /// 贈送點數（與付費點數分開記錄）
+  bonusPoints  Int      @default(0)
+  /// 使用範圍說明
+  scopeNote    String?
+  /// 效期說明
+  validityNote String?
+  /// 退款說明
+  refundNote   String?
+  active       Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders TopUpOrder[]
+
+  @@index([active, sortOrder])
+}
+
+/// 儲值單：付款由金流回呼確認後才入點；入點走點數帳本（冪等）
+model TopUpOrder {
+  id          String    @id @default(cuid())
+  /// TP-YYYYMMDD-XXXX
+  code        String    @unique
+  userId      String
+  planId      String
+  /// 方案快照
+  planName    String
+  amount      Int
+  points      Int
+  bonusPoints Int       @default(0)
+  /// PENDING | PAID | CREDITED | CREDIT_FAILED | FAILED | EXPIRED | CANCELLED
+  status      String    @default("PENDING")
+  provider    String?
+  method      String?
+  providerRef String?
+  cardLast4   String?
+  cardBrand   String?
+  rawResponse Json?
+  failReason  String?
+  paidAt      DateTime?
+  creditedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan TopUpPlan @relation(fields: [planId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([providerRef])
+}
+
+/// 費用附件（收據照片或 PDF）：私有，讀取需驗證權限；上傳後與費用在同一交易綁定
+model ExpenseAttachment {
+  id           String   @id @default(cuid())
+  expenseId    String?
+  uploadedBy   String
+  mime         String
+  sizeBytes    Int
+  bytes        Bytes
+  thumbBytes   Bytes?
+  width        Int?
+  height       Int?
+  originalName String?
+  sha256       String
+  createdAt    DateTime @default(now())
+
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([expenseId])
+  @@index([uploadedBy, createdAt])
+  @@index([sha256])
+}
+
+/// 費用更正歷史：每次修改保留前後值，已核准資料不無痕覆寫
+model ExpenseRevision {
+  id        String   @id @default(cuid())
+  expenseId String
+  changedBy String
+  note      String?
+  before    Json
+  after     Json
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
+}
+
+/**
+ * ─────────────────────────── 無人化電力控制系統 ───────────────────────────
+ */
+
+/// 18 路回路定義與映射
+model Circuit {
+  id            String          @id @default(cuid())
+  venueId       String
+  /// 01-18
+  circuitNumber String          @unique
+  name          String
+  description   String?
+  category      ControlCategory
+
+  /// 啟用狀態（17-18 預設停用）
+  enabled                Boolean @default(true)
+  /// 是否允許遠端控制（12-16 默認 false）
+  remoteControlEnabled   Boolean @default(true)
+  /// 是否允許排程控制（12-16 默認 false）
+  scheduleControlEnabled Boolean @default(true)
+
+  /// 關聯的設備 MAC ID 與通道（JSON：{ deviceMacId: "...", channel: 1, onValue: 1, offValue: 0 }）
+  deviceMapping Json?
+
+  /// 預約控制：提前開啟（分鐘）
+  reservationAdvanceMinutes Int?
+  /// 預約控制：延遲關閉（分鐘）
+  reservationDelayMinutes   Int?
+
+  /// 目前預期狀態（ON / OFF）
+  expectedState    String?
+  /// 目前設備回報狀態（ON / OFF）
+  actualState      String?
+  /// 最後狀態更新時間
+  lastStateChange  DateTime?
+  /// 最後設備回報時間
+  lastDeviceReport DateTime?
+
+  /// 最後一條命令的結果（成功 / 失敗 / 等待 / 超時）
+  lastCommandStatus String?
+  lastCommandAt     DateTime?
+  lastCommandError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue    Venue            @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  commands ControlCommand[]
+  events   ControlEvent[]
+  schedules CircuitSchedule[]
+
+  @@index([venueId])
+  @@index([category])
+  @@index([enabled])
+}
+
+/// 電力迴路排程設定（營業時間、夜間控制、自訂時段）
+model CircuitSchedule {
+  id String @id @default(cuid())
+  circuitId String
+
+  /// 所屬分類：OPERATING_HOURS / NIGHT_AMBIENT
+  category String
+
+  /// 預設時間：起始分鐘數（0-1439）
+  startMinute Int?
+  /// 預設時間：結束分鐘數（0-1439）
+  endMinute Int?
+
+  /// 適用日期（0=週日，1-6=週一至週六，逗號分隔；空=每日）
+  weekdays String @default("0,1,2,3,4,5,6")
+
+  /// 備註（自訂時段用）
+  note String?
+
+  /// 排程是否啟用
+  enabled Boolean @default(true)
+
+  /// 修改人員
+  modifiedBy String?
+  /// 上次修改時間
+  modifiedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+
+  @@index([circuitId])
+  @@index([category])
+  @@index([enabled])
+}
+
+/// 排程操作審計日誌（追蹤所有修改）
+model CircuitScheduleAudit {
+  id String @id @default(cuid())
+
+  /// 關聯的排程 ID
+  scheduleId String?
+  circuitNumber String
+  category String
+
+  /// 操作類型：CREATE / UPDATE / DELETE
+  operation String
+
+  /// 修改前的值（JSON）
+  previousValue Json?
+  /// 修改後的值（JSON）
+  newValue Json?
+
+  /// 修改人員
+  modifiedBy String?
+  /// 修改原因（選填）
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([circuitNumber])
+  @@index([operation])
+  @@index([createdAt])
+  @@index([modifiedBy])
+}
+
+/// MQTT 命令追蹤與確認
+model ControlCommand {
+  id        String @id @default(cuid())
+  /// 跨日誌追蹤用
+  commandId String @unique
+  circuitId String
+
+  /// 命令來源：SCHEDULE / MANUAL_OVERRIDE / EMERGENCY
+  source      String        @default("SCHEDULE")
+  /// 命令目標狀態：ON / OFF
+  targetState String
+  status      CommandStatus @default(PENDING)
+
+  /// 排程 ID（若來自排程）
+  scheduleId    String?
+  /// 預約 ID（若與預約關聯）
+  reservationId String?
+  /// 操作人（若為人工命令）
+  requestedBy   String?
+
+  /// MQTT topic 與 payload
+  mqttTopic   String?
+  mqttPayload Json?
+
+  /// 命令發送時間
+  sentAt  DateTime?
+  /// 設備確認時間（ACKED 時填入）
+  ackedAt DateTime?
+  /// 命令失敗 / 超時時的錯誤說明
+  error   String?
+
+  /// 命令有效期限（過期後離線復出不執行）
+  expiresAt DateTime
+
+  /// 是否為模擬命令
+  simulated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circuit     Circuit        @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  reservation Reservation?   @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  events      ControlEvent[]
+
+  @@index([circuitId, createdAt])
+  @@index([status, createdAt])
+  @@index([commandId])
+  @@index([expiresAt])
+  @@index([reservationId])
+}
+
+/// 營業時間與夜間排程
+model OperatingHours {
+  id      String @id @default(cuid())
+  venueId String @unique
+
+  /// 營業時間（預設 08:00-22:00）
+  businessStartMinute Int @default(480)
+  businessEndMinute   Int @default(1320)
+
+  /// 夜間環境氣氛燈時段（預設 18:00-22:00）
+  nightStartMinute Int @default(1080)
+  nightEndMinute   Int @default(1320)
+
+  /// 禁用日期（逗號分隔 YYYY-MM-DD）
+  disabledDates      String @default("")
+  /// 適用星期（逗號分隔 0-6；空 = 每日）
+  applicableWeekdays String @default("0,1,2,3,4,5,6")
+
+  updatedAt DateTime @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+}
+
+/// 設備配置與連接資訊
+model DeviceAdapter {
+  id      String @id @default(cuid())
+  venueId String
+
+  /// 設備名稱（例如「Relay-001」）
+  name       String
+  /// 設備類型（例如「ADVANTECH_ADAM_4019」）
+  deviceType String
+  /// 設備 MAC ID
+  macId      String
+
+  /// MQTT Broker 設定
+  mqttBrokerUrl String?
+  mqttPort      Int     @default(1883)
+  mqttUseTls    Boolean @default(false)
+  mqttUsername  String?
+  mqttPassword  String?
+
+  /// 設備 MQTT topic 前綴（例如「Advantech/{MAC_ID}」）
+  mqttTopicPrefix String
+
+  /// 設備輸出通道總數
+  totalChannels Int @default(18)
+
+  /// 控制與狀態 topic 映射（JSON）
+  mqttControlTopic String
+  mqttStatusTopic  String
+
+  /// 設備回報解析規則（JSON：{ valueField: "v", onValue: 1, offValue: 0 }）
+  deviceStateMapping Json?
+
+  /// 連線狀態：ONLINE / OFFLINE / UNKNOWN
+  connectionStatus String    @default("UNKNOWN")
+  lastHeartbeat    DateTime?
+
+  /// 簽署的 TLS 憑證（存儲路徑或 reference，不直接存密鑰）
+  tlsCertReference String?
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([macId])
+  @@index([enabled])
+}
+
+/// 控制事件日誌
+model ControlEvent {
+  id      String @id @default(cuid())
+  /// 跨系統追蹤用
+  eventId String @unique
+
+  venueId       String
+  circuitId     String?
+  commandId     String?
+  reservationId String?
+  userId        String?
+
+  eventType   ControlEventType
+  severity    String           @default("INFO") // INFO / WARNING / ERROR
+  environment EventEnvironment @default(PRODUCTION)
+
+  /// 可讀說明
+  title       String
+  description String?
+
+  /// 結構化資料（脫敏後）
+  data Json?
+
+  /// 相關聯的 commandId、scheduleId、reservationId（關聯時間線）
+  correlationId String?
+
+  /// 日誌是否已同步到 Neon
+  syncedToNeon Boolean   @default(false)
+  syncedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circuit     Circuit?        @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+  command     ControlCommand? @relation(fields: [commandId], references: [id], onDelete: SetNull)
+  reservation Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  venue       Venue           @relation(fields: [venueId], references: [id])
+
+  @@index([venueId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([severity])
+  @@index([environment])
+  @@index([syncedToNeon])
+  @@index([correlationId])
+}
+
+/// Watchdog 告警與監控事件
+model WatchdogAlert {
+  id      String @id @default(cuid())
+  venueId String
+
+  /// 告警類型：HEARTBEAT_LOST / MQTT_DOWN / RELAY_OFFLINE / COMMAND_TIMEOUT / STATUS_MISMATCH / SCHEDULE_FAILED / SYNC_FAILED
+  alertType String
+  severity  WatchdogAlertSeverity
+
+  /// 受影響的元件：SERVICE_LOCAL / SERVICE_MQTT / DEVICE_RELAY / CIRCUIT / COMMAND
+  component   String?
+  componentId String?
+
+  title       String
+  description String?
+
+  /// 檢測源
+  detectionSource String?
+  detectionCount  Int     @default(1)
+
+  /// 預期值 vs. 實際值
+  expectedValue String?
+  actualValue   String?
+
+  /// 恢復狀態：OPEN / ACKNOWLEDGED / RESOLVED
+  status String @default("OPEN")
+
+  acknowledgedBy   String?
+  acknowledgedAt   DateTime?
+  acknowledgedNote String?
+
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  resolveNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, status])
+  @@index([alertType])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+/**
+ * ─────────────────────────── 門禁控制系統（Phase 6） ───────────────────────────
+ */
+
+/// 門禁訪問會話：綁定預約與門禁憑證
+model AccessSession {
+  id            String @id @default(cuid())
+  venueId       String
+  reservationId String @unique
+
+  /// 版本號（單調遞增，取消改期時遞增）
+  bookingVersion Int @default(1)
+
+  /// 憑證狀態
+  credentialState CredentialState @default(CREATED)
+
+  /// 門禁設備 (AR-721) MAC ID
+  controllerMacId String
+
+  /// 預留的使用者位置編號（控制器端）
+  userSlotNumber Int?
+
+  /// PIN / 卡號（僅存 hash，不存明文）
+  credentialHash String?
+  credentialType String  @default("PIN") // PIN / CARD / BIOMETRIC
+
+  /// 有效期限（秒級精度）
+  validFromUtc  DateTime
+  validUntilUtc DateTime
+
+  /// 最後一次確認的狀態
+  lastAppliedAt DateTime?
+  lastRevokedAt DateTime?
+
+  status String @default("ACTIVE") // ACTIVE / REVOKED / EXPIRED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue            Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  reservation      Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  commands         DoorAccessCommand[]
+  accessLogs       AccessLog[]
+  credentialAlerts CredentialAlert[]
+
+  @@index([venueId, reservationId])
+  @@index([controllerMacId, userSlotNumber])
+  @@index([validFromUtc, validUntilUtc])
+  @@index([status])
+}
+
+/// 門禁命令追蹤（下發給 Raspberry Pi 的命令）
+model DoorAccessCommand {
+  id        String @id @default(cuid())
+  /// 跨系統追蹤
+  commandId String @unique
+
+  accessSessionId String
+  /// 版本檢查（必須 ≥ 目前訂單版本）
+  bookingVersion  Int
+
+  /// 序號（遞增，用於重複檢查）
+  commandSequence Int
+
+  /// 命令類型
+  commandType DoorAccessCommandType @default(PROVISION_CREDENTIAL)
+
+  /// 命令發行與失效時間
+  issuedAt  DateTime
+  expiresAt DateTime
+
+  /// 目標狀態
+  targetState String // ON / OFF / UNLOCK
+  status      CommandStatus @default(PENDING)
+
+  /// MQTT 發送詳情
+  mqttTopic   String?
+  mqttPayload Json?
+  sentAt      DateTime?
+
+  /// 設備回報
+  ackedAt        DateTime?
+  deviceResponse Json?
+  deviceStatus   String? // ACCEPTED / REJECTED / UNKNOWN
+  error          String?
+
+  /// 是否為模擬
+  simulated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accessSession AccessSession @relation(fields: [accessSessionId], references: [id], onDelete: Cascade)
+  accessLogs    AccessLog[]
+
+  @@index([accessSessionId, commandType])
+  @@index([status, createdAt])
+  @@index([commandId])
+  @@index([expiresAt])
+}
+
+/// 門禁交易日誌（使用者在現場的通行記錄）
+model AccessLog {
+  id              String  @id @default(cuid())
+  accessSessionId String
+  commandId       String?
+
+  venueId         String
+  controllerMacId String
+
+  /// 通行嘗試時間（控制器時鐘）
+  attemptAt DateTime
+
+  /// 通行結果
+  accessStatus AccessStatus @default(UNKNOWN)
+
+  /// 使用方式：PIN_ENTRY / CARD_SCAN / BIOMETRIC
+  accessMethod String @default("PIN_ENTRY")
+
+  /// 結果代碼（若控制器提供）
+  resultCode        String?
+  resultDescription String?
+
+  /// 門磁狀態：OPENED / CLOSED
+  doorState    String?
+  doorOpenAt   DateTime?
+  doorClosedAt DateTime?
+
+  /// 時間異常偵測
+  clockDriftSeconds Int?
+
+  /// 詳細資料（已脫敏）
+  details Json?
+
+  /// 是否為模擬記錄
+  simulated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  accessSession AccessSession      @relation(fields: [accessSessionId], references: [id], onDelete: Cascade)
+  command       DoorAccessCommand? @relation(fields: [commandId], references: [id], onDelete: SetNull)
+
+  @@index([accessSessionId, attemptAt])
+  @@index([venueId, attemptAt])
+  @@index([accessStatus])
+  @@index([controllerMacId, attemptAt])
+}
+
+/// 門禁告警（Watchdog 擴展）
+model CredentialAlert {
+  id              String  @id @default(cuid())
+  venueId         String
+  accessSessionId String?
+
+  /// 告警類型
+  alertType String // COMMAND_DELIVERY_FAILED / CONTROLLER_APPLY_FAILED 等
+  severity  WatchdogAlertSeverity
+
+  /// 標題與說明
+  title       String
+  description String?
+
+  /// 影響的對象
+  affectedResource String? // AccessSession ID 或 commandId
+
+  /// 告警狀態
+  status String @default("OPEN") // OPEN / ACKNOWLEDGED / RESOLVED
+
+  /// 自動觸發或人工
+  triggeredBy String @default("WATCHDOG") // WATCHDOG / MANUAL
+
+  detectionCount Int @default(1)
+
+  acknowledgedBy   String?
+  acknowledgedAt   DateTime?
+  acknowledgedNote String?
+
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  resolveNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue         Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  accessSession AccessSession? @relation(fields: [accessSessionId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, status])
+  @@index([alertType, severity])
+  @@index([createdAt])
+}
+
+// ═══════════════════ 後台管理員系統 ═══════════════════
+
+/// 門禁授權（業務層）：誰、在什麼期間可以進入。預約付款後自動建立，或由管理者手動授權。
+/// 「尚未生效／已過期」依 validFrom、validUntil 與目前時間判斷，不另存狀態。
+model DoorAccessGrant {
+  id           String    @id @default(cuid())
+  venueId      String
+  /// BOOKING 預約自動授權／MANUAL 手動授權
+  source       String
+  /// 預約授權對應的訂單（一張訂單一筆授權）
+  bookingId    String?   @unique
+  /// 會員授權時的會員；手動授權給非會員（清潔、維修人員）時為空
+  userId       String?
+  holderName   String
+  holderPhone  String?
+  validFrom    DateTime
+  validUntil   DateTime
+  /// ACTIVE 有效／REVOKED 已撤銷
+  status       String    @default("ACTIVE")
+  note         String?
+  createdBy    String
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([venueId, validFrom, validUntil])
+  @@index([userId])
+  @@index([status])
+}
+
+/// 即時監控攝影機設定（Camera 01–06）。沒有資料列時使用程式內建的預設值。
+/// 不存任何密碼：串流憑證放在伺服器環境變數，這裡只記錄變數名稱。
+model MonitorCamera {
+  /// 攝影機編號 01–06
+  id             String    @id
+  name           String
+  /// 平面圖區域（venue-layout ZoneId）
+  zone           String
+  /// 平面圖座標（viewBox 136 × 66）
+  x              Float
+  y              Float
+  /// 拍攝方向（度；0 = 向右，90 = 向下）
+  facing         Int       @default(0)
+  coverage       String?
+  enabled        Boolean   @default(true)
+  /// 串流來源：RTSP / HLS / WEBRTC / NVR（null = 未設定）
+  protocol       String?
+  host           String?
+  port           Int?
+  /// NVR 通道或串流路徑（不得含帳號密碼）
+  channel        String?
+  /// 憑證所在的伺服器環境變數名稱，例如 CAMERA_03_PASSWORD
+  credentialEnv  String?
+  /// 可觀看此攝影機的角色（逗號分隔）
+  viewRoles      String    @default("OWNER,MANAGER,OPERATOR,VIEWER")
+  lastTestAt     DateTime?
+  lastTestResult String?
+  updatedBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+/// 設備自動化規則 — 用於控制設備的自動執行條件和動作
+model AutomationRule {
+  id             String    @id @default(cuid())
+  venueId        String
+  
+  /// 規則名稱（例如：預約結束後延遲關燈）
+  name           String
+  
+  /// 規則啟用狀態
+  enabled        Boolean   @default(false)
+  
+  /// 觸發類型：RESERVATION_END, TIME_BASED, MANUAL, SENSOR
+  triggerType    String
+  
+  /// 觸發條件（JSON）例如：{ "reservationEndMinutes": 5, "exemptDates": [] }
+  triggerConfig  String
+  
+  /// 受影響的迴路（逗號分隔）
+  circuitNumbers String
+  
+  /// 動作類型：POWER_ON, POWER_OFF, SCHEDULE_SWITCH
+  actionType     String
+  
+  /// 動作參數（JSON）
+  actionConfig   String
+  
+  /// 優先級（1-10，數字越大優先級越高）
+  priority       Int       @default(5)
+  
+  /// 例外日期（逗號分隔，YYYY-MM-DD）
+  exceptDates    String?
+  
+  /// 適用星期（0-6，Sunday-Saturday，逗號分隔）
+  weekdays       String    @default("0,1,2,3,4,5,6")
+  
+  /// 是否暫停執行
+  paused         Boolean   @default(false)
+  
+  /// 暫停原因
+  pauseReason    String?
+  
+  /// 規則說明
+  note           String?
+  
+  /// 上次執行時間
+  lastTriggeredAt DateTime?
+  
+  /// 上次執行結果（SUCCESS, FAILED, SKIPPED）
+  lastResult     String?
+  
+  /// 上次執行錯誤信息
+  lastError      String?
+  
+  /// 建立者
+  createdBy      String
+  
+  /// 修改者
+  modifiedBy     String
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([venueId, enabled])
+  @@index([triggerType])
+}
+
+/// 自動化規則執行日誌
+model AutomationLog {
+  id              String    @id @default(cuid())
+  ruleId          String
+  venueId         String
+  
+  /// 觸發時間
+  triggeredAt     DateTime
+  
+  /// 執行結果：SUCCESS, FAILED, SKIPPED
+  result          String
+  
+  /// 執行動作（例如：設置迴路 01 為 ON）
+  action          String?
+  
+  /// 錯誤信息（如有）
+  errorMessage    String?
+  
+  /// 受影響的迴路
+  affectedCircuits String?
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([ruleId])
+  @@index([venueId])
+  @@index([triggeredAt])
+}

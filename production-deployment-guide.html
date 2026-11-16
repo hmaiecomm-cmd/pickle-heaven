@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生產部署指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #fafaf8;
+            color: #1f2a22;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #2f7d3b;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .progress-item {
+            flex: 1;
+            padding: 12px;
+            background: #e6eadf;
+            text-align: center;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .progress-item.current {
+            background: #2f7d3b;
+            color: white;
+        }
+
+        .progress-item.done {
+            background: #dcefcf;
+            color: #2f7d3b;
+        }
+
+        .step {
+            background: white;
+            border-left: 4px solid #2f7d3b;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(31, 77, 52, 0.06);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: #2f7d3b;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .step h2 {
+            font-size: 1.5em;
+            color: #2f7d3b;
+            margin-bottom: 15px;
+        }
+
+        .instruction {
+            background: #f5f9f3;
+            border-left: 3px solid #2f7d3b;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .instruction strong {
+            color: #2f7d3b;
+        }
+
+        .code-block {
+            background: #1f2a22;
+            color: #dcefcf;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .warning {
+            background: #fff8e6;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #cc6600;
+        }
+
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .checklist li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #2f7d3b;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .screenshot-note {
+            background: #e3f2d8;
+            border-left: 3px solid #7cb342;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        .button-guide {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #f0f4ed;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .button-guide code {
+            background: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        footer {
+            text-align: center;
+            color: #999;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #e6eadf;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8em; }
+            .step { padding: 20px; }
+            .progress-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 生產部署完整指南</h1>
+            <p class="subtitle">Pickle Heaven 智慧球館管理平台 V7</p>
+            <div class="progress-bar">
+                <div class="progress-item done">Step 1: Turso</div>
+                <div class="progress-item done">Step 2: 變數</div>
+                <div class="progress-item done">Step 3: 遷移</div>
+                <div class="progress-item done">Step 4: 驗證</div>
+            </div>
+        </header>
+
+        <!-- Step 1 -->
+        <div class="step">
+            <div class="step-number">1</div>
+            <h2>建立生產 Turso 資料庫</h2>
+
+            <div class="instruction">
+                <strong>目標：</strong>在 Turso 平台建立專屬的生產資料庫
+            </div>
+
+            <h3>1.1 訪問 Turso 官網</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>打開瀏覽器，訪問 <code style="background: #f0f0f0; padding: 2px 4px;">https://turso.tech</code></li>
+                <li>登入您的 Turso 帳戶（使用 GitHub / Google 帳號）</li>
+                <li>進入儀表板（Dashboard）</li>
+            </ol>
+
+            <h3>1.2 建立新資料庫</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>點擊 <strong>「Create Database」</strong> 按鈕</li>
+                <li>填入資料庫名稱：<code style="background: #f0f0f0; padding: 2px 4px;">pickle-heaven-prod</code></li>
+                <li>選擇地區：
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>推薦：</strong> <code>ap-northeast-1</code>（東京 - 台灣最近）</li>
+                        <li><strong>備選：</strong> <code>ap-singapore</code>（新加坡）</li>
+                    </ul>
+                </li>
+                <li>點擊 <strong>「Create」</strong> 確認建立</li>
+            </ol>
+
+            <div class="screenshot-note">
+                💡 建立過程通常需要 10-30 秒。頁面會自動重新整理。
+            </div>
+
+            <h3>1.3 取得連線資訊</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>建立完成後，進入新資料庫頁面</li>
+                <li>點擊 <strong>「Connect」</strong> 按鈕</li>
+                <li>複製以下資訊（稍後需要用到）：
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong style="color: #2f7d3b;">Database URL</strong></li>
+                        <li><strong style="color: #2f7d3b;">Auth Token</strong></li>
+                    </ul>
+                </li>
+            </ol>
+
+            <div class="success">
+                ✓ <strong>完成標記：</strong>您已獲得資料庫連線資訊，可進行下一步
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step">
+            <div class="step-number">2</div>
+            <h2>配置 Vercel 環境變數</h2>
+
+            <div class="instruction">
+                <strong>目標：</strong>將 Turso 連線資訊輸入 Vercel，供應用使用
+            </div>
+
+            <h3>2.1 訪問 Vercel 儀表板</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>打開 <code style="background: #f0f0f0; padding: 2px 4px;">https://vercel.com</code></li>
+                <li>登入您的 Vercel 帳戶</li>
+                <li>找到 <strong>pickle-heaven</strong> 專案</li>
+            </ol>
+
+            <h3>2.2 進入專案設定</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>點擊專案名稱進入專案頁面</li>
+                <li>導航到 <strong>Settings</strong>（設定）標籤</li>
+                <li>在左側選單中，選擇 <strong>Environment Variables</strong></li>
+            </ol>
+
+            <h3>2.3 新增環境變數</h3>
+            <p style="margin-bottom: 15px;">需要新增 2 個環境變數。點擊 <strong>「Add New」</strong> 按鈕，逐個添加：</p>
+
+            <div class="instruction">
+                <strong>變數 1：</strong>
+                <div class="code-block">
+Name: TURSO_DATABASE_URL
+Value: libsql://pickle-heaven-prod-XXXXX.turso.io
+                </div>
+                <p style="margin-top: 10px;"><em>（用 Turso 給您的 URL 替換 XXXXX 部分）</em></p>
+            </div>
+
+            <div class="instruction">
+                <strong>變數 2：</strong>
+                <div class="code-block">
+Name: TURSO_AUTH_TOKEN
+Value: &lt;粘貼您從 Turso 複製的 Token&gt;
+                </div>
+            </div>
+
+            <h3>2.4 環境確認</h3>
+            <p style="margin-bottom: 10px;">確保您新增的變數應用於：</p>
+            <ul style="margin-left: 20px; margin-bottom: 20px;">
+                <li>✓ Production</li>
+                <li>✓ Preview</li>
+                <li>✓ Development</li>
+            </ul>
+
+            <div class="warning">
+                ⚠️ <strong>重要：</strong>變數配置完成後不要急著關閉頁面，等待 Vercel 顯示「Saved」確認。
+            </div>
+
+            <div class="success">
+                ✓ <strong>完成標記：</strong>環境變數已在 Vercel 成功配置
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step">
+            <div class="step-number">3</div>
+            <h2>執行生產遷移</h2>
+
+            <div class="instruction">
+                <strong>目標：</strong>將資料庫 schema 同步到生產環境
+            </div>
+
+            <h3>3.1 觸發自動遷移（推薦）</h3>
+            <p style="margin-bottom: 15px;">Vercel 會在部署時自動執行遷移。只需等待下次部署完成：</p>
+
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>進入 Vercel 專案的 <strong>Deployments</strong> 標籤</li>
+                <li>找到最新的部署（通常在列表頂部）</li>
+                <li>等待狀態顯示 <strong>Ready</strong>（綠色）</li>
+                <li>此時遷移已自動執行</li>
+            </ol>
+
+            <h3>3.2 手動遷移（可選備份）</h3>
+            <p style="margin-bottom: 15px;">如果您想在本機確認遷移，可以手動執行：</p>
+
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>在電腦上打開終端機（Terminal / CMD）</li>
+                <li>進入專案目錄：
+                    <div class="code-block">cd 「您的專案路徑」</div>
+                </li>
+                <li>執行遷移命令：
+                    <div class="code-block">DATABASE_URL="libsql://pickle-heaven-prod-XXXXX.turso.io" \
+TURSO_AUTH_TOKEN="您的Token" \
+npx prisma migrate deploy</div>
+                </li>
+                <li>等待命令完成。成功輸出應該是：
+                    <div class="code-block">All migrations have been successfully applied.</div>
+                </li>
+            </ol>
+
+            <div class="warning">
+                ⚠️ <strong>注意：</strong>遷移是一次性操作。執行後無法撤銷，但不會重複執行相同遷移。
+            </div>
+
+            <div class="success">
+                ✓ <strong>完成標記：</strong>看到「All migrations have been successfully applied」
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step">
+            <div class="step-number">4</div>
+            <h2>驗證線上 API</h2>
+
+            <div class="instruction">
+                <strong>目標：</strong>確認應用能夠正常連接到生產資料庫
+            </div>
+
+            <h3>4.1 訪問應用首頁</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>訪問 <code style="background: #f0f0f0; padding: 2px 4px;">https://pickle-heaven.vercel.app</code></li>
+                <li>確認前台頁面正常加載</li>
+                <li>檢查是否有任何錯誤訊息</li>
+            </ol>
+
+            <h3>4.2 測試後台登入</h3>
+            <ol style="margin-left: 20px; margin-bottom: 20px;">
+                <li>訪問 <code style="background: #f0f0f0; padding: 2px 4px;">https://pickle-heaven.vercel.app/admin</code></li>
+                <li>使用 Demo 帳號登入：
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>帳號：</strong> admin</li>
+                        <li><strong>密碼：</strong> 12345678</li>
+                    </ul>
+                </li>
+                <li>成功登入後，瀏覽幾個頁面確認功能正常</li>
+            </ol>
+
+            <h3>4.3 驗證 API 連接</h3>
+            <p style="margin-bottom: 15px;">打開瀏覽器的開發者工具（F12），進行以下測試：</p>
+
+            <div class="instruction">
+                <strong>測試自動化規則 API：</strong>
+                <div class="code-block">
+curl https://pickle-heaven.vercel.app/api/admin/automation/rules
+
+預期回應：
+{
+  "rules": []
+}
+                </div>
+            </div>
+
+            <div class="instruction">
+                <strong>測試排程 API：</strong>
+                <div class="code-block">
+curl https://pickle-heaven.vercel.app/api/admin/circuits/schedule?circuitNumber=01
+
+預期回應：
+{
+  "id": "...",
+  "schedules": []
+}
+                </div>
+            </div>
+
+            <h3>4.4 檢查清單</h3>
+            <ul class="checklist">
+                <li>前台首頁加載正常</li>
+                <li>後台能成功登入</li>
+                <li>後台六宮格首頁顯示</li>
+                <li>設備管理頁面可以訪問</li>
+                <li>排程管理功能可用</li>
+                <li>API 返回正確的 JSON 回應</li>
+            </ul>
+
+            <div class="success">
+                ✓ <strong>完成標記：</strong>所有檢查項目都通過，系統已成功上線！
+            </div>
+        </div>
+
+        <!-- Completion -->
+        <div class="step" style="border-left-color: #4caf50;">
+            <h2 style="color: #4caf50;">🎉 恭喜！生產部署完成</h2>
+            <p style="font-size: 1.1em; margin-bottom: 20px;">您的系統現在已經完全上線運作。</p>
+
+            <h3>後續建議</h3>
+            <ul style="margin-left: 20px;">
+                <li><strong>立即修改 Demo 密碼：</strong>登入後立刻將 admin 密碼改為強密碼</li>
+                <li><strong>監控 Vercel：</strong>定期檢查 Vercel 儀表板確保部署穩定</li>
+                <li><strong>檢查日誌：</strong>在 Vercel → Functions → Logs 查看 Cron 任務運行日誌</li>
+                <li><strong>備份資料庫：</strong>定期在 Turso 儀表板備份資料庫</li>
+            </ul>
+
+            <h3>關鍵網址（已上線）</h3>
+            <ul class="checklist">
+                <li><strong>前台：</strong> https://pickle-heaven.vercel.app</li>
+                <li><strong>後台：</strong> https://pickle-heaven.vercel.app/admin</li>
+                <li><strong>Vercel 儀表板：</strong> https://vercel.com/pickle-heaven</li>
+                <li><strong>Turso 儀表板：</strong> https://turso.tech</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p>✨ Pickle Heaven V7 生產部署指南 | 2026-11-14</p>
+            <p>如有任何問題，請參考文件或聯絡技術支援</p>
+        </footer>
+    </div>
+</body>
+</html>

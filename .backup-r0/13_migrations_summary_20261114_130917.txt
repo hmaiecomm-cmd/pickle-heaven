@@ -1,0 +1,39 @@
+=== 数据库迁移历史 ===
+
+已应用的迁移文件：
+
+1. 20261112041617_add_admin_auth_system
+   - 管理员认证系统
+
+2. 20261112042020_add_admin_models
+   - 管理员模型
+
+3. 20261113052120_add_circuit_schedule
+   - 电路排程
+
+4. 20261113053227_add_schedule_audit
+   - 排程审计
+
+5. 20261113_add_automation_rules
+   - 自动化规则
+
+总计：5 个迁移文件
+
+Prisma Schema 统计：
+- 模型数量：62 个
+- Schema 行数：2344 行
+
+=== 环境变量 ===
+
+已设定的数据库变量：
+- PRODUCTION_DATABASE_URL: libsql://pickle-heaven-karajankjuo.aws-ap-northeast-1.turso.io (已配置)
+- PRODUCTION_AUTH_TOKEN: (已配置，不在备份中显示秘密值)
+
+=== 数据库连接状态 ===
+
+无法从本机确认：
+- 数据库实际连接状态
+- 数据库内容是否完整
+- Migration 是否在 Production 中成功执行
+
+**注意**：生产数据库不建议备份或恢复，应使用 Turso 官方备份机制。

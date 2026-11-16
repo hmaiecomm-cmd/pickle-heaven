@@ -13,10 +13,10 @@
 export type AdminRole = 'OWNER' | 'MANAGER' | 'OPERATOR' | 'FRONTDESK' | 'VIEWER' | 'DEMO'
 
 export type AdminModule = 'booking' | 'monitor' | 'device' | 'access' | 'finance' | 'reports' | 'settings'
-export type AdminAction = 'view' | 'playback' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'remote' | 'door'
+export type AdminAction = 'view' | 'playback' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'remote' | 'door' | 'schedule'
 
 export const MODULES: AdminModule[] = ['booking', 'monitor', 'device', 'access', 'finance', 'reports', 'settings']
-export const ACTIONS: AdminAction[] = ['view', 'playback', 'create', 'edit', 'delete', 'approve', 'export', 'remote', 'door']
+export const ACTIONS: AdminAction[] = ['view', 'playback', 'create', 'edit', 'delete', 'approve', 'export', 'remote', 'door', 'schedule']
 
 export const MODULE_LABEL: Record<AdminModule, string> = {
   booking: '預約管理',
@@ -38,6 +38,7 @@ export const ACTION_LABEL: Record<AdminAction, string> = {
   export: '匯出',
   remote: '遠端控制',
   door: '門禁授權',
+  schedule: '常開排程',
 }
 
 /** 每個模組實際存在的動作（矩陣中其他格子不適用） */
@@ -45,7 +46,7 @@ export const MODULE_ACTIONS: Record<AdminModule, AdminAction[]> = {
   booking: ['view', 'create', 'edit', 'delete', 'approve'],
   monitor: ['view', 'playback', 'edit', 'approve', 'export'],
   device: ['view', 'edit', 'approve', 'remote'],
-  access: ['view', 'door', 'remote'],
+  access: ['view', 'door', 'remote', 'schedule'],
   finance: ['view', 'create', 'edit', 'approve', 'export'],
   reports: ['view', 'export'],
   settings: ['view', 'edit', 'approve'],
@@ -65,6 +66,7 @@ export const ACTION_MEANING: Partial<Record<`${AdminModule}.${AdminAction}`, str
   'device.remote': '遠端開關設備',
   'access.door': '建立與撤銷門禁授權',
   'access.remote': '遠端開門',
+  'access.schedule': '建立與管理常開排程',
   'finance.approve': '退款核准、費用審核、點數調整',
   'settings.approve': '管理員邀請與角色變更',
 }
@@ -79,7 +81,7 @@ export const ROLE_MATRIX: Record<AdminRole, Matrix> = {
     booking: ['view', 'create', 'edit', 'delete', 'approve'],
     monitor: ['view', 'playback', 'edit', 'approve', 'export'],
     device: ['view', 'edit', 'approve', 'remote'],
-    access: ['view', 'door', 'remote'],
+    access: ['view', 'door', 'remote', 'schedule'],
     finance: ['view', 'create', 'edit', 'approve', 'export'],
     reports: ['view', 'export'],
     settings: ['view', 'edit'],
@@ -124,6 +126,7 @@ export type Permission =
   | 'access' // 門禁權限（檢視）
   | 'access.grant' // 建立與撤銷門禁授權
   | 'access.remote' // 遠端開門
+  | 'access.schedule' // 建立與管理常開排程
   | 'courts' // 預約行事曆、場地與時段（檢視）
   | 'courts.manage' // 封場、清潔維護排程、場地設定
   | 'bookings' // 訂單查詢（非財務）
@@ -166,6 +169,7 @@ const PERMISSION_RULES: Record<Permission, (m: Matrix) => boolean> = {
   access: (m) => has(m, 'access', 'view'),
   'access.grant': (m) => has(m, 'access', 'door'),
   'access.remote': (m) => has(m, 'access', 'remote'),
+  'access.schedule': (m) => has(m, 'access', 'schedule'),
   courts: (m) => has(m, 'booking', 'view'),
   'courts.manage': (m) => has(m, 'booking', 'edit'),
   bookings: (m) => has(m, 'booking', 'view'),
@@ -229,6 +233,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   access: '門禁權限（檢視）',
   'access.grant': '門禁授權',
   'access.remote': '遠端開門',
+  'access.schedule': '常開排程管理',
   courts: '智慧排程與場地設定',
   'courts.manage': '封場、清潔維護、場地設定',
   bookings: '訂單查詢（不含金額）',

@@ -1,0 +1,101 @@
+* 9d8ccf0 (HEAD -> main, origin/main, origin/HEAD, backup/r0-before-recovery-20261114_130842) fix(monitor): 直接使用全部TABS强制显示四个分页标签
+* 8afc5d7 chore(monitor): v2.0.0 - 强制四个分页标签显示
+* 42c5991 fix(monitor): 添加四个分页标签显示保险
+* 0b0e29b docs(audit): Phase 9/10 诊断报告与部署验证
+* fe15422 feat(seed): 自動化規則範例種子數據
+* 939b84b docs(phase-3-4): 完成總結與進度報告
+* 6f48edc feat(automation): Phase 4 自動化規則 API 實現框架
+* daa0699 docs(phase-10): 完整系統驗收報告——95% 功能就緒
+* e8e1029 docs(phase-0): 專案恢復與盤點報告完成
+* a2c30e2 docs(deploy): Phase 3-C 部署檢查清單
+* 61a4259 feat(deploy): 添加排程檢查 Cron 任務
+* 4bc2f9c feat(admin): Phase 3-B 基礎功能完善 - 時間衝突檢測與預覽
+* 556534e feat(admin): Phase 3-A 排程操作審計與權限檢查
+* ec2b583 feat(admin): Step 6 五大控制模式數據持久化
+* aafc581 feat(admin): Phase 2 五大控制模式排程管理 UI 與 API
+* 822ea4a feat(admin): Phase 7 即時監控（平面圖、Camera 1–6、Demo Mode）
+* 82c9363 refactor(admin): 移除後台 LINE 登入，改由擁有者建立帳號密碼
+* 122d7dc feat(admin): Phase 6 RBAC 管理權限（圖一五種角色）
+* ab206a4 feat(admin): Phase 5 LINE 登入與管理員綁定
+* 875010e feat(admin): Phase 4 訂單財務與營運總覽
+* b2094e5 feat(admin): Phase 3 門禁權限管理
+* 748ac17 feat(admin): Phase 1、2 修訂——依最終版設計與現場資料調整
+* 16ab7f1 feat(admin): Phase 2 智慧設備管理
+* fb9185c feat(admin): Phase 1 首頁六宮格與側邊導覽重整
+* 73e8357 fix: Watchdog cron 改用 Bearer 驗證，硬體上線前暫不排程
+* 597edc7 fix: 修復後台 V4 覆寫造成的認證與權限損壞，並修正型別、安全與建置問題
+* 20ee810 docs: 部署執行檢查清單 - 逐步指導
+* 37785bf feat: 步驟 1 - 完整部署腳本和快速指南
+* 58f0a47 feat: 步驟 2 - 2FA 雙因素認證核心實現
+* 1c908e3 feat: 6步執行計劃啟動 - 步驟1環境驗證完成
+* 8399621 feat: 實施步驟 1-6 完整執行指南
+* a58e815 feat: 完整的 A-E 五階段實施指南
+* 6b5495d docs: 後台改版 V4 部署交接文檔全集
+* 85ece51 (tag: v1.0.0) feat: 完整實裝後台改版 V4 - 前端+後端+認證系統
+* f7eaa6d feat: 實裝郵件通知系統 — Watchdog 告警發送
+* dc17f46 feat: 實裝進程級 Watchdog — Claude Code 自動保活
+* e7aa6dd feat: 實裝 Remote Control Watchdog 自動監控和恢復系統
+* 6a7f51c fix: 移除手機號碼在輸入框下方的錯誤提示
+* 961d6a9 refactor: 手機號碼驗證提醒移至最下方確認付款按鍵上方
+* 45c4d90 refactor: 移除 LINE 通知中的報到提示
+* d2f158f refactor: 改進聯絡資訊驗證警示框設計
+* b769efc docs: 上線部署狀態報告
+* 64ea088 chore: 添加額外的開發伺服器配置
+* 7cabe91 docs: LINE 通知系統完整實作總結文檔
+* f8f4f69 refactor: 改進預約成功通知系統——完善追蹤和日誌記錄
+* 6bd1f44 feat: 預約成功 LINE 通知測試功能——新增測試路由、指令碼和完整測試指南
+* 6c0bf5d fix: 聯絡資訊驗證提示移至確定付款按鍵上方——未填寫聯絡資訊時，在付款按鍵上方先顯示藍色警示提示框
+* 3073007 feat: 新增測試路由 /api/test/send-reminder 用於手動發送 LINE 提醒——便於測試預約提醒功能
+* 8b440d4 feat: 結帳頁未填聯絡資訊時顯示友好提示——「確認付款」按鈕無法點擊時，實時顯示藍色提示框告訴用戶需要填寫姓名與電話號碼
+* aed0c5a fix: 正式環境限制模擬金流——只有 MOCK_PAYMENT_USER_IDS 列出的會員可使用，結帳、付款、模擬頁與付款通知端點都檢查；其他會員顯示線上付款尚未開放；/line-check 顯示會員編號
+* 1caa0d0 feat: 登入僅保留 LINE（移除 Google 登入入口與路由，舊 Google 會員資料保留）；新增預約 LINE 開打提醒——前一天 20:00 與開打前兩小時，每 15 分鐘排程、連續時段只提醒一次、提醒時間後才付款不補發、以 NotificationLog 去重；服務條款日期更新為 2026/11/5
+* b4b7c86 fix: 加好友提示改由伺服器向 Messaging API 查詢好友狀態（非好友回 404），電腦瀏覽器沒有 LIFF 登入狀態也能判斷；查不到再退回 LIFF；/line-check 同時顯示伺服器與 LIFF 查詢結果
+* 088b6bb feat: 新增 /line-check LINE 連線狀態頁——顯示目前裝置是否在 LINE App 內、LIFF 是否登入、是否已加官方帳號好友與錯誤訊息，供排查加好友提示；不索引
+* 6e26c94 feat: 預約時提示加入 LINE 官方帳號好友——結帳頁顯示加好友提示列、預約成功頁顯示加好友卡片（手機按鈕、電腦另附 QR Code）；只對 LINE 會員顯示，透過 LIFF 查好友狀態，已是好友不再提示、回到頁面重新確認；預約成功文字改為依登入方式說明，移除未實作的開打前提醒說明
+* af2cd95 chore: 新增 LINE 推播測試腳本（npm run verify:line-push）——以網站「訂單成立」Flex 格式送測試通知，可指定 userId 或群發給所有好友；不讀資料庫、不建立訂單
+* 782c263 chore: 部署時排除快照資料夾、zip 與 01～11 資料夾
+* 56272c1 fix: 同意畫面在較矮螢幕時告知事項溢出、蓋住勾選區——捲動區改為填滿彈窗剩餘高度
+* a35569b feat: 登入後同意畫面——告知事項須捲到底才能勾選、告知事項與服務條款為必要同意、行銷訊息另行勾選（不預設）、記錄同意版本與時間（版本更新後需重新同意）、條款頁不蓋同意畫面、不同意可登出；告知事項內容抽成共用元件；服務條款更新日期改為 2026/10/25；新增 User 同意欄位遷移
+* a1c0632 feat: 隱私權政策改為「蒐集、處理及利用個人資料法定告知事項」——依個資法第八、九條改寫第一至十一條（機關聯絡方式、特定目的與代碼對照、資料類別、來源、利用期間、地區對象方式、人工智慧、當事人權利、不提供之影響、行銷選擇、更新），表格可於手機左右滑動、待填【】以醒目底色標示、選用項目加標籤、公司名稱與信箱設定後自動帶入；服務條款、首頁頁尾與登入提示連結名稱同步更新
+* 6e2cb28 feat: 新增 LINE 登入（與 Google 並存）——LIFF 取得 id_token 由伺服器向 LINE 驗證後找或建立會員（loginWithLine）、LINE App 內自動登入且只顯示 LINE 按鈕、外部瀏覽器導向 LINE 登入後回原頁、登出後本分頁不再自動登入、LIFF SDK 由 LINE 官方 CDN 載入（不新增套件）、登入按鈕組（LINE＋Google）用於導覽列／登入提示／結帳、Google 與 LINE 為各自獨立會員不以 Email 合併、帳戶頁／後台人員／隱私權／服務條款文字改為 Google 或 LINE
+* 443a081 feat: AI 助手——連繫客戶、預約優化、事件追蹤、AI 導引、聊天頁面重構（移動到後台、支援對話流、上下文記憶、分頁合併）、API 路由優化、權限驗證、聊天組件增強
+* d7c2292 feat: 費用與收據——拍照登錄／上傳收據／手動登錄三入口（手機呼叫相機、不支援時選檔）、預覽旋轉重傳、欄位人工填寫（OCR 未串接不假裝辨識）、三步驟確認、草稿或提交、私有附件（權限驗證讀取、不快取）、附件與費用同交易、防重複提交、重複收據提醒（不拒絕）、申請者只看本人、擁有者審核（退回需原因）、已核准更正留存歷史、舊收據頁併入
+* 14787c1 feat: 儲值點數——擁有者設定方案（售價／點數／贈點／範圍／效期／退款／上下架）、前台選方案→確認→付款→付款確認中→入帳→交易紀錄、金流回呼驗證金額後才入點（帳本冪等，重送不重複）、已收款入帳失敗可追蹤與安全補入、黑名單禁止儲值、正式金流未接通顯示「線上儲值尚未開放」、後台儲值單、模擬金流支援導回自訂頁面
+* 54d93ae fix: 展示資料未填電話的會員，訂單聯絡電話改用佔位號碼（重建展示庫時不再失敗）
+* 3b50732 feat: 權限與資料隔離——角色重訂（擁有者／管理員／工作人員，帳務僅擁有者）、財務／場地／設備 API 補權限、訂單金額伺服器端遮罩、費用與收據本人限定、後台帳號管理（首次登入改密碼、授權場館、角色指派、最後擁有者保護、停用降權即時失效）、刪除公開 mock AI API、cron 無 secret 拒絕、功能差異清單
+* 54e9d92 feat: 人員管理——全部會員／教練／工作人員／黑名單分頁與篩選、會員詳情六分頁、點數帳本（防重複、不負數）、使用券發放／撤銷、內部備註、教練標記、黑名單後端全面攔截（舊 session／付款／後台）、前台票券同步與受限提示
+* 21d1893 feat: 活動編輯器改版——六區完整編輯頁、主持人、公開方式、緩衝與地點、保留名額、新增／複製／移除場次、場地可用性即時查詢、列表篩選
+* 6616d7b fix: 前台所有頁面移除「後台管理」入口（含選單、盾牌圖示與分隔）；後台與 API 加入 robots 不索引
+* 5da8c43 chore: 移除前台 LINE 舊帳號綁定／合併提示與相關元件；登入提示文字統一為「請先登入」
+* ad2e60a fix: 前台一律使用正式資料庫，不受後台 DEMO cookie 影響；登入狀態判斷區分「未登入」與「暫時無法確認」；場地統一為 A 場／B 場
+* f860a42 feat: 清潔／維護排程與統一場地占用（含緩衝）；活動主持人、公開方式、場次備註資料層
+* 003ee75 feat: 活動可用 30 分鐘為單位的起訖時間，占用涵蓋所有重疊的時段格（非整點也擋下重疊租借）
+* eded32c feat: 預約頁場館說明移至底部；球敘建立必選場地並顯示占用摘要；既有球敘盤點與補填場地
+* 5f11737 feat: 新增隱私權政策與服務條款頁（/privacy、/terms），頁尾顯示連結
+* 178f2ad feat: 前台改版——正式 Logo 導覽、Google 登入、我的帳戶整合、預約表隱藏已結束時段、紫色風格
+* ba11ee2 feat: 匹克精靈後台改版——側欄分區、今日總覽、小匹 AI 助理、交易與逐項退款、展示帳號 DEMO
+* af89501 feat: 場地預約與活動同步顯示、活動報名走購物車付款、後台活動與週期場次管理
+* 13c59fb feat: 前台首頁改版為「大新店森林匹克球」並統一前台場館名稱
+* 50b937c feat: 後台新增單次球敘畫面；修正稽核紀錄教練時薪少了 $ 符號
+* e928cd2 feat: Phase 2 活動（重用球敘）與教練接 Turso
+* 107c2f2 feat: Phase 2 AI 管理助理接 Claude API（唯讀工具查詢營運資料）
+* 6da1e27 feat: Phase 2 設定頁接 Turso：場館設定可編輯、稽核紀錄、系統與安全狀態
+* d4b3c49 feat: Phase 2 會員彙整與定價規則接 Turso
+* 4c4d906 feat: Phase 2 費用、收據、發票三張表與 API，頁面改為寫庫
+* f24cc0b chore: 品牌更名 匹克天堂 → 匹克精靈
+* 93cb3d9 feat: Phase 2 球場與裝置改讀 Turso；Dropbox 快取處理調整
+* d7200c7 feat: Phase 2 財務三支改讀 Turso（摘要／營收／付款）
+* d3a6423 chore: Phase 1J 收尾：toast 回饋、aria-pressed、文件
+* 9284e5d feat: admin 會員、球場、定價、報表、設定頁（Phase 1I）
+* abe9767 feat: admin AI 管理助理頁（Phase 1H）
+* 89158a4 feat: admin 發票、收據、費用頁（Phase 1G）
+* 780bdaf feat: admin 營收與財務、付款狀態頁（Phase 1F）；新增 SVG 圖表元件
+* c68d26f feat: admin 活動與教練頁（Phase 1E）
+* 85a7f6b refactor: 將 owner 後台併入 /admin，統一側欄外框並加 middleware 保護
+* 3faa9fd feat: owner 預約管理頁；補正式庫遷移 SQL 與套用腳本
+* cf8b33b chore: 停止追蹤 .claude/settings.local.json
+* 48274d2 feat: 新增場館擁有者（owner）後台與 AI 智慧球場 API
+* dabd10d fix: 清除所有 tsc 錯誤（18 → 0）
+* 8e38595 fix: 修正財務摘要欄位不一致導致控制中心崩潰
+* 373ff6b chore: 將 .next 與 node_modules 排除 Dropbox 同步
+* 6ca30df Initial commit: Pickleball booking platform

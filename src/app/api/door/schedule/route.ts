@@ -16,7 +16,7 @@ import {
  */
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await requirePermission('access.remote')
+    const ctx = await requirePermission('access.schedule')
     const doorId = req.nextUrl.searchParams.get('doorId')
     const status = req.nextUrl.searchParams.get('status') as string | null
 
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const ctx = await requirePermission('access.remote')
+    const ctx = await requirePermission('access.schedule')
     const body = await req.json()
 
     const venue = await prisma.venue.findFirst({ where: { active: true }, select: { id: true } })
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    const ctx = await requirePermission('access.remote')
+    const ctx = await requirePermission('access.schedule')
     const scheduleId = req.nextUrl.pathname.split('/').pop()
     const body = await req.json()
 
@@ -116,7 +116,7 @@ export async function PUT(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const ctx = await requirePermission('access.remote')
+    const ctx = await requirePermission('access.schedule')
     const scheduleId = req.nextUrl.pathname.split('/').pop()
     const { reason } = await req.json()
 

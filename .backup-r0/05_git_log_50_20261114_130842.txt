@@ -1,0 +1,50 @@
+9d8ccf0 fix(monitor): 直接使用全部TABS强制显示四个分页标签
+8afc5d7 chore(monitor): v2.0.0 - 强制四个分页标签显示
+42c5991 fix(monitor): 添加四个分页标签显示保险
+0b0e29b docs(audit): Phase 9/10 诊断报告与部署验证
+fe15422 feat(seed): 自動化規則範例種子數據
+939b84b docs(phase-3-4): 完成總結與進度報告
+6f48edc feat(automation): Phase 4 自動化規則 API 實現框架
+daa0699 docs(phase-10): 完整系統驗收報告——95% 功能就緒
+e8e1029 docs(phase-0): 專案恢復與盤點報告完成
+a2c30e2 docs(deploy): Phase 3-C 部署檢查清單
+61a4259 feat(deploy): 添加排程檢查 Cron 任務
+4bc2f9c feat(admin): Phase 3-B 基礎功能完善 - 時間衝突檢測與預覽
+556534e feat(admin): Phase 3-A 排程操作審計與權限檢查
+ec2b583 feat(admin): Step 6 五大控制模式數據持久化
+aafc581 feat(admin): Phase 2 五大控制模式排程管理 UI 與 API
+822ea4a feat(admin): Phase 7 即時監控（平面圖、Camera 1–6、Demo Mode）
+82c9363 refactor(admin): 移除後台 LINE 登入，改由擁有者建立帳號密碼
+122d7dc feat(admin): Phase 6 RBAC 管理權限（圖一五種角色）
+ab206a4 feat(admin): Phase 5 LINE 登入與管理員綁定
+875010e feat(admin): Phase 4 訂單財務與營運總覽
+b2094e5 feat(admin): Phase 3 門禁權限管理
+748ac17 feat(admin): Phase 1、2 修訂——依最終版設計與現場資料調整
+16ab7f1 feat(admin): Phase 2 智慧設備管理
+fb9185c feat(admin): Phase 1 首頁六宮格與側邊導覽重整
+73e8357 fix: Watchdog cron 改用 Bearer 驗證，硬體上線前暫不排程
+597edc7 fix: 修復後台 V4 覆寫造成的認證與權限損壞，並修正型別、安全與建置問題
+20ee810 docs: 部署執行檢查清單 - 逐步指導
+37785bf feat: 步驟 1 - 完整部署腳本和快速指南
+58f0a47 feat: 步驟 2 - 2FA 雙因素認證核心實現
+1c908e3 feat: 6步執行計劃啟動 - 步驟1環境驗證完成
+8399621 feat: 實施步驟 1-6 完整執行指南
+a58e815 feat: 完整的 A-E 五階段實施指南
+6b5495d docs: 後台改版 V4 部署交接文檔全集
+85ece51 feat: 完整實裝後台改版 V4 - 前端+後端+認證系統
+f7eaa6d feat: 實裝郵件通知系統 — Watchdog 告警發送
+dc17f46 feat: 實裝進程級 Watchdog — Claude Code 自動保活
+e7aa6dd feat: 實裝 Remote Control Watchdog 自動監控和恢復系統
+6a7f51c fix: 移除手機號碼在輸入框下方的錯誤提示
+961d6a9 refactor: 手機號碼驗證提醒移至最下方確認付款按鍵上方
+45c4d90 refactor: 移除 LINE 通知中的報到提示
+d2f158f refactor: 改進聯絡資訊驗證警示框設計
+b769efc docs: 上線部署狀態報告
+64ea088 chore: 添加額外的開發伺服器配置
+7cabe91 docs: LINE 通知系統完整實作總結文檔
+f8f4f69 refactor: 改進預約成功通知系統——完善追蹤和日誌記錄
+6bd1f44 feat: 預約成功 LINE 通知測試功能——新增測試路由、指令碼和完整測試指南
+6c0bf5d fix: 聯絡資訊驗證提示移至確定付款按鍵上方——未填寫聯絡資訊時，在付款按鍵上方先顯示藍色警示提示框
+3073007 feat: 新增測試路由 /api/test/send-reminder 用於手動發送 LINE 提醒——便於測試預約提醒功能
+8b440d4 feat: 結帳頁未填聯絡資訊時顯示友好提示——「確認付款」按鈕無法點擊時，實時顯示藍色提示框告訴用戶需要填寫姓名與電話號碼
+aed0c5a fix: 正式環境限制模擬金流——只有 MOCK_PAYMENT_USER_IDS 列出的會員可使用，結帳、付款、模擬頁與付款通知端點都檢查；其他會員顯示線上付款尚未開放；/line-check 顯示會員編號

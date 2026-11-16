@@ -110,9 +110,9 @@ type ScheduleResult = { ok: true; message: string } | { ok: false; error: string
 
 export async function createAccessScheduleAction(_: ScheduleResult | null, form: FormData): Promise<ScheduleResult> {
   try {
-    await requirePermission('access.remote')
+    await requirePermission('access.schedule')
   } catch (err) {
-    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有排程權限' }
+    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有常開排程權限' }
     throw err
   }
 
@@ -155,9 +155,9 @@ export async function createAccessScheduleAction(_: ScheduleResult | null, form:
 
 export async function cancelAccessScheduleAction(scheduleId: string, reason: string): Promise<ScheduleResult> {
   try {
-    await requirePermission('access.remote')
+    await requirePermission('access.schedule')
   } catch (err) {
-    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有排程權限' }
+    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有常開排程權限' }
     throw err
   }
 
