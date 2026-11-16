@@ -292,8 +292,9 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
             <ChevronDown className={cn('h-4 w-4 transition-transform ml-auto', scheduleExpanded && 'rotate-180')} aria-hidden />
           </button>
           {scheduleExpanded && (
-            <div className="mt-3 -mx-4 -mb-4 rounded-b-2xl border-t border-zinc-200 bg-zinc-50 p-4">
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
               <ControlSchedulePanel
+                key={n}
                 circuitNumber={n}
                 category={def.category}
                 canEdit={canEditSchedule}
