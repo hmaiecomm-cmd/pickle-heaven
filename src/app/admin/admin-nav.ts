@@ -52,12 +52,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'devices',
-    label: '智慧設備管理',
+    label: '智慧設備管理（不含門禁）',
     icon: 'devices',
     items: [
-      { label: '設備總覽', href: '/admin/devices', permission: 'device' },
-      { label: '控制中心', href: '/admin/control', permission: 'monitor' },
-      { label: '自動化策略', href: '/admin/automation', permission: 'device' },
+      { label: '設備總覽與智慧排程', href: '/admin/devices', permission: 'device' },
+      { label: '手動控制中心', href: '/admin/control', permission: 'device' },
     ],
   },
   {
@@ -135,6 +134,7 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/ai-assistant': '/admin',
   '/admin/templates': '/admin/activities',
   '/admin/incidents': '/admin/monitor?tab=events',
+  '/admin/automation': '/admin/devices', // V8.1 排程功能暫時整合到設備總覽
 }
 
 /**
