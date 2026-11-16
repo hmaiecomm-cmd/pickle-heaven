@@ -259,10 +259,17 @@ function DetailPanel({ selected }: { selected: Selection }) {
         </button>
       )}
       {def.scheduleControlEnabled && scheduleExpanded && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs text-amber-800">
-            排程設定功能整合進行中。暫時請使用 <Link href={`/admin/automation?circuit=${n}`} className="font-semibold underline">自動化策略頁面</Link> 編輯排程。
-          </p>
+        <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <div>
+            <p className="text-xs font-semibold text-blue-900">排程設定</p>
+            <p className="mt-1 text-xs text-blue-800">{cat.label} 迴路的排程已整合到設備面板。點擊下方「編輯排程」查看和修改時間設定。</p>
+          </div>
+          <Link
+            href={`/admin/automation?circuit=${n}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded border border-blue-300 bg-white px-3 text-xs font-medium text-blue-700 hover:bg-blue-50"
+          >
+            編輯排程 →
+          </Link>
         </div>
       )}
     </aside>
