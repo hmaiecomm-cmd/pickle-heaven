@@ -21,12 +21,12 @@ export interface CameraDefaults {
 }
 
 export const DEFAULT_CAMERAS: CameraDefaults[] = [
-  { id: '01', name: '球場 A－中央', zone: 'courtA', x: 88, y: 44.2, facing: 90, coverage: '球場 A 全場（由中央上方俯拍）' },
-  { id: '02', name: '球場 A－側邊', zone: 'courtA', x: 111.5, y: 53.5, facing: 180, coverage: '球場 A 側邊與邊線' },
-  { id: '03', name: '室內休息區', zone: 'dining', x: 99, y: 19.5, facing: 165, coverage: '室內休息區座位、飲料販賣機' },
-  { id: '04', name: '門口休息區', zone: 'deck', x: 110.5, y: 33.6, facing: 180, coverage: '門口旁戶外座位區與門口動線' },
-  { id: '05', name: '球場 B－中央', zone: 'courtB', x: 35, y: 44.2, facing: 90, coverage: '球場 B 全場（由中央上方俯拍）' },
-  { id: '06', name: '出入口／大門', zone: 'entrance', x: 111, y: 10, facing: 200, coverage: '大門與進出人員' },
+  { id: '01', name: 'QR 密碼鎖（門外）', zone: 'entrance', x: 107, y: 8, facing: 270, coverage: 'QR 密碼鎖與門外動線' },
+  { id: '02', name: '門內監看（入口內側）', zone: 'entrance', x: 107, y: 22, facing: 90, coverage: '入口內側與門內動線' },
+  { id: '03', name: '休息區監看', zone: 'dining', x: 85, y: 23, facing: 0, coverage: '桌區座位與飲料販賣機' },
+  { id: '04', name: '球場 A－中央', zone: 'courtA', x: 88, y: 53, facing: 90, coverage: '球場 A 全場（由中央上方俯拍）' },
+  { id: '05', name: 'Pro Shop 內部', zone: 'proshop', x: 51, y: 23, facing: 0, coverage: 'Pro Shop 商品展示與內部動線' },
+  { id: '06', name: '球場 B－中央', zone: 'courtB', x: 35, y: 53, facing: 90, coverage: '球場 B 全場（由中央上方俯拍）' },
 ]
 
 export const cameraCode = (id: string) => `Camera ${id}`
@@ -43,12 +43,16 @@ export function stepCamera<T extends string>(ids: readonly T[], id: T, delta: 1 
 }
 
 /**
- * Demo Mode 的示範影像（只有 03、04 有現場照片）。照片不是即時串流，畫面上一律標示「示範影像」。
- * 04 的主畫面用整張外觀照（保留建築、招牌、綠化），縮圖取景在門口休息區。
+ * Demo Mode 的示範影像。照片不是即時串流，畫面上一律標示「示範影像」。
+ * 各 Camera 的主畫面與縮圖可使用不同的取景範圍或角度。
  */
 export const DEMO_MEDIA: Partial<Record<CameraId, { main: string; mainPosition: string; thumb: string; thumbPosition: string }>> = {
+  '01': { main: '/monitor-demo/cam01-entrance-qr.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam01-entrance-qr.jpg', thumbPosition: '50% 50%' },
+  '02': { main: '/monitor-demo/cam02-entrance-inside.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam02-entrance-inside.jpg', thumbPosition: '50% 50%' },
   '03': { main: '/monitor-demo/cam03-indoor-lounge.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam03-indoor-lounge.jpg', thumbPosition: '50% 55%' },
-  '04': { main: '/monitor-demo/cam04-entrance-full.jpg', mainPosition: '50% 70%', thumb: '/monitor-demo/cam04-entrance-lounge.jpg', thumbPosition: '45% 60%' },
+  '04': { main: '/monitor-demo/cam04-court-a.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam04-court-a.jpg', thumbPosition: '50% 50%' },
+  '05': { main: '/monitor-demo/cam05-proshop.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam05-proshop.jpg', thumbPosition: '50% 50%' },
+  '06': { main: '/monitor-demo/cam06-court-b.jpg', mainPosition: '50% 50%', thumb: '/monitor-demo/cam06-court-b.jpg', thumbPosition: '50% 50%' },
 }
 
 /** 攝影機可選的區域 */
