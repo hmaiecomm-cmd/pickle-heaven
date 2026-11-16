@@ -22,8 +22,8 @@ import { POINTS_KIND_LABEL, type PointsKind } from '@/server/points-ledger'
 import { listUserLedger, listUserTopUps, topUpAvailability, TOPUP_STATUS_LABEL, userPointsBreakdown, type TopUpStatus } from '@/server/topup-service'
 import { formatDateTime } from '@/lib/time'
 
-// 動態載入 DUPR 頁面（客戶端組件）
-const DuprTab = dynamicImport(() => import('./dupr-tab/page'), { ssr: false })
+// 動態載入 DUPR 頁面（移除 ssr: false 以相容 Server Component）
+const DuprTab = dynamicImport(() => import('./dupr-tab/page'))
 
 export const metadata: Metadata = { title: '我的帳戶' }
 export const dynamic = 'force-dynamic'
