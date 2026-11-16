@@ -333,6 +333,58 @@ export class DuprService {
       },
     })
   }
+
+  /**
+   * 同步評級（refreshRating 的別名）
+   * @param userId 使用者 ID
+   * @returns 同步結果（含 data 物件）
+   */
+  async syncRatings(userId: string): Promise<{ success: boolean; message: string; data?: { singlesRating: number; doublesRating: number; syncedAt: Date } }> {
+    try {
+      const link = await prisma.duprPlayerLink.findUnique({
+        where: { userId },
+      })
+
+      if (!link || link.unlinkedAt) {
+        return {
+          success: false,
+          message: '帳號未連結',
+        }
+      }
+
+      // 查詢最新評級
+      const rating = await this.adapter.getPlayerRating(link.duprPlayerId)
+
+      // 更新快取
+      const updated = await prisma.duprPlayerLink.update({
+        where: { userId },
+        data: {
+          singlesRating: rating.singlesRating,
+          doublesRating: rating.doublesRating,
+          ratingUpdatedAt: new Date(),
+        },
+      })
+
+      await this.logApiCall('POST /sync-ratings', 200, 0, userId)
+
+      return {
+        success: true,
+        message: '評級已同步',
+        data: {
+          singlesRating: updated.singlesRating ?? 0,
+          doublesRating: updated.doublesRating ?? 0,
+          syncedAt: updated.ratingUpdatedAt ?? new Date(),
+        },
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知錯誤'
+      await this.logApiCall('POST /sync-ratings', 400, 0, userId, message)
+      return {
+        success: false,
+        message: `評級同步失敗：${message}`,
+      }
+    }
+  }
 }
 
 // 匯出單例
