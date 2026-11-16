@@ -42,13 +42,24 @@ export interface SiteImage {
 }
 
 export const images = {
+  // 【新 LOGO】2026-11-16 更新為綠色 DXD Pickleball Court 官方標誌
   logo: {
+    src: '/images/brand/dxd-logo-new.jpg',
+    width: 1536,
+    height: 1024,
+    alt: '大新店森林匹克球 DAXINDIAN PICKLEBALL CLUB 官方標誌 - DXD Pickleball Court',
+    status: 'real',
+    source: 'dxd-logo-new.jpg',
+    caption: '綠色 DXD Pickleball Court 官方品牌標誌',
+  },
+  // 【舊 LOGO - 暫停使用】2026-11-16 已淘汰，請勿使用此檔案
+  logoDeprecated: {
     src: '/images/home/logo-official.jpg',
     width: 1536,
     height: 1024,
-    alt: '大新店森林匹克球 DAXINDIAN PICKLEBALL CLUB 官方標誌',
-    status: 'real',
-    source: '19611.jpg',
+    alt: '【已淘汰】舊版官方標誌 - 暫停使用',
+    status: 'concept',
+    source: '19611.jpg (deprecated)',
   },
   hero: {
     src: '/images/home/court-evening.jpg',
