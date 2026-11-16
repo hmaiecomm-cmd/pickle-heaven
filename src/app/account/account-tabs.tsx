@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarCheck, Coins, Receipt, UserRound, Users } from 'lucide-react'
+import { CalendarCheck, Coins, Receipt, Trophy, UserRound, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AccountTab } from './tabs'
 
@@ -10,6 +10,7 @@ export const ACCOUNT_TABS: { key: AccountTab; label: string; icon: typeof Calend
   { key: 'activities', label: '球敘／活動', icon: Users },
   { key: 'orders', label: '我的訂單', icon: Receipt },
   { key: 'points', label: '點數／票券', icon: Coins },
+  { key: 'dupr', label: 'DUPR', icon: Trophy },
   { key: 'profile', label: '個人資料', icon: UserRound },
 ]
 

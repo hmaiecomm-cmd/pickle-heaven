@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import dynamicImport from 'next/dynamic'
 import { CalendarPlus, ChevronRight, Coins, Ticket, Wallet } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { getSessionUser, SessionUnavailableError } from '@/lib/session'
@@ -20,6 +21,9 @@ import { ProfileForm } from './profile-form'
 import { POINTS_KIND_LABEL, type PointsKind } from '@/server/points-ledger'
 import { listUserLedger, listUserTopUps, topUpAvailability, TOPUP_STATUS_LABEL, userPointsBreakdown, type TopUpStatus } from '@/server/topup-service'
 import { formatDateTime } from '@/lib/time'
+
+// 動態載入 DUPR 頁面（客戶端組件）
+const DuprTab = dynamicImport(() => import('./dupr-tab/page'), { ssr: false })
 
 export const metadata: Metadata = { title: '我的帳戶' }
 export const dynamic = 'force-dynamic'
@@ -305,6 +309,17 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
               <p className="text-[11px] text-muted">場地時數券由場館發放；結帳時以時數券抵扣的功能尚未開放，目前請於現場出示票券代碼。</p>
             </CardContent>
           </Card>
+        </section>
+      )}
+
+      {tab === 'dupr' && (
+        <section aria-label="DUPR 智慧賽事系統" className="space-y-4">
+          {/* 動態載入 DUPR 頁面 */}
+          {typeof window !== 'undefined' && (
+            <div suppressHydrationWarning>
+              <DuprTab />
+            </div>
+          )}
         </section>
       )}
 
