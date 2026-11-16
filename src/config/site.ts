@@ -42,18 +42,17 @@ export interface SiteImage {
 }
 
 export const images = {
-  // 【新 LOGO - DXD 標誌】2026-11-16 更新，提取自名片設計
-  // 綠色 D + 白色 X + 綠色 D，純粹的 logo 圖案，用於導航欄和頁尾
+  // 【DXD 純圖示 - 透明背景】綠色 D + 白色 X + 綠色 D
+  // 用於導覽列與頁尾，保留造型、比例、配色及字母間距
   logo: {
-    src: '/images/brand/dxd-logo-symbol.png',
-    width: 185,
-    height: 145,
-    alt: 'DXD Pickleball Court 官方標誌',
+    src: '/images/brand/dxd-logo.png',
+    width: 100,
+    height: 72,
+    alt: 'DXD Pickleball Court',
     status: 'real',
-    source: 'dxd-logo-symbol.png',
-    caption: '綠色 DXD 標誌圖案',
+    source: 'dxd-logo.png',
   },
-  // 【舊 LOGO - 暫停使用】2026-11-16 已淘汰，請勿使用此檔案
+  // 【舊 LOGO - 暫停使用】已淘汰，請勿使用
   logoDeprecated: {
     src: '/images/home/logo-official.jpg',
     width: 1536,
@@ -62,7 +61,7 @@ export const images = {
     status: 'concept',
     source: '19611.jpg (deprecated)',
   },
-  // 【完整名片 LOGO】2026-11-16，包含 DXD + PICKLEBALL COURT 文字
+  // 【完整名片 LOGO】包含 DXD + PICKLEBALL COURT 文字
   logoFullBrand: {
     src: '/images/brand/dxd-logo-new.jpg',
     width: 1536,
@@ -70,7 +69,6 @@ export const images = {
     alt: '大新店森林匹克球 DAXINDIAN PICKLEBALL CLUB - DXD Pickleball Court',
     status: 'real',
     source: 'dxd-logo-new.jpg',
-    caption: '完整品牌名片標誌',
   },
   hero: {
     src: '/images/home/court-evening.jpg',

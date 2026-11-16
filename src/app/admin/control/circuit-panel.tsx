@@ -110,6 +110,28 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
     }
   }
 
+  const saveSchedule = async (circuitNumber: string) => {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/admin/circuits/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circuitNumber }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        return toast(err.error || '保存失敗', 'error')
+      }
+      toast('排程設定已保存', 'success')
+      setExpandedCircuit(null)
+      router.refresh()
+    } catch (e) {
+      toast('保存出錯', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const disabledReason = !canControl ? '目前帳號沒有設備控制權限' : !connected ? '設備尚未串接' : !hasData ? '迴路資料尚未建立' : null
 
   return (
@@ -259,10 +281,11 @@ export function CircuitPanel({ circuits, canControl, connected, hasData }: { cir
                       <div className="flex gap-2 pt-2">
                         <button
                           type="button"
-                          onClick={() => setExpandedCircuit(null)}
-                          className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700"
+                          disabled={busy}
+                          onClick={() => saveSchedule(c.number)}
+                          className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 disabled:opacity-40"
                         >
-                          儲存設定
+                          {busy ? '儲存中…' : '儲存設定'}
                         </button>
                         <button
                           type="button"

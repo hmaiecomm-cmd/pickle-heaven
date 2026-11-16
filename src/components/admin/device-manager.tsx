@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
+import { ControlSchedulePanel } from './control-schedule-panel'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import { ANOMALY_TYPE_LABEL, HEALTH_COLORS, type AnomalyType, type DeviceHealth } from '@/lib/device-health'
 import { useDeviceAnomalies } from '@/hooks/useDeviceAnomalies'
@@ -70,7 +71,7 @@ const toneOf = (n: CircuitNumber) => TONE[CATEGORY_INFO[CIRCUIT_DEFINITIONS[n].c
 
 type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: string } | null
 
-export function DeviceManager() {
+export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: boolean }) {
   const [selected, setSelected] = React.useState<Selection>({ type: 'circuit', id: '01' })
   const detailRef = React.useRef<HTMLDivElement>(null)
 
@@ -114,7 +115,7 @@ export function DeviceManager() {
         </section>
 
         <div ref={detailRef} className="scroll-mt-4 space-y-3">
-          <DetailPanel selected={selected} />
+          <DetailPanel selected={selected} canEditSchedule={canEditSchedule} />
           <AnomalyPanel
             selected={selected}
             anomalies={anomalies}
@@ -231,8 +232,9 @@ function Row({ label, value, pending }: { label: string; value: React.ReactNode;
   )
 }
 
-function DetailPanel({ selected }: { selected: Selection }) {
+function DetailPanel({ selected, canEditSchedule = false }: { selected: Selection; canEditSchedule?: boolean }) {
   const [scheduleExpanded, setScheduleExpanded] = React.useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
 
   if (selected?.type === 'marker') {
     const m = LOCATION_MARKERS.find((x) => x.id === selected.id)!
@@ -277,41 +279,29 @@ function DetailPanel({ selected }: { selected: Selection }) {
         {cat.label}・{cat.schedule}
       </span>
       <p className="mt-2 text-xs text-muted">{cat.rule}</p>
-      <dl className="mt-3 divide-y divide-zinc-100">
-        <Row label="位置" value={circuitLocation(n)} />
-        {spec.units && <Row label="數量" value={spec.units} />}
-        <Row label="電壓" value={spec.voltage} pending={isPending(spec.voltage)} />
-        <Row label="負載" value={spec.load} pending={isPending(spec.load)} />
-        {spec.note && <Row label="說明" value={spec.note} />}
-        <Row label="遠端控制" value={yesNo(def.remoteControlEnabled)} />
-        <Row label="排程控制" value={yesNo(def.scheduleControlEnabled)} />
-        <Row label="連線狀態" value={def.category === 'RESERVED' ? '預留未使用' : '未連線（Demo）'} pending={def.category !== 'RESERVED'} />
-      </dl>
       {def.category === 'ALWAYS_ON' && <p className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800">24 小時供電迴路，不受預約與排程控制。</p>}
       {def.scheduleControlEnabled && (
-        <button
-          type="button"
-          onClick={() => setScheduleExpanded(!scheduleExpanded)}
-          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50"
-        >
-          <Clock className="h-4 w-4" aria-hidden />
-          排程設定
-          <ChevronDown className={cn('h-4 w-4 transition-transform', scheduleExpanded && 'rotate-180')} aria-hidden />
-        </button>
-      )}
-      {def.scheduleControlEnabled && scheduleExpanded && (
-        <div className="mt-4 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
-          <div>
-            <p className="text-xs font-semibold text-blue-900">排程設定</p>
-            <p className="mt-1 text-xs text-blue-800">{cat.label} 迴路的排程已整合到設備面板。點擊下方「編輯排程」查看和修改時間設定。</p>
-          </div>
-          <Link
-            href={`/admin/automation?circuit=${n}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded border border-blue-300 bg-white px-3 text-xs font-medium text-blue-700 hover:bg-blue-50"
+        <>
+          <button
+            type="button"
+            onClick={() => setScheduleExpanded(!scheduleExpanded)}
+            className="mt-4 w-full inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50"
           >
-            編輯排程 →
-          </Link>
-        </div>
+            <Clock className="h-4 w-4" aria-hidden />
+            {scheduleExpanded ? '收合排程設定' : '展開排程設定'}
+            <ChevronDown className={cn('h-4 w-4 transition-transform ml-auto', scheduleExpanded && 'rotate-180')} aria-hidden />
+          </button>
+          {scheduleExpanded && (
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
+              <ControlSchedulePanel
+                key={n}
+                circuitNumber={n}
+                category={def.category}
+                canEdit={canEditSchedule}
+              />
+            </div>
+          )}
+        </>
       )}
     </aside>
   )
