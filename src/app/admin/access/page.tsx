@@ -17,6 +17,8 @@ import {
   type GrantPhase,
 } from '@/server/door-access-grants'
 import { ManualGrantForm, ReconcileButton, RevokeButton } from './access-client'
+import { DoorRemoteCard } from './door-remote-card'
+import { getDoorRemoteState } from '@/server/door-remote'
 
 export const metadata: Metadata = { title: '門禁權限管理' }
 export const dynamic = 'force-dynamic'
@@ -43,12 +45,14 @@ const AUDIT_LABEL: Record<string, string> = {
   DOOR_GRANT_AUTO_REVOKE: '訂單取消／退款，自動撤銷授權',
   DOOR_GRANT_MANUAL_CREATE: '手動授權',
   DOOR_GRANT_REVOKE: '手動撤銷授權',
+  DOOR_REMOTE_OPEN: '遠端開門',
 }
 
 export default async function AccessPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const ctx = await pagePermission('access')
   if (ctx === 'forbidden') return <Forbidden />
   const canGrant = can(ctx.role, 'access.grant')
+  const canRemote = can(ctx.role, 'access.remote')
   const { tab: rawTab } = await searchParams
   const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : 'grants'
 
@@ -74,7 +78,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
 
-      {tab === 'grants' && <GrantsTab canGrant={canGrant} />}
+      {tab === 'grants' && <GrantsTab canGrant={canGrant} canRemote={canRemote} />}
       {tab === 'devices' && <DevicesTab />}
       {tab === 'logs' && (
         <Empty title="尚無進出紀錄" desc="進出紀錄由門禁控制器回報。目前尚未串接門禁控制器，因此沒有任何紀錄；串接後會在這裡顯示每次刷卡、密碼或開門的時間與結果。" />
@@ -96,9 +100,10 @@ function Empty({ title, desc }: { title: string; desc: string }) {
   )
 }
 
-async function GrantsTab({ canGrant }: { canGrant: boolean }) {
+async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
   const at = now()
-  const [grants, members] = await Promise.all([
+  const [doorState, grants, members] = await Promise.all([
+    getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
   ])
@@ -108,6 +113,7 @@ async function GrantsTab({ canGrant }: { canGrant: boolean }) {
 
   return (
     <div className="space-y-5">
+      <DoorRemoteCard state={doorState} canRemote={canRemote} />
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">預約自動授權規則</h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700">
@@ -216,7 +222,7 @@ function DevicesTab() {
 
 async function AuditTab() {
   const rows = await listDoorAudit()
-  if (rows.length === 0) return <Empty title="尚無操作紀錄" desc="建立、更新或撤銷門禁授權時，系統與管理者的每一次操作都會記錄在這裡。" />
+  if (rows.length === 0) return <Empty title="尚無操作紀錄" desc="建立、更新或撤銷門禁授權與遠端開門時，系統與管理者的每一次操作都會記錄在這裡。" />
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white">
       <h2 className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold">管理者操作紀錄（最近 100 筆）</h2>

@@ -2355,3 +2355,24 @@ model AutomationLog {
   @@index([venueId])
   @@index([triggeredAt])
 }
+
+/// 門禁遠端開門指令（瞬間開門脈衝）。只記錄指令與結果，不建立任何門禁授權。
+model DoorRemoteCommand {
+  id             String    @id @default(cuid())
+  /// 門禁設備代號（src/lib/door-devices.ts），例如 main-entrance
+  doorId         String
+  /// 每次點擊產生一個，重送不會開第二次
+  idempotencyKey String    @unique
+  /// SENT（已送出、等待設備確認）／SUCCEEDED／FAILED／TIMEOUT／OFFLINE
+  status         String
+  /// Demo 模式的模擬結果，不代表真的開門
+  simulated      Boolean   @default(false)
+  pulseSeconds   Int
+  requestedBy    String
+  error          String?
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+  ackAt          DateTime?
+
+  @@index([doorId, createdAt])
+}

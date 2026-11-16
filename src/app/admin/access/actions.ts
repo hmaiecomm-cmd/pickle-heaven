@@ -5,6 +5,7 @@ import { PermissionError, requirePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
 import { taipeiToUtc } from '@/lib/time'
 import { DoorGrantError, createManualGrant, reconcileBookingGrants, revokeGrant } from '@/server/door-access-grants'
+import { DoorRemoteError, remoteOpenDoor } from '@/server/door-remote'
 
 type R = { ok: true; message: string } | { ok: false; error: string }
 
@@ -78,5 +79,27 @@ export async function reconcileAction(): Promise<R> {
     return { ok: true, message: `同步完成：新增 ${s.created}、更新 ${s.updated}、撤銷 ${s.revoked}、不變 ${s.unchanged}` }
   } catch (err) {
     return fail(err)
+  }
+}
+
+export type DoorOpenResult = { ok: true; status: string; simulated: boolean; error: string | null } | { ok: false; error: string }
+
+/** 一鍵開啟大門：後端再次檢查遠端開門權限；結果依設備（或 Demo 模擬）回報判斷 */
+export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: string): Promise<DoorOpenResult> {
+  let username: string
+  try {
+    username = (await requirePermission('access.remote')).username
+  } catch (err) {
+    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有遠端開門權限' }
+    throw err
+  }
+  try {
+    const c = await remoteOpenDoor({ idempotencyKey, actor: username, simulate })
+    revalidatePath('/admin/access')
+    return { ok: true, status: c.status, simulated: c.simulated, error: c.error }
+  } catch (err) {
+    if (err instanceof DoorRemoteError) return { ok: false, error: err.message }
+    console.error('[door] 遠端開門失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
   }
 }
