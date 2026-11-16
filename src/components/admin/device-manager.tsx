@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import { ANOMALY_TYPE_LABEL, HEALTH_COLORS, type AnomalyType, type DeviceHealth } from '@/lib/device-health'
+import { useDeviceAnomalies } from '@/hooks/useDeviceAnomalies'
 import {
   CATEGORY_INFO,
   CIRCUIT_NUMBERS,
@@ -71,6 +72,17 @@ type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: 
 export function DeviceManager() {
   const [selected, setSelected] = React.useState<Selection>({ type: 'circuit', id: '01' })
   const detailRef = React.useRef<HTMLDivElement>(null)
+
+  // 提取當前選中迴路的編號（用於 useDeviceAnomalies）
+  const currentCircuitId = selected?.type === 'circuit' ? selected.id : null
+
+  // 獲取異常數據（API 驅動）
+  const { anomalies, isUpdating, acknowledge, resolve } = useDeviceAnomalies(
+    currentCircuitId || '01',
+    'admin@example.com', // TODO: 從用戶會話獲取操作人
+    10000 // 10 秒自動刷新
+  )
+
   // 從下方清單選取時，詳情面板可能在畫面外，捲動到可見處
   const selectFromList = (s: Selection) => {
     setSelected(s)
@@ -92,8 +104,15 @@ export function DeviceManager() {
           <Legend />
         </section>
 
-        <div ref={detailRef} className="scroll-mt-4">
+        <div ref={detailRef} className="scroll-mt-4 space-y-3">
           <DetailPanel selected={selected} />
+          <AnomalyPanel
+            selected={selected}
+            anomalies={anomalies}
+            isUpdating={isUpdating}
+            onAcknowledge={acknowledge}
+            onResolve={resolve}
+          />
         </div>
       </div>
 
@@ -289,31 +308,36 @@ function DetailPanel({ selected }: { selected: Selection }) {
   )
 }
 
-function AnomalyPanel({ selected }: { selected: Selection }) {
+interface AnomalyPanelProps {
+  selected: Selection
+  anomalies: Array<{
+    id: string
+    type: AnomalyType
+    severity: 'warning' | 'error' | 'critical'
+    status: 'pending' | 'acknowledged' | 'resolved'
+    occurredAt: string
+    lastReportedAt: string
+  }>
+  isUpdating?: boolean
+  onAcknowledge?: (id: string, notes?: string) => Promise<void>
+  onResolve?: (id: string, notes?: string) => Promise<void>
+}
+
+function AnomalyPanel({
+  selected,
+  anomalies,
+  isUpdating = false,
+  onAcknowledge,
+  onResolve,
+}: AnomalyPanelProps) {
+  const [expandedId, setExpandedId] = React.useState<string | null>(null)
+  const [notes, setNotes] = React.useState<Record<string, string>>({})
+
   if (!selected || selected.type !== 'circuit') {
     return null
   }
 
-  const n = selected.id
-  // Demo: 與 DetailPanel 保持一致
-  const health: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
-
-  // Demo 異常數據
-  type DemoAnomaly = { id: string; type: AnomalyType; severity: 'warning' | 'error' | 'critical'; time: string }
-  const demoAnomalies: DemoAnomaly[] = (() => {
-    if (n === '12') {
-      return [
-        { id: 'a1', type: 'controller_offline', severity: 'critical', time: '2 分鐘前' },
-        { id: 'a2', type: 'command_failed', severity: 'critical', time: '1 分鐘前' },
-      ]
-    }
-    if (n === '05') {
-      return [{ id: 'a1', type: 'state_mismatch', severity: 'warning', time: '5 分鐘前' }]
-    }
-    return []
-  })()
-
-  if (demoAnomalies.length === 0) {
+  if (anomalies.length === 0) {
     return null
   }
 
@@ -329,35 +353,61 @@ function AnomalyPanel({ selected }: { selected: Selection }) {
     critical: '嚴重',
   }
 
+  const handleAcknowledge = async (id: string) => {
+    if (!onAcknowledge) return
+    try {
+      await onAcknowledge(id, notes[id])
+      setNotes((prev) => ({ ...prev, [id]: '' }))
+    } catch (error) {
+      console.error('確認異常失敗', error)
+    }
+  }
+
+  const handleResolve = async (id: string) => {
+    if (!onResolve) return
+    try {
+      await onResolve(id, notes[id])
+      setNotes((prev) => ({ ...prev, [id]: '' }))
+    } catch (error) {
+      console.error('解決異常失敗', error)
+    }
+  }
+
   return (
     <aside aria-label="異常詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-semibold">異常紀錄</h3>
         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
-          {demoAnomalies.length}
+          {anomalies.filter((a) => a.status === 'pending').length}
         </span>
       </div>
 
       <ul className="space-y-2">
-        {demoAnomalies.map((a) => (
+        {anomalies.map((a) => (
           <li key={a.id} className={cn('rounded-lg border px-3 py-2.5', severityColor[a.severity])}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <p className="text-xs font-semibold">{ANOMALY_TYPE_LABEL[a.type]}</p>
-                <p className="mt-0.5 text-xs opacity-75">嚴重程度：{severityLabel[a.severity]}</p>
+                <p className="mt-0.5 text-xs opacity-75">
+                  嚴重程度：{severityLabel[a.severity]} · 狀態：{a.status === 'pending' ? '待處理' : a.status === 'acknowledged' ? '已確認' : '已解決'}
+                </p>
               </div>
-              <span className="shrink-0 text-[10px] opacity-70">{a.time}</span>
+              <span className="shrink-0 text-[10px] opacity-70">{new Date(a.occurredAt).toLocaleTimeString('zh-TW')}</span>
             </div>
             <div className="mt-2 flex gap-1.5">
               <button
                 type="button"
-                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60"
+                onClick={() => handleAcknowledge(a.id)}
+                disabled={isUpdating || a.status !== 'pending'}
+                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 確認
               </button>
               <button
                 type="button"
-                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60"
+                onClick={() => handleResolve(a.id)}
+                disabled={isUpdating || a.status === 'resolved'}
+                className="inline-flex h-7 flex-1 items-center justify-center rounded border border-current border-opacity-30 bg-white bg-opacity-40 text-[11px] font-medium hover:bg-opacity-60 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 解決
               </button>
@@ -368,13 +418,14 @@ function AnomalyPanel({ selected }: { selected: Selection }) {
 
       <div className="mt-4 rounded-lg bg-zinc-50 px-3 py-2">
         <label htmlFor="anomaly-notes" className="block text-xs font-medium text-zinc-700">
-          備註或說明
+          全局備註
         </label>
         <textarea
           id="anomaly-notes"
           placeholder="記錄異常處理過程或備註..."
-          className="mt-1 block w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           rows={2}
+          disabled={isUpdating}
         />
       </div>
     </aside>
