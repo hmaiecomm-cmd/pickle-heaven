@@ -5,6 +5,8 @@ import Link from 'next/link'
 import {
   AirVent,
   Cable,
+  ChevronDown,
+  Clock,
   CupSoda,
   DoorClosed,
   Fan,
@@ -201,6 +203,8 @@ function Row({ label, value, pending }: { label: string; value: React.ReactNode;
 }
 
 function DetailPanel({ selected }: { selected: Selection }) {
+  const [scheduleExpanded, setScheduleExpanded] = React.useState(false)
+
   if (selected?.type === 'marker') {
     const m = LOCATION_MARKERS.find((x) => x.id === selected.id)!
     return (
@@ -244,9 +248,22 @@ function DetailPanel({ selected }: { selected: Selection }) {
       </dl>
       {def.category === 'ALWAYS_ON' && <p className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800">24 小時供電迴路，不受預約與排程控制。</p>}
       {def.scheduleControlEnabled && (
-        <Link href={`/admin/automation?circuit=${n}`} className="mt-4 inline-flex h-9 items-center rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50">
-          查看控制時間排程 →
-        </Link>
+        <button
+          type="button"
+          onClick={() => setScheduleExpanded(!scheduleExpanded)}
+          className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50"
+        >
+          <Clock className="h-4 w-4" aria-hidden />
+          排程設定
+          <ChevronDown className={cn('h-4 w-4 transition-transform', scheduleExpanded && 'rotate-180')} aria-hidden />
+        </button>
+      )}
+      {def.scheduleControlEnabled && scheduleExpanded && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs text-amber-800">
+            排程設定功能整合進行中。暫時請使用 <Link href={`/admin/automation?circuit=${n}`} className="font-semibold underline">自動化策略頁面</Link> 編輯排程。
+          </p>
+        </div>
       )}
     </aside>
   )
