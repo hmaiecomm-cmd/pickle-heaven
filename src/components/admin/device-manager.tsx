@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { VenuePlanBase } from './venue-plan-base'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
-import { HEALTH_COLORS, type DeviceHealth } from '@/lib/device-health'
+import { ANOMALY_TYPE_LABEL, HEALTH_COLORS, type AnomalyType, type DeviceHealth } from '@/lib/device-health'
 import {
   CATEGORY_INFO,
   CIRCUIT_NUMBERS,
@@ -285,6 +285,79 @@ function DetailPanel({ selected }: { selected: Selection }) {
           </Link>
         </div>
       )}
+    </aside>
+  )
+}
+
+function AnomalyPanel({ selected }: { selected: Selection }) {
+  if (!selected || selected.type !== 'circuit') {
+    return null
+  }
+
+  const n = selected.id
+  // Demo: 與 DetailPanel 保持一致
+  const health: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
+
+  // Demo 異常數據
+  type DemoAnomaly = { id: string; type: AnomalyType; severity: 'warning' | 'error' | 'critical'; time: string }
+  const demoAnomalies: DemoAnomaly[] = (() => {
+    if (n === '12') {
+      return [
+        { id: 'a1', type: 'controller_offline', severity: 'critical', time: '2 分鐘前' },
+        { id: 'a2', type: 'command_failed', severity: 'critical', time: '1 分鐘前' },
+      ]
+    }
+    if (n === '05') {
+      return [{ id: 'a1', type: 'state_mismatch', severity: 'warning', time: '5 分鐘前' }]
+    }
+    return []
+  })()
+
+  if (demoAnomalies.length === 0) {
+    return null
+  }
+
+  const severityColor: Record<'warning' | 'error' | 'critical', string> = {
+    warning: 'bg-amber-50 text-amber-700 border-amber-200',
+    error: 'bg-red-50 text-red-700 border-red-200',
+    critical: 'bg-red-50 text-red-700 border-red-200',
+  }
+
+  const severityLabel: Record<'warning' | 'error' | 'critical', string> = {
+    warning: '警告',
+    error: '異常',
+    critical: '嚴重',
+  }
+
+  return (
+    <aside aria-label="異常詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold">異常紀錄</h3>
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
+          {demoAnomalies.length}
+        </span>
+      </div>
+
+      <ul className="space-y-2">
+        {demoAnomalies.map((a) => (
+          <li key={a.id} className={cn('rounded-lg border px-3 py-2', severityColor[a.severity])}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold">{ANOMALY_TYPE_LABEL[a.type]}</p>
+                <p className="mt-0.5 text-xs opacity-75">嚴重程度：{severityLabel[a.severity]}</p>
+              </div>
+              <span className="shrink-0 text-[10px] opacity-70">{a.time}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        type="button"
+        className="mt-3 inline-flex h-8 items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-xs font-medium hover:bg-zinc-50"
+      >
+        查看詳情 →
+      </button>
     </aside>
   )
 }
