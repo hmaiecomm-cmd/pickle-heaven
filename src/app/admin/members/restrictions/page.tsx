@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { pagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
 import { Forbidden, PageTitle, Pill } from '@/components/admin/page-bits'
-import { RESTRICTION_LABEL } from '@/server/member-restrictions'
+import { getRestrictionLabel } from '@/lib/restriction-types'
 
 export const metadata: Metadata = { title: '會員限制與黑名單' }
 export const dynamic = 'force-dynamic'
@@ -24,7 +24,7 @@ export default async function RestrictionsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Pill tone={active ? 'red' : 'gray'}>{active ? '生效中' : '已解除／過期'}</Pill>
                   <Link href={`/admin/members/${r.user.id}`} className="font-semibold text-brand-700 hover:underline">{r.user.displayName}</Link>
-                  <span>{RESTRICTION_LABEL[r.type] ?? r.type}</span>
+                  <span>{getRestrictionLabel(r.type)}</span>
                 </div>
                 <p className="mt-1 text-xs text-muted">原因：{r.reason}・{r.createdBy}・{r.createdAt.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}{r.expiresAt ? `・到期 ${r.expiresAt.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}` : ''}</p>
               </li>

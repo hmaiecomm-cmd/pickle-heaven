@@ -228,7 +228,7 @@ export async function createPendingBooking(
   if (!input.contactName?.trim()) throw new BookingError('請填寫聯絡人姓名')
   if (!isTwMobile(input.contactPhone ?? '')) throw new BookingError('請填寫正確的台灣手機號碼')
   try {
-    await assertNotRestricted(userId, 'BOOKING')
+    await assertNotRestricted(userId, 'booking')
   } catch (err) {
     if (err instanceof RestrictedError) throw new BookingError(err.message, 'UNAUTHORIZED')
     throw err
@@ -440,7 +440,7 @@ export async function assertBookingPayable(bookingId: string): Promise<void> {
   if (booking.expiresAt && booking.expiresAt < now()) throw new BookingError('付款時間已逾時，請重新預約', 'HOLD_EXPIRED')
   // 付款前再次核驗帳戶限制（黑名單對已開啟的購物車與舊 session 同樣生效）
   try {
-    await assertNotRestricted(booking.userId, 'BOOKING')
+    await assertNotRestricted(booking.userId, 'booking')
   } catch (err) {
     if (err instanceof RestrictedError) throw new BookingError(err.message, 'UNAUTHORIZED')
     throw err

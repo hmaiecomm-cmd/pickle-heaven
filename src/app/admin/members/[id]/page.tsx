@@ -15,7 +15,7 @@ const TABS: { key: MemberDetailTab; label: string }[] = [
   { key: 'bookings', label: '預約與活動' },
   { key: 'orders', label: '訂單與消費' },
   { key: 'points', label: '點數與票券' },
-  { key: 'roles', label: '會員身份與活動資格' },
+  { key: 'roles', label: '會員身份與權限' },
   { key: 'logs', label: '管理紀錄' },
 ]
 const money = (n: number) => `NT$${n.toLocaleString()}`
@@ -220,34 +220,68 @@ export default async function MemberDetailPage({ params, searchParams }: { param
 
       {tab === 'roles' && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="會員身份">
+          <Card title="會員等級">
             <MembershipPanel userId={u.id} currentLevel={u.membershipLevel} canEdit={canRestrict} />
           </Card>
-          <Card title="角色">
+
+          <Card title="會員業務身份">
             <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
-              <dt className="text-muted">會員</dt><dd>是（Google 或 LINE 登入自動建立）</dd>
               <dt className="text-muted">教練</dt>
               <dd className="flex flex-wrap items-center gap-2">
                 {u.isCoach || u.coach ? <Pill tone="violet">教練</Pill> : <span className="text-muted">否</span>}
                 {u.coach && <span className="text-xs text-muted">教練名冊：{u.coach.name}（{u.coach.status === 'ACTIVE' ? '在職' : u.coach.status === 'ON_LEAVE' ? '請假' : '停用'}）</span>}
                 <CoachToggle userId={u.id} isCoach={u.isCoach} canEdit={canRestrict} />
               </dd>
-              <dt className="text-muted">後台帳號</dt>
-              <dd>{u.staff ? <>{u.staff.username}・<Pill tone="blue">{u.staff.roleLabel}</Pill> {!u.staff.active && <Pill tone="gray">停用</Pill>}</> : <span className="text-muted">無（此會員沒有後台權限）</span>}</dd>
             </dl>
-            <p className="mt-3 text-xs text-muted">教練身分不含後台權限。後台角色（擁有者／管理者／工作人員）在「設定管理 → 員工帳號與權限」由擁有者設定。</p>
+            <p className="mt-3 text-xs text-muted">教練身分不含後台權限，是純粹的會員業務身份，用來標記教練角色。</p>
           </Card>
+
+          <Card title="後台帳號">
+            <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
+              <dt className="text-muted">帳號</dt>
+              <dd>
+                {u.staff ? (
+                  <>
+                    {u.staff.username}・<Pill tone="blue">{u.staff.roleLabel}</Pill>
+                    {!u.staff.active && <Pill tone="gray">停用</Pill>}
+                  </>
+                ) : (
+                  <span className="text-muted">無後台權限</span>
+                )}
+              </dd>
+            </dl>
+            <p className="mt-3 text-xs text-muted">後台角色（擁有者／管理者／營運人員／櫃台人員／只讀）在「設定管理 → 員工帳號與權限」由擁有者設定。修改會員等級或限制狀態不會影響後台登入權限。</p>
+          </Card>
+
           <Card title="預約資格">
             <dl className="grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
               <dt className="text-muted">可提前預約</dt><dd>場館預設（依場館設定）</dd>
               <dt className="text-muted">可預約時段</dt><dd>場館預設</dd>
               <dt className="text-muted">可預約場地</dt><dd>{d.courts.map((c) => c.name).join('、')}</dd>
             </dl>
-            <p className="mt-3 text-xs text-muted">角色預設資格與個別會員例外（提前天數、時段、尖離峰、場地、時長、同時持有筆數）將於下一階段開放設定；目前所有會員依場館預設規則，並由後端在預約與結帳時驗證。</p>
+            <p className="mt-3 text-xs text-muted">預約資格目前依場館預設規則。個別會員的例外設定（提前天數、時段限制、場地限制等）將於下一階段開放。</p>
           </Card>
-          <Card title="帳戶限制與黑名單" className="lg:col-span-2">
-            <RestrictionPanel userId={u.id} canEdit={canRestrict} rows={d.restrictions} restricted={u.restricted} />
-            <p className="mt-3 text-xs text-muted">黑名單以會員帳號（Google 或 LINE 身分）為準，改名或改 Email 不會解除。受限期間不能新增預約、報名、下單、使用點數或進入後台；既有已付款訂單與點數保留。解除後原有角色與資格自動恢復。</p>
+
+          <Card title="會員限制與活動資格" className="lg:col-span-2">
+            <RestrictionPanel userId={u.id} canEdit={canRestrict} rows={d.restrictions} />
+            <div className="mt-4 space-y-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-800">
+              <p className="font-medium">限制類型說明：</p>
+              <ul className="space-y-1 ml-2">
+                <li>
+                  <span className="font-medium">黑名單</span>：禁止預約、報名活動、下單購買、使用點數
+                </li>
+                <li>
+                  <span className="font-medium">禁止報名活動</span>：禁止報名新活動、加入候補，但仍可預約場地
+                </li>
+                <li>
+                  <span className="font-medium">禁止預約</span>：禁止新增場地預約，但仍可報名活動
+                </li>
+                <li>
+                  <span className="font-medium">禁止下單</span>：禁止新增購物訂單
+                </li>
+              </ul>
+              <p className="mt-2">既有報名和訂單保留；限制自動過期後恢復操作資格。</p>
+            </div>
           </Card>
         </div>
       )}

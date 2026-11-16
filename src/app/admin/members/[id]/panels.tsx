@@ -14,6 +14,7 @@ import {
   setCoachFlagAction,
   setMembershipLevelAction,
 } from '@/server/member-admin-actions'
+import { RESTRICTION_TYPES, type RestrictionType, RESTRICTION_OPTIONS } from '@/lib/restriction-types'
 
 const input = 'h-9 rounded-lg border border-zinc-300 px-2 text-sm'
 const btn = 'h-9 rounded-lg px-3 text-sm font-semibold disabled:opacity-40'
@@ -217,7 +218,7 @@ export function CoachToggle({ userId, isCoach, canEdit }: { userId: string; isCo
 
 /* ─────────────── 會員等級 ─────────────── */
 
-const MEMBERSHIP_LEVEL_LABEL: Record<string, string> = { BASIC: '普通會員', PREMIUM: '高級會員', VIP: 'VIP 會員' }
+const MEMBERSHIP_LEVEL_LABEL: Record<string, string> = { BASIC: '普通會員', VIP: 'VIP 會員' }
 
 export function MembershipPanel({ userId, currentLevel, canEdit }: { userId: string; currentLevel: string; canEdit: boolean }) {
   const router = useRouter()
@@ -232,7 +233,7 @@ export function MembershipPanel({ userId, currentLevel, canEdit }: { userId: str
     }
     if (!window.confirm(`確定將會員等級更改為「${MEMBERSHIP_LEVEL_LABEL[level] ?? level}」？此操作將記入審計日誌。`)) return
     setBusy(true)
-    const res = await setMembershipLevelAction({ userId, level: level as 'BASIC' | 'PREMIUM' | 'VIP' })
+    const res = await setMembershipLevelAction({ userId, level: level as 'BASIC' | 'VIP' })
     setBusy(false)
     if (!res.ok) return toast(res.error, 'error')
     toast(res.message ?? '完成', 'success')
@@ -253,7 +254,6 @@ export function MembershipPanel({ userId, currentLevel, canEdit }: { userId: str
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
         <select value={level} onChange={(e) => setLevel(e.target.value)} className={input} aria-label="會員等級">
           <option value="BASIC">普通會員</option>
-          <option value="PREMIUM">高級會員</option>
           <option value="VIP">VIP 會員</option>
         </select>
         <button type="button" disabled={busy || level === currentLevel} onClick={submit} className={`${btn} bg-brand-600 text-white`}>
@@ -279,91 +279,237 @@ interface RestrictionRow {
   active: boolean
 }
 
-const TYPE_LABEL: Record<string, string> = { BLACKLIST: '黑名單（限制使用）', NO_ACTIVITY: '禁止報名活動' }
-
-export function RestrictionPanel({ userId, canEdit, rows, restricted }: { userId: string; canEdit: boolean; rows: RestrictionRow[]; restricted: boolean }) {
+export function RestrictionPanel({ userId, canEdit, rows }: { userId: string; canEdit: boolean; rows: RestrictionRow[] }) {
   const router = useRouter()
   const { toast } = useToast()
-  const [type, setType] = React.useState<'BLACKLIST' | 'NO_ACTIVITY'>('BLACKLIST')
+  const [type, setType] = React.useState<RestrictionType>('BLACKLIST')
   const [reason, setReason] = React.useState('')
   const [note, setNote] = React.useState('')
+
+  // 混合期限設置
+  const [limitType, setLimitType] = React.useState<'preset' | 'custom'>('preset')
   const [days, setDays] = React.useState(30)
+  const [customDate, setCustomDate] = React.useState('')
+
   const [busy, setBusy] = React.useState(false)
   const [revoking, setRevoking] = React.useState<Record<string, string>>({})
 
+  const typeConfig = RESTRICTION_TYPES[type]
+
   const add = async () => {
-    const label = TYPE_LABEL[type]
-    if (!window.confirm(`確定對這位會員設定「${label}」${days === 0 ? '（永久）' : `（${days} 天）`}？\n${type === 'BLACKLIST' ? '會員仍可登入查看本人資料，但不能新增預約、報名與消費；既有已付款訂單與點數保留。' : ''}\n此操作會記入操作紀錄。`)) return
+    if (!reason.trim()) {
+      toast('請填寫限制原因', 'error')
+      return
+    }
+
+    // 計算過期時間
+    let expiresAt: string | null = null
+    if (limitType === 'preset' && days > 0) {
+      const date = new Date()
+      date.setDate(date.getDate() + days)
+      expiresAt = date.toISOString().split('T')[0]
+    } else if (limitType === 'custom' && customDate) {
+      expiresAt = customDate
+    }
+
+    const msg =
+      `確定對這位會員設定「${typeConfig.label}」${expiresAt ? `至 ${expiresAt}` : '永久'}？\n` +
+      `說明：${typeConfig.description}\n` +
+      `原因：${reason.trim()}\n` +
+      `此操作會記入操作紀錄。`
+
+    if (!window.confirm(msg)) return
+
     setBusy(true)
-    const res = await addRestrictionAction({ userId, type, reason, days, internalNote: note.trim() || null })
+    const res = await addRestrictionAction({
+      userId,
+      type,
+      reason: reason.trim(),
+      expiresAt,
+      internalNote: note.trim() || null,
+    })
     setBusy(false)
     if (!res.ok) return toast(res.error, 'error')
-    toast(res.message ?? '完成', 'success')
+    toast('已設定限制', 'success')
     setReason('')
     setNote('')
+    setCustomDate('')
+    setDays(30)
     router.refresh()
   }
 
+  const hasActiveRestriction = rows.some((r) => r.active)
+
   return (
-    <div className="space-y-3">
-      {restricted && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">此帳戶目前在黑名單中。前台會顯示「此帳戶目前限制使用，若有疑問請聯絡場館。」並擋下新預約、報名、消費與點數使用。</p>}
-      {rows.length === 0 ? <p className="text-sm text-muted">沒有限制紀錄</p> : (
-        <ul className="space-y-2 text-sm">
+    <div className="space-y-4">
+      {hasActiveRestriction && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+          <p className="text-sm font-medium text-red-900">此會員目前有活躍的限制：</p>
+          <ul className="mt-2 space-y-1">
+            {rows
+              .filter((r) => r.active)
+              .map((r) => (
+                <li key={r.id} className="text-xs text-red-700">
+                  • {RESTRICTION_TYPES[r.type as RestrictionType]?.label ?? r.type}
+                  {r.expiresAt && `（至 ${r.expiresAt}）`}
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted">沒有限制紀錄</p>
+      ) : (
+        <ul className="space-y-2">
           {rows.map((r) => (
-            <li key={r.id} className="rounded-xl bg-zinc-50 p-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Pill tone={r.active ? 'red' : 'gray'}>{r.active ? '生效中' : '已解除／過期'}</Pill>
-                <span className="font-medium">{TYPE_LABEL[r.type] ?? r.type}</span>
-                <span className="text-[11px] text-muted">{r.createdAt}・{r.createdBy}{r.expiresAt ? `・到期 ${r.expiresAt}` : '・永久'}</span>
-              </div>
-              <p className="mt-1 text-xs">原因：{r.reason}</p>
-              {r.internalNote && <p className="text-xs text-muted">內部備註：{r.internalNote}</p>}
-              {r.revoked && <p className="text-xs text-muted">解除：{r.revoked}</p>}
-              {canEdit && r.active && (
-                <div className="mt-1.5 flex gap-2">
-                  <input value={revoking[r.id] ?? ''} onChange={(e) => setRevoking({ ...revoking, [r.id]: e.target.value })} placeholder="解除原因（必填）" className="h-8 min-w-0 flex-1 rounded-lg border border-zinc-300 px-2 text-xs" aria-label="解除原因" />
-                  <button
-                    type="button"
-                    disabled={!revoking[r.id]?.trim()}
-                    onClick={async () => {
-                      const res = await revokeRestrictionAction(r.id, revoking[r.id] ?? '')
-                      if (!res.ok) return toast(res.error, 'error')
-                      toast(res.message ?? '已解除', 'success')
-                      router.refresh()
-                    }}
-                    className="h-8 rounded-lg border border-zinc-300 px-2 text-xs disabled:opacity-40"
-                  >
-                    解除
-                  </button>
-                </div>
-              )}
-            </li>
+            <RestrictionRow key={r.id} row={r} canEdit={canEdit} onRevoke={() => router.refresh()} />
           ))}
         </ul>
       )}
-      {canEdit ? (
-        <div className="grid gap-2 rounded-xl border border-dashed border-zinc-300 p-3">
-          <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto]">
-            <select value={type} onChange={(e) => setType(e.target.value as 'BLACKLIST')} className={input} aria-label="限制類型">
-              <option value="BLACKLIST">黑名單（限制使用）</option>
-              <option value="NO_ACTIVITY">禁止報名活動</option>
+
+      {canEdit && (
+        <div className="space-y-3 rounded-lg border border-dashed border-zinc-300 p-4">
+          <div>
+            <label className="block text-xs font-medium mb-2">限制類型</label>
+            <select value={type} onChange={(e) => setType(e.target.value as RestrictionType)} className={input}>
+              {RESTRICTION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
-            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="原因（必填，會記錄）" className={input} aria-label="限制原因" />
-            <select value={days} onChange={(e) => setDays(Number(e.target.value))} className={input} aria-label="期限">
-              <option value={7}>7 天</option>
-              <option value={30}>30 天</option>
-              <option value={90}>90 天</option>
-              <option value={365}>1 年</option>
-              <option value={0}>永久</option>
-            </select>
+            <p className="mt-1 text-xs text-muted">{typeConfig.description}</p>
           </div>
-          <div className="flex gap-2">
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="內部備註（選填，會員看不到）" className={`${input} flex-1`} aria-label="內部備註" />
-            <button type="button" disabled={busy || reason.trim().length < 2} onClick={add} className={`${btn} bg-red-600 text-white`}>設定限制</button>
+
+          <div>
+            <label className="block text-xs font-medium mb-2">限制原因（必填）</label>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="例如：欠款未清、行為不當、投訴證實等"
+              className={input}
+            />
           </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-2">期限設置</label>
+            <div className="flex gap-4 mb-2">
+              <label className="flex items-center gap-2">
+                <input type="radio" checked={limitType === 'preset'} onChange={() => setLimitType('preset')} />
+                <span className="text-sm">快速選擇</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" checked={limitType === 'custom'} onChange={() => setLimitType('custom')} />
+                <span className="text-sm">自訂日期</span>
+              </label>
+            </div>
+
+            {limitType === 'preset' ? (
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))} className={input}>
+                <option value={7}>7 天</option>
+                <option value={30}>30 天</option>
+                <option value={90}>90 天</option>
+                <option value={365}>1 年</option>
+                <option value={0}>永久限制</option>
+              </select>
+            ) : (
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className={input}
+              />
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-2">內部備註（選填）</label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="例如：案件編號、聯絡紀錄等（會員看不到）"
+              className={input}
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={busy || !reason.trim() || (limitType === 'custom' && !customDate)}
+            onClick={add}
+            className={`${btn} w-full bg-red-600 text-white disabled:opacity-50`}
+          >
+            {busy ? '設定中...' : '設定限制'}
+          </button>
         </div>
-      ) : (
-        <p className="text-xs text-muted">目前帳號沒有設定會員限制的權限。</p>
+      )}
+    </div>
+  )
+}
+
+function RestrictionRow({
+  row,
+  canEdit,
+  onRevoke,
+}: {
+  row: RestrictionRow
+  canEdit: boolean
+  onRevoke: () => void
+}) {
+  const [revoking, setRevoking] = React.useState('')
+  const { toast } = useToast()
+
+  return (
+    <div className="rounded-lg bg-zinc-50 p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <Pill tone={row.active ? 'red' : 'gray'}>{row.active ? '生效中' : '已解除'}</Pill>
+        <span className="font-medium">{RESTRICTION_TYPES[row.type as RestrictionType]?.label ?? row.type}</span>
+        <span className="text-xs text-muted ml-auto">{row.createdAt}</span>
+      </div>
+
+      <div className="space-y-1 text-xs">
+        <div>
+          <span className="text-muted">原因：</span>
+          <span>{row.reason}</span>
+        </div>
+        {row.expiresAt && (
+          <div>
+            <span className="text-muted">到期日：</span>
+            <span>{row.expiresAt}</span>
+          </div>
+        )}
+        {!row.expiresAt && row.active && <div className="text-muted">永久限制</div>}
+        {row.internalNote && (
+          <div>
+            <span className="text-muted">內部備註：</span>
+            <span>{row.internalNote}</span>
+          </div>
+        )}
+        <div className="text-muted">操作人：{row.createdBy}</div>
+      </div>
+
+      {canEdit && row.active && (
+        <div className="mt-3 flex gap-2">
+          <input
+            value={revoking}
+            onChange={(e) => setRevoking(e.target.value)}
+            placeholder="解除原因"
+            className={`${input} flex-1 h-8 text-xs`}
+          />
+          <button
+            type="button"
+            disabled={!revoking.trim()}
+            onClick={async () => {
+              const res = await revokeRestrictionAction(row.id, revoking)
+              if (!res.ok) return toast(res.error, 'error')
+              toast('已解除', 'success')
+              onRevoke()
+            }}
+            className={`${btn} h-8 border border-zinc-300 disabled:opacity-50`}
+          >
+            解除
+          </button>
+        </div>
       )}
     </div>
   )

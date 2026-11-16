@@ -98,9 +98,8 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
   })
   await db.membershipTier.createMany({
     data: [
-      { level: 'BASIC', label: '一般', discountPct: 0, sortOrder: 0 },
-      { level: 'PREMIUM', label: '進階', discountPct: 5, sortOrder: 1 },
-      { level: 'VIP', label: 'VIP', discountPct: 10, sortOrder: 2 },
+      { level: 'BASIC', label: '普通會員', discountPct: 0, sortOrder: 0 },
+      { level: 'VIP', label: 'VIP 會員', discountPct: 10, sortOrder: 1 },
     ],
   })
 
@@ -130,7 +129,7 @@ export async function seedDemoData(db: PrismaClient, opts: { log?: (m: string) =
           lastLoginAt: new Date(now.getTime() - (i % 11) * 86_400_000 - i * 3_600_000),
           email: `demo${i + 1}@example.test`,
           points: i % 7 === 0 ? 300 : 0,
-          membershipLevel: i % 10 === 0 ? 'VIP' : i % 4 === 0 ? 'PREMIUM' : 'BASIC',
+          membershipLevel: i % 5 === 0 ? 'VIP' : 'BASIC',
           createdAt: new Date(now.getTime() - (60 - i) * 86_400_000),
         },
       }),

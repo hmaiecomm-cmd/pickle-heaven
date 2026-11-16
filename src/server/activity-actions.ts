@@ -18,6 +18,7 @@ import {
   unwatchSession,
   watchSession,
 } from './activity-service'
+import { assertNotRestricted, RestrictedError } from './member-restrictions'
 
 /**
  * 前台活動操作。業務規則都在 activity-service，這一層只負責登入檢查與回傳格式。
@@ -68,6 +69,17 @@ export async function addActivityToCart(
     const { sessionId, quantity } = addSchema.parse(input)
     const user = await getSessionUser()
     if (!user) return { ok: false, error: '請先登入再報名', code: 'UNAUTHORIZED' }
+
+    // 檢查會員是否被限制報名活動
+    try {
+      await assertNotRestricted(user.id, 'activity')
+    } catch (err) {
+      if (err instanceof RestrictedError) {
+        return { ok: false, error: err.message, code: err.restrictionType }
+      }
+      throw err
+    }
+
     const cartToken = await ensureCartToken()
     await holdSeats({ userId: user.id, cartToken, sessionId, quantity })
     const [cart, session] = await Promise.all([getCart(cartToken), getSessionDTO(sessionId, user.id)])

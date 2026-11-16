@@ -86,7 +86,6 @@ enum InvoiceStatus {
 
 enum MembershipLevel {
   BASIC
-  PREMIUM
   VIP
 }
 
@@ -1429,25 +1428,29 @@ model Incident {
  * ─────────────────────────── 會員限制 ───────────────────────────
  */
 
-/// 會員限制與黑名單。需權限與原因；撤銷保留紀錄
+/// 會員限制與黑名單。
+/// 類型：BLACKLIST（黑名單）| NO_ACTIVITY（禁止報名活動）| NO_BOOKING（禁止預約）| NO_ORDER（禁止下單）| CUSTOM（自訂）
+/// 撤銷後保留紀錄供審計追蹤
 model MemberRestriction {
   id           String    @id @default(cuid())
   userId       String
-  /// BLACKLIST 黑名單（禁止所有線上預約）/ NO_ACTIVITY 禁止報名活動
+  /// 限制類型：BLACKLIST, NO_ACTIVITY, NO_BOOKING, NO_ORDER, CUSTOM
   type         String
-  reason       String
-  /// 內部備註（不公開）
+  reason       String    // 限制原因（必填，會記錄）
+  /// 內部備註（僅後台可見，會員看不到）
   internalNote String?
-  createdBy    String
+  /// 限制的附加資訊（JSON 格式，用於 CUSTOM 類型或特殊情況）
+  metadata     String?
+  createdBy    String    // 操作人員帳號
   createdAt    DateTime  @default(now())
-  expiresAt    DateTime?
-  revokedAt    DateTime?
-  revokedBy    String?
-  revokeReason String?
+  expiresAt    DateTime? // 過期時間（null = 永久）
+  revokedAt    DateTime? // 解除時間
+  revokedBy    String?   // 解除人員帳號
+  revokeReason String?   // 解除原因
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, revokedAt])
+  @@index([userId, revokedAt, expiresAt])
 }
 
 /// 活動主持人／負責人。前台只公開 name、photo、bio、publicContact；內部聯絡資料僅後台可見。

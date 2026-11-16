@@ -15,7 +15,7 @@ const TABS: { key: PeopleTab; label: string }[] = [
 ]
 const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-sm'
 
-type SP = { tab?: string; q?: string; role?: string; status?: string; membership?: string; from?: string; to?: string; sort?: string; page?: string }
+type SP = { tab?: string; q?: string; role?: string; status?: string; activity?: string; membership?: string; from?: string; to?: string; sort?: string; page?: string }
 
 /**
  * 人員管理：會員（LINE 登入自動建立；另有停用前留下的 Google 會員）、教練、工作人員與管理員、黑名單。
@@ -29,8 +29,9 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     tab,
     q: sp.q,
     role: (sp.role as 'member' | 'coach' | 'staff' | '') ?? '',
-    status: (sp.status as 'normal' | 'restricted' | '') ?? '',
-    membership: (sp.membership as 'BASIC' | 'PREMIUM' | 'VIP' | '') ?? '',
+    status: (sp.status as 'normal' | 'blacklist' | 'no_booking' | 'no_order' | '') ?? '',
+    activity: (sp.activity as 'can_signup' | 'no_activity' | '') ?? '',
+    membership: (sp.membership as 'BASIC' | 'VIP' | '') ?? '',
     from: sp.from,
     to: sp.to,
     sort: (sp.sort as 'joined' | 'login' | 'points' | 'name') ?? 'joined',
@@ -88,17 +89,25 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               </select>
             )}
             {tab !== 'blacklist' && (
-              <select name="status" defaultValue={sp.status ?? ''} className={sel} aria-label="帳戶狀態">
-                <option value="">全部狀態</option>
-                <option value="normal">正常</option>
-                <option value="restricted">受限（黑名單）</option>
-              </select>
+              <>
+                <select name="status" defaultValue={sp.status ?? ''} className={sel} aria-label="帳戶狀態">
+                  <option value="">全部狀態</option>
+                  <option value="normal">正常</option>
+                  <option value="blacklist">黑名單</option>
+                  <option value="no_booking">禁止預約</option>
+                  <option value="no_order">禁止下單</option>
+                </select>
+                <select name="activity" defaultValue={sp.activity ?? ''} className={sel} aria-label="活動資格">
+                  <option value="">全部活動資格</option>
+                  <option value="can_signup">可報名</option>
+                  <option value="no_activity">禁止報名活動</option>
+                </select>
+              </>
             )}
             {tab === 'all' && (
               <select name="membership" defaultValue={sp.membership ?? ''} className={sel} aria-label="會員等級">
                 <option value="">全部等級</option>
                 <option value="BASIC">普通會員</option>
-                <option value="PREMIUM">高級會員</option>
                 <option value="VIP">VIP 會員</option>
               </select>
             )}
@@ -172,7 +181,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                       <span className="flex flex-wrap gap-1">
                         <Pill tone="gray">會員</Pill>
                         {m.membershipLevel === 'BASIC' && <Pill tone="gray">普通會員</Pill>}
-                        {m.membershipLevel === 'PREMIUM' && <Pill tone="amber">高級會員</Pill>}
                         {m.membershipLevel === 'VIP' && <Pill tone="violet">VIP 會員</Pill>}
                         {m.roles.slice(1).map((r) => (
                           <Pill key={r} tone={r === '教練' ? 'violet' : 'blue'}>{r}</Pill>
@@ -180,8 +188,8 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <Pill tone={m.status === 'normal' ? 'green' : m.status === 'restricted' ? 'red' : 'amber'}>{m.statusLabel}</Pill>
-                      {m.blacklistUntil && <span className="block text-[11px] text-muted">至 {m.blacklistUntil}</span>}
+                      <Pill tone={m.status === 'normal' ? 'green' : m.status === 'blacklist' ? 'red' : 'amber'}>{m.statusLabel}</Pill>
+                      {m.activityStatus === 'no_activity' && <Pill tone="amber" className="text-xs">禁止報名</Pill>}
                     </td>
                     <td className="px-3 py-2 text-right tabular">{m.points}</td>
                     <td className="px-3 py-2 text-xs text-muted">{m.bookAhead ? `${m.bookAhead} 天` : '場館預設'}</td>

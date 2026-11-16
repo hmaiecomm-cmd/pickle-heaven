@@ -5,8 +5,8 @@ import { audit, badRequest, readJson, requireAdminApi, toInt, unauthorized } fro
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const LEVELS = ['BASIC', 'PREMIUM', 'VIP'] as const
-const LABEL: Record<(typeof LEVELS)[number], string> = { BASIC: '一般', PREMIUM: '進階', VIP: 'VIP' }
+const LEVELS = ['BASIC', 'VIP'] as const
+const LABEL: Record<(typeof LEVELS)[number], string> = { BASIC: '普通會員', VIP: 'VIP 會員' }
 
 /** 更新會員折扣。body: { tiers: [{ level, discountPct }] }，折扣 0–100。 */
 export async function PUT(req: NextRequest) {

@@ -5,7 +5,7 @@ import { audit, badRequest, notFound, readJson, requireAdminApi, unauthorized } 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const LEVELS = ['BASIC', 'PREMIUM', 'VIP'] as const
+const LEVELS = ['BASIC', 'VIP'] as const
 
 /** 調整會員等級，寫入稽核紀錄。 */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

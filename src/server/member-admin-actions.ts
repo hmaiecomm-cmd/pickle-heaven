@@ -34,11 +34,10 @@ function refresh(userId: string) {
 
 const addSchema = z.object({
   userId: z.string().min(1),
-  type: z.enum(['BLACKLIST', 'NO_ACTIVITY']),
-  reason: z.string().trim().min(2, '請填寫原因').max(300),
-  /** 0 = 永久 */
-  days: z.number().int().min(0).max(3650),
-  internalNote: z.string().trim().max(500).nullable().default(null),
+  type: z.string().min(1, '請選擇限制類型'),
+  reason: z.string().trim().min(2, '請填寫限制原因').max(500),
+  expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  internalNote: z.string().trim().max(500).nullable().optional(),
 })
 
 export async function addRestrictionAction(input: z.infer<typeof addSchema>): Promise<R> {
@@ -47,20 +46,48 @@ export async function addRestrictionAction(input: z.infer<typeof addSchema>): Pr
     const v = addSchema.parse(input)
     const user = await prisma.user.findUnique({ where: { id: v.userId }, select: { id: true, displayName: true } })
     if (!user) return { ok: false, error: '找不到會員' }
-    // 黑名單是帳戶限制狀態，不改角色；以會員主鍵（Google 身分）關聯，改名或改 Email 不會解除
+
+    const expiresDate = v.expiresAt ? new Date(`${v.expiresAt}T23:59:59+08:00`) : null
+
     await prisma.memberRestriction.create({
       data: {
         userId: v.userId,
         type: v.type,
         reason: v.reason,
-        internalNote: v.internalNote,
+        internalNote: v.internalNote ?? null,
         createdBy: `admin:${ctx.username}`,
-        expiresAt: v.days > 0 ? new Date(now().getTime() + v.days * 86_400_000) : null,
+        expiresAt: expiresDate,
       },
     })
-    await prisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: v.type === 'BLACKLIST' ? 'MEMBER_BLACKLIST' : 'MEMBER_RESTRICT', target: v.userId, detail: { name: user.displayName, type: v.type, reason: v.reason, days: v.days, permanent: v.days === 0 } } })
+
+    const typeLabel = {
+      BLACKLIST: '黑名單',
+      NO_ACTIVITY: '禁止報名活動',
+      NO_BOOKING: '禁止預約',
+      NO_ORDER: '禁止下單',
+      CUSTOM: '自訂限制',
+    }[v.type] ?? v.type
+
+    await prisma.auditLog.create({
+      data: {
+        actor: `admin:${ctx.username}`,
+        action: 'MEMBER_RESTRICT',
+        target: v.userId,
+        detail: {
+          name: user.displayName,
+          type: v.type,
+          reason: v.reason,
+          expiresAt: expiresDate?.toISOString(),
+          permanent: !expiresDate,
+        },
+      },
+    })
+
     refresh(v.userId)
-    return { ok: true, message: v.type === 'BLACKLIST' ? '已加入黑名單；該會員不能新增預約、報名與消費，仍可登入查看本人資料' : '已設定限制' }
+    return {
+      ok: true,
+      message: `已設定 ${typeLabel}${expiresDate ? `（至 ${v.expiresAt}）` : '（永久）'}`,
+    }
   } catch (err) {
     return fail(err)
   }
@@ -218,7 +245,7 @@ export async function setCoachFlagAction(userId: string, isCoach: boolean): Prom
 
 const membershipLevelSchema = z.object({
   userId: z.string().min(1),
-  level: z.enum(['BASIC', 'PREMIUM', 'VIP']),
+  level: z.enum(['BASIC', 'VIP']),
 })
 
 export async function setMembershipLevelAction(input: z.infer<typeof membershipLevelSchema>): Promise<R> {

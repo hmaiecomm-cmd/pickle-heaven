@@ -18,15 +18,26 @@ export interface PeopleQuery {
   tab: PeopleTab
   q?: string
   role?: 'member' | 'coach' | 'staff' | ''
-  status?: 'normal' | 'restricted' | ''
-  membership?: 'BASIC' | 'PREMIUM' | 'VIP' | ''
+  status?: 'normal' | 'blacklist' | 'no_booking' | 'no_order' | ''
+  activity?: 'can_signup' | 'no_activity' | ''
+  membership?: 'BASIC' | 'VIP' | ''
   from?: string
   to?: string
   sort?: 'joined' | 'login' | 'points' | 'name'
   page?: number
 }
 
-export const ACCOUNT_STATUS_LABEL = { normal: '正常', restricted: '受限（黑名單）', limited: '受限（禁止報名）' } as const
+export const ACCOUNT_STATUS_LABEL = {
+  normal: '正常',
+  blacklist: '黑名單',
+  no_booking: '禁止預約',
+  no_order: '禁止下單',
+} as const
+
+export const ACTIVITY_STATUS_LABEL = {
+  can_signup: '可報名',
+  no_activity: '禁止報名活動',
+} as const
 
 function activeRestrictionWhere(type?: string): Prisma.MemberRestrictionWhereInput {
   return { ...(type ? { type } : {}), revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now() } }] }
@@ -44,9 +55,12 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.from) and.push({ createdAt: { gte: new Date(`${qy.from}T00:00:00+08:00`) } })
   if (qy.to) and.push({ createdAt: { lt: new Date(`${qy.to}T23:59:59+08:00`) } })
   if (qy.tab === 'coaches' || qy.role === 'coach') and.push({ isCoach: true })
-  if (qy.tab === 'blacklist' || qy.status === 'restricted') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
+  if (qy.tab === 'blacklist' || qy.status === 'blacklist') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
+  if (qy.status === 'no_booking') and.push({ restrictions: { some: activeRestrictionWhere('NO_BOOKING') } })
+  if (qy.status === 'no_order') and.push({ restrictions: { some: activeRestrictionWhere('NO_ORDER') } })
+  if (qy.activity === 'no_activity') and.push({ restrictions: { some: activeRestrictionWhere('NO_ACTIVITY') } })
   if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
-  if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'PREMIUM' | 'VIP' })
+  if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'VIP' })
   if (and.length) where.AND = and
 
   // 工作人員與管理員：以後台帳號為主（正式資料庫），可對應會員
@@ -75,9 +89,19 @@ export async function listPeople(qy: PeopleQuery) {
     page,
     pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     rows: users.map((u) => {
-      const black = u.restrictions.find((r) => r.type === 'BLACKLIST')
-      const noAct = u.restrictions.find((r) => r.type === 'NO_ACTIVITY')
+      const restrictions = u.restrictions
+      const blacklist = restrictions.find((r) => r.type === 'BLACKLIST')
+      const noActivity = restrictions.find((r) => r.type === 'NO_ACTIVITY')
+      const noBooking = restrictions.find((r) => r.type === 'NO_BOOKING')
+      const noOrder = restrictions.find((r) => r.type === 'NO_ORDER')
       const staff = staffByUser.get(u.id)
+
+      // 優先級：BLACKLIST > NO_BOOKING > NO_ORDER > 正常
+      let status: 'normal' | 'blacklist' | 'no_booking' | 'no_order' = 'normal'
+      if (blacklist) status = 'blacklist'
+      else if (noBooking) status = 'no_booking'
+      else if (noOrder) status = 'no_order'
+
       return {
         id: u.id,
         name: u.displayName,
@@ -87,16 +111,17 @@ export async function listPeople(qy: PeopleQuery) {
         phone: u.phone,
         roles: ['會員', ...(u.isCoach ? ['教練'] : []), ...(staff ? [ROLE_LABEL[staff.role as keyof typeof ROLE_LABEL] ?? staff.role] : [])],
         membershipLevel: u.membershipLevel,
-        status: black ? ('restricted' as const) : noAct ? ('limited' as const) : ('normal' as const),
-        statusLabel: black ? ACCOUNT_STATUS_LABEL.restricted : noAct ? ACCOUNT_STATUS_LABEL.limited : ACCOUNT_STATUS_LABEL.normal,
+        status,
+        statusLabel: ACCOUNT_STATUS_LABEL[status],
+        activityStatus: noActivity ? ('no_activity' as const) : ('can_signup' as const),
+        activityStatusLabel: ACTIVITY_STATUS_LABEL[noActivity ? 'no_activity' : 'can_signup'],
         points: u.points,
         /** 可提前預約天數：目前依場館預設（會員個別資格於下一階段） */
         bookAhead: null as number | null,
         joinedAt: formatDateTime(u.createdAt),
         lastLoginAt: u.lastLoginAt ? formatDateTime(u.lastLoginAt) : null,
         bookings: u._count.bookings,
-        blacklistReason: black?.reason ?? null,
-        blacklistUntil: black?.expiresAt ? formatDateTime(black.expiresAt) : black ? '永久' : null,
+        restrictions,
       }
     }),
     coaches: qy.tab === 'coaches' ? await prisma.coach.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, status: true, phone: true, userId: true } }) : [],
@@ -157,6 +182,7 @@ export async function getMemberDetail(id: string, opts: { dateType?: 'created' |
       blacklist: black ? { id: black.id, reason: black.reason, until: black.expiresAt ? formatDateTime(black.expiresAt) : '永久', by: black.createdBy, at: formatDateTime(black.createdAt), internalNote: black.internalNote } : null,
       staff: staff ? { username: staff.username, role: staff.role, roleLabel: ROLE_LABEL[staff.role as keyof typeof ROLE_LABEL] ?? staff.role, active: staff.active } : null,
       coach: coach ? { id: coach.id, name: coach.name, status: coach.status } : null,
+      restrictions: u.restrictions,
     },
     money: { paid, refunded, net: paid - refunded, pointsUsed, period: opts.from || opts.to ? `${opts.from ?? '…'}～${opts.to ?? '…'}（${opts.dateType === 'play' ? '使用日期' : '下單日期'}）` : '全部期間' },
     bookings: bookings.map((b) => ({

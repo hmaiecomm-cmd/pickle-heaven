@@ -3,9 +3,10 @@
 export const BRAND_NAME_ZH = '大新店森林匹克球'
 export const BRAND_NAME_EN = 'DAXINDIAN PICKLEBALL CLUB'
 
-// 正式 Logo：取自正式品牌展示圖（docs/brand-source/dxd-brand-sheet.jpg）黑底版本的 DXD 圖形，裁切去背的點陣圖（非向量原檔）。
+// 正式 Logo：綠色 DXD Pickleball Court 標誌（2026-11-16 更新）
+// 包含完整 logo、中英文名稱、品牌標語及多種變體
 // 日後取得 SVG 或高解析透明檔時直接替換此檔；設為 null 會改顯示中性佔位框。
-const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo.png'
+const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo-new.jpg'
 
 export function BrandLogo({ className }: { className?: string }) {
   return (

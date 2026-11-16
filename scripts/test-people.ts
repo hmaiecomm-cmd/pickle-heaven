@@ -64,7 +64,7 @@ async function main() {
   const restriction = await prisma.memberRestriction.create({ data: { userId: user.id, type: 'BLACKLIST', reason: '測試黑名單', internalNote: '內部備註', createdBy: 'admin:test' } })
   let blocked = false
   try {
-    await assertNotRestricted(user.id, 'BOOKING')
+    await assertNotRestricted(user.id, 'booking')
   } catch (err) {
     blocked = err instanceof RestrictedError
   }
@@ -79,12 +79,12 @@ async function main() {
   const paidBefore = await prisma.booking.count({ where: { userId: user.id } })
   check('黑名單不刪除會員既有訂單', paidBefore === 1)
   const list = await listPeople({ tab: 'blacklist', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
-  check('人員列表「黑名單」分頁列出此會員並顯示受限', list.rows.some((r) => r.id === user.id && r.status === 'restricted'))
+  check('人員列表「黑名單」分頁列出此會員並顯示受限', list.rows.some((r) => r.id === user.id && r.status === 'blacklist'))
   const detail1 = await getMemberDetail(user.id)
-  check('會員詳情標示受限並帶出內部備註', detail1?.user.restricted === true && detail1.user.blacklist?.internalNote === '內部備註')
+  check('會員詳情標示受限並帶出限制紀錄', detail1?.restrictions.some((r) => r.type === 'BLACKLIST' && r.active && r.internalNote === '內部備註') ?? false)
 
   await prisma.memberRestriction.update({ where: { id: restriction.id }, data: { revokedAt: new Date(), revokedBy: 'admin:test', revokeReason: '測試解除' } })
-  await assertNotRestricted(user.id, 'BOOKING')
+  await assertNotRestricted(user.id, 'booking')
   await assertBookingPayable(booking.id)
   const list2 = await listPeople({ tab: 'blacklist', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
   check('解除後可再付款與預約、黑名單分頁不再列出', !list2.rows.some((r) => r.id === user.id))

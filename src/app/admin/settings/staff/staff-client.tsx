@@ -66,7 +66,7 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                       className="h-8 rounded-lg border border-zinc-300 px-2 text-xs disabled:opacity-60"
                       aria-label={`${a.username} 的角色`}
                     >
-                      {(['OWNER', ...ASSIGNABLE_ROLES] as AdminRole[]).map((r) => (
+                      {ASSIGNABLE_ROLES.map((r) => (
                         <option key={r} value={r}>
                           {ROLE_LABEL[r]}
                         </option>

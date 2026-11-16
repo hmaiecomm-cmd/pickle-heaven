@@ -69,7 +69,7 @@ export async function createTopUpOrder(userId: string, planId: string) {
   const avail = topUpAvailability()
   if (!avail.open) throw new TopUpError(avail.reason ?? '線上儲值尚未開放', 'NOT_OPEN')
   try {
-    await assertNotRestricted(userId, 'BOOKING')
+    await assertNotRestricted(userId, 'booking')
   } catch (err) {
     if (err instanceof RestrictedError) throw new TopUpError('此帳戶目前限制使用，無法儲值，若有疑問請聯絡場館。', 'UNAUTHORIZED')
     throw err
