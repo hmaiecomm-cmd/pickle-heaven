@@ -26,6 +26,7 @@ import { VenuePlanBase } from './venue-plan-base'
 import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import { ANOMALY_TYPE_LABEL, HEALTH_COLORS, type AnomalyType, type DeviceHealth } from '@/lib/device-health'
 import { useDeviceAnomalies } from '@/hooks/useDeviceAnomalies'
+import { useAnomalyWebSocket } from '@/hooks/useAnomalyWebSocket'
 import {
   CATEGORY_INFO,
   CIRCUIT_NUMBERS,
@@ -77,11 +78,19 @@ export function DeviceManager() {
   const currentCircuitId = selected?.type === 'circuit' ? selected.id : null
 
   // 獲取異常數據（API 驅動）
-  const { anomalies, isUpdating, acknowledge, resolve } = useDeviceAnomalies(
+  const { anomalies, isUpdating, acknowledge, resolve, refetch } = useDeviceAnomalies(
     currentCircuitId || '01',
     'admin@example.com', // TODO: 從用戶會話獲取操作人
     10000 // 10 秒自動刷新
   )
+
+  // WebSocket 實時推送（收到異常更新時自動刷新）
+  useAnomalyWebSocket(true, (event) => {
+    // 如果更新涉及當前迴路，刷新異常列表
+    if (event.circuitId === currentCircuitId) {
+      refetch()
+    }
+  })
 
   // 從下方清單選取時，詳情面板可能在畫面外，捲動到可見處
   const selectFromList = (s: Selection) => {
