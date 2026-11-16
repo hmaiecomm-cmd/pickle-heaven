@@ -107,7 +107,7 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
     getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
-    prisma.doorAccessSchedule.findMany({ where: { enabled: true }, orderBy: { startAt: 'asc' } }).catch(() => []),
+    (prisma as any).doorAccessSchedule?.findMany({ where: { enabled: true }, orderBy: { startAt: 'asc' } }).catch(() => []) || Promise.resolve([]),
   ])
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))

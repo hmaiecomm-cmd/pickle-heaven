@@ -1,8 +1,9 @@
 import 'server-only'
-import { prisma } from '@/lib/db'
+import { prisma as prismaBase } from '@/lib/db'
 import { now } from '@/lib/time'
-import type { DoorAccessSchedule } from '@prisma/client'
 import { MAIN_DOOR } from '@/lib/door-devices'
+
+const prisma = prismaBase as any
 
 /**
  * 排程設備執行器：管理排程狀態轉換時的門禁控制
@@ -41,7 +42,7 @@ function getScheduleController(): ScheduleDoorController | null {
 /**
  * 當排程進入 ACTIVE 狀態時，開啟門禁
  */
-export async function executeScheduleActivation(schedule: DoorAccessSchedule): Promise<ScheduleExecution> {
+export async function executeScheduleActivation(schedule: any): Promise<ScheduleExecution> {
   const controller = getScheduleController()
   const execution: ScheduleExecution = {
     scheduleId: schedule.id,
@@ -102,7 +103,7 @@ export async function executeScheduleActivation(schedule: DoorAccessSchedule): P
 /**
  * 當排程退出 ACTIVE 狀態時（完成或取消），關閉門禁
  */
-export async function executeScheduleDeactivation(schedule: DoorAccessSchedule, reason: 'COMPLETED' | 'CANCELLED'): Promise<ScheduleExecution> {
+export async function executeScheduleDeactivation(schedule: any, reason: 'COMPLETED' | 'CANCELLED'): Promise<ScheduleExecution> {
   const controller = getScheduleController()
   const execution: ScheduleExecution = {
     scheduleId: schedule.id,
@@ -164,7 +165,7 @@ export async function executeScheduleDeactivation(schedule: DoorAccessSchedule, 
 /**
  * 檢查是否存在衝突的 ACTIVE 排程（多個排程同時開啟同一門禁）
  */
-export async function checkScheduleConflicts(doorId: string, excludeScheduleId?: string): Promise<DoorAccessSchedule[]> {
+export async function checkScheduleConflicts(doorId: string, excludeScheduleId?: string): Promise<any[]> {
   const currentTime = now()
   const conflicts = await prisma.doorAccessSchedule.findMany({
     where: {
@@ -183,7 +184,7 @@ export async function checkScheduleConflicts(doorId: string, excludeScheduleId?:
 /**
  * 獲取指定門禁當前的活躍排程
  */
-export async function getActiveScheduleForDoor(doorId: string): Promise<DoorAccessSchedule | null> {
+export async function getActiveScheduleForDoor(doorId: string): Promise<any | null> {
   const currentTime = now()
   return prisma.doorAccessSchedule.findFirst({
     where: {

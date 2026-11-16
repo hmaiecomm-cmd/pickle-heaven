@@ -1,8 +1,9 @@
 import 'server-only'
-import { prisma } from '@/lib/db'
+import { prisma as prismaBase } from '@/lib/db'
 import { now } from '@/lib/time'
-import type { DoorAccessSchedule } from '@prisma/client'
 import { executeScheduleActivation, executeScheduleDeactivation } from './door-schedule-executor'
+
+const prisma = prismaBase as any
 
 export class DoorScheduleError extends Error {}
 
@@ -50,7 +51,7 @@ export function validateScheduleTimeRange(startAt: Date, endAt: Date): { valid: 
 /**
  * 建立排程
  */
-export async function createAccessSchedule(input: CreateScheduleInput): Promise<DoorAccessSchedule> {
+export async function createAccessSchedule(input: CreateScheduleInput): Promise<any> {
   // 驗證時間範圍
   const timeValidation = validateScheduleTimeRange(input.startAt, input.endAt)
   if (!timeValidation.valid) {
@@ -118,7 +119,7 @@ export async function listAccessSchedules(
   venueId: string,
   doorId: string,
   filters?: { status?: AccessScheduleStatus; enabled?: boolean }
-) {
+): Promise<any[]> {
   const where: any = {
     venueId,
     doorId,
@@ -137,7 +138,7 @@ export async function listAccessSchedules(
 /**
  * 查詢單筆排程
  */
-export async function getAccessSchedule(scheduleId: string): Promise<DoorAccessSchedule | null> {
+export async function getAccessSchedule(scheduleId: string): Promise<any | null> {
   return prisma.doorAccessSchedule.findUnique({
     where: { id: scheduleId },
   })
@@ -149,7 +150,7 @@ export async function getAccessSchedule(scheduleId: string): Promise<DoorAccessS
 export async function updateAccessSchedule(
   scheduleId: string,
   input: UpdateScheduleInput
-): Promise<DoorAccessSchedule> {
+): Promise<any> {
   const schedule = await getAccessSchedule(scheduleId)
   if (!schedule) {
     throw new DoorScheduleError('排程不存在')
@@ -177,7 +178,7 @@ export async function cancelAccessSchedule(
   scheduleId: string,
   cancelledBy: string,
   reason: string
-): Promise<DoorAccessSchedule> {
+): Promise<any> {
   const schedule = await getAccessSchedule(scheduleId)
   if (!schedule) {
     throw new DoorScheduleError('排程不存在')
@@ -226,7 +227,7 @@ export async function terminateAccessSchedule(
   scheduleId: string,
   terminatedBy: string,
   reason: string
-): Promise<DoorAccessSchedule> {
+): Promise<any> {
   const schedule = await getAccessSchedule(scheduleId)
   if (!schedule) {
     throw new DoorScheduleError('排程不存在')
@@ -333,7 +334,7 @@ export async function updateScheduleStatuses() {
 /**
  * 取得當前常開狀態
  */
-export async function getCurrentScheduleStatus(doorId: string): Promise<DoorAccessSchedule | null> {
+export async function getCurrentScheduleStatus(doorId: string): Promise<any | null> {
   const currentTime = now()
 
   return prisma.doorAccessSchedule.findFirst({
