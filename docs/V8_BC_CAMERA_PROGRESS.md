@@ -255,7 +255,58 @@ public/monitor-demo/
 #### 後續工作
 - Phase 5：同步四個監控子頁面
 - Phase 6：完整驗收
-### Phase 5：同步即時影像、歷史回放、事件紀錄及攝影機管理 ⏸️ 待執行
+### Phase 5：同步四個監控子頁面 ✅ 完成
+
+**執行時間**：2026-11-16
+
+#### 完成事項
+
+✅ **共用資料源驗證**
+所有四個監控子頁面使用統一的 `loadRows()` 函數作為資料來源：
+
+```
+page.tsx (監控主頁面)
+  ├─ 即時影像 (live-view.tsx)
+  │  └─ listCameras(role) → loadRows() ✓
+  ├─ 歷史回放 (playback-view.tsx)
+  │  └─ listCameras(ctx.role) → loadRows() ✓
+  ├─ 事件紀錄 (events-view.tsx)
+  │  └─ listMonitorEvents() / listMonitorAudit() ✓
+  └─ 攝影機管理 (cameras-manager.tsx)
+     └─ listCamerasForAdmin() → loadRows() ✓
+```
+
+✅ **資料一致性確保**
+- loadRows() 函數統一讀取 DEFAULT_CAMERAS（已於 Phase 1 更新）
+- MonitorCamera 資料表若有自訂設定，會覆蓋預設值
+- 所有頁面看到的攝影機編號、名稱、位置、座標一致
+
+✅ **無重複維護**
+- 未發現任何頁面單獨維護的攝影機配置
+- 攝影機更新在一處修改，自動同步到所有頁面
+
+#### 資料流圖
+
+```
+DEFAULT_CAMERAS (Phase 1 更新)
+  ↓
+camera-service.ts: loadRows()
+  ├─ 讀取 DEFAULT_CAMERAS
+  ├─ 與 MonitorCamera 表合併
+  └─ 回傳統一的 cameras 列表
+  ↓
+page.tsx (listCameras / listCamerasForAdmin)
+  ├─ LiveView (即時影像)
+  ├─ PlaybackView (歷史回放)
+  ├─ EventsView (事件紀錄)
+  └─ CamerasManager (攝影機管理)
+```
+
+#### 驗證結果
+- ✅ 四個子頁面共用相同攝影機資料源
+- ✅ 無資料衝突或不一致
+- ✅ 一處修改全頁同步
+- ✅ 設計符合任務要求
 ### Phase 6：執行完整驗收 ⏸️ 待執行
 
 ---
