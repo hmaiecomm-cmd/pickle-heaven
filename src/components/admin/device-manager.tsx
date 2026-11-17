@@ -442,6 +442,18 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
               </div>
             </div>
           )}
+
+          {/* 儲存與取消按鈕 */}
+          {canEditSchedule && (
+            <div className="flex gap-2 pt-2 border-t border-zinc-200">
+              <button className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors">
+                儲存設定
+              </button>
+              <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+                取消
+              </button>
+            </div>
+          )}
         </div>
       )}
 
