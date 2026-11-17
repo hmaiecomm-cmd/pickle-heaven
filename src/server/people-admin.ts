@@ -17,13 +17,8 @@ export const PAGE_SIZE = 20
 export interface PeopleQuery {
   tab: PeopleTab
   q?: string
-  role?: 'member' | 'coach' | 'staff' | ''
-  status?: 'normal' | 'blacklist' | 'no_booking' | 'no_order' | ''
   activity?: 'can_signup' | 'no_activity' | ''
   membership?: 'BASIC' | 'VIP' | ''
-  from?: string
-  to?: string
-  sort?: 'joined' | 'login' | 'points' | 'name'
   page?: number
 }
 
@@ -52,14 +47,9 @@ export async function listPeople(qy: PeopleQuery) {
   if (text) {
     and.push({ OR: [{ displayName: { contains: text } }, { email: { contains: text.toLowerCase() } }, ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : [])] })
   }
-  if (qy.from) and.push({ createdAt: { gte: new Date(`${qy.from}T00:00:00+08:00`) } })
-  if (qy.to) and.push({ createdAt: { lt: new Date(`${qy.to}T23:59:59+08:00`) } })
-  if (qy.tab === 'coaches' || qy.role === 'coach') and.push({ isCoach: true })
-  if (qy.tab === 'blacklist' || qy.status === 'blacklist') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
-  if (qy.status === 'no_booking') and.push({ restrictions: { some: activeRestrictionWhere('NO_BOOKING') } })
-  if (qy.status === 'no_order') and.push({ restrictions: { some: activeRestrictionWhere('NO_ORDER') } })
+  if (qy.tab === 'coaches') and.push({ isCoach: true })
+  if (qy.tab === 'blacklist') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
   if (qy.activity === 'no_activity') and.push({ restrictions: { some: activeRestrictionWhere('NO_ACTIVITY') } })
-  if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
   if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'VIP' })
   if (and.length) where.AND = and
 
@@ -67,10 +57,9 @@ export async function listPeople(qy: PeopleQuery) {
   const tenant = await currentTenant()
   const staffAccounts = tenant === 'main' ? await mainPrisma.adminAccount.findMany({ where: { tenant: 'main' }, orderBy: [{ role: 'asc' }, { username: 'asc' }] }) : []
   const staffUserIds = staffAccounts.map((a) => a.userId).filter((x): x is string => Boolean(x))
-  if (qy.role === 'staff') and.push({ id: { in: staffUserIds } })
+  if (qy.tab === 'staff') and.push({ id: { in: staffUserIds } })
 
-  const orderBy: Prisma.UserOrderByWithRelationInput =
-    qy.sort === 'login' ? { lastLoginAt: { sort: 'desc', nulls: 'last' } } : qy.sort === 'points' ? { points: 'desc' } : qy.sort === 'name' ? { displayName: 'asc' } : { createdAt: 'desc' }
+  const orderBy: Prisma.UserOrderByWithRelationInput = { createdAt: 'desc' }
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
