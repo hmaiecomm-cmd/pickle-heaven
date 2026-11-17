@@ -74,7 +74,7 @@ type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: 
 export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: boolean }) {
   const [selected, setSelected] = React.useState<Selection>(null)
   const [expandedGroups, setExpandedGroups] = React.useState<Set<CircuitCategory>>(new Set(['RESERVATION_DYNAMIC']))
-  const [planExpanded, setPlanExpanded] = React.useState(false)
+  const [planExpanded, setPlanExpanded] = React.useState(true)
 
   // 提取當前選中迴路的編號（用於 useDeviceAnomalies）
   const currentCircuitId = selected?.type === 'circuit' ? selected.id : null
