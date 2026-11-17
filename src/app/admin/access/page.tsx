@@ -121,7 +121,6 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
       {/* 常開模式 */}
       <AlwaysOpenToggle
         isOpen={doorState.alwaysOpen}
-        demo={doorState.demo}
         canControl={canRemote}
       />
 
@@ -129,9 +128,14 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
       {venue && canGrant && (
         <PasswordSettings
           settings={{
-            passwordGenerationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
+            generationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
+            generateAheadDays: 7,
+            passwordOpenTime: (venue.passwordOpenTime as any) ?? '10_MIN_BEFORE',
+            passwordOpenCustomMinutes: null,
+            passwordExpireTime: '30_MIN_AFTER',
+            lockWhenNoOrders: true,
+            allowSharedPassword: true,
             passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
-            passwordOpenTime: (venue.passwordOpenTime as any) ?? '10_MINUTES_BEFORE',
           }}
           defaultBookAheadDays={venue.bookAheadDays}
         />

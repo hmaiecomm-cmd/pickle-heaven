@@ -244,6 +244,7 @@ model User {
   pointsLedger   PointsLedger[]
   topUpOrders    TopUpOrder[]
   duprPlayerLink DuprPlayerLink?
+  passwordLogs   SlotPasswordLog[]
 
   @@index([createdAt])
 }
@@ -284,22 +285,24 @@ model Venue {
   /// 密碼開放時間：10_MINUTES_BEFORE / AT_START_TIME
   passwordOpenTime String @default("10_MINUTES_BEFORE")
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  courts           Court[]
-  priceRules       PriceRule[]
-  bookings         Booking[]
-  sessionTemplates SessionTemplate[]
-  sessions         Session[]
-  activities       Activity[]
-  hosts            Host[]
-  maintenancePlans MaintenancePlan[]
-  circuits         Circuit[]
-  operatingHours   OperatingHours?
-  deviceAdapters   DeviceAdapter[]
-  controlEvents    ControlEvent[]
-  watchdogAlerts   WatchdogAlert[]
-  accessSessions   AccessSession[]
-  credentialAlerts CredentialAlert[]
+  organization        Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  courts              Court[]
+  priceRules          PriceRule[]
+  bookings            Booking[]
+  sessionTemplates    SessionTemplate[]
+  sessions            Session[]
+  activities          Activity[]
+  hosts               Host[]
+  maintenancePlans    MaintenancePlan[]
+  circuits            Circuit[]
+  operatingHours      OperatingHours?
+  deviceAdapters      DeviceAdapter[]
+  controlEvents       ControlEvent[]
+  watchdogAlerts      WatchdogAlert[]
+  accessSessions      AccessSession[]
+  credentialAlerts    CredentialAlert[]
+  slotPasswordRules   SlotPasswordRule[]
+  slotPasswords       SlotPassword[]
 }
 
 /// 場地（球場）
@@ -606,6 +609,8 @@ model Booking {
   voucher         Voucher?
   invoices        Invoice[]
   cancellationLog CancellationLog[]
+  slotPasswords   BookingSlotPassword[]
+  passwordLogs    SlotPasswordLog[]
 
   @@index([userId, createdAt])
   @@index([venueId, playDate])
@@ -2281,6 +2286,127 @@ model DoorAccessGrant {
   @@index([venueId, validFrom, validUntil])
   @@index([userId])
   @@index([status])
+}
+
+/// 時段密碼規則：業主可設定的密碼產生方式、開放時間、失效時間等
+model SlotPasswordRule {
+  id                        String    @id @default(cuid())
+  venueId                   String    @unique // 每個場館一筆規則
+  /// 密碼產生模式：PER_ORDER(每筆訂單) / DAILY(每天一組) / SPLIT_DAY(上下午各一組) / HOURLY(每小時)
+  generationMode            String    @default("SPLIT_DAY")
+  /// 提前產生密碼的天數（1-30）
+  generateAheadDays         Int       @default(7)
+  /// 密碼開放時間（相對預約開始）：10_MIN_BEFORE / 30_MIN_BEFORE / 1_HOUR_BEFORE / CUSTOM
+  passwordOpenTime          String    @default("10_MIN_BEFORE")
+  /// 自訂開放分鐘數（passwordOpenTime = CUSTOM 時使用）
+  passwordOpenCustomMinutes Int?
+  /// 密碼失效時間（相對預約結束）：IMMEDIATE / 15_MIN_AFTER / 30_MIN_AFTER / 1_HOUR_AFTER / CUSTOM
+  passwordExpireTime        String    @default("30_MIN_AFTER")
+  /// 自訂失效分鐘數（passwordExpireTime = CUSTOM 時使用）
+  passwordExpireCustomMinutes Int?
+  /// 無有效訂單時是否立即鎖定時段
+  lockWhenNoOrders          Boolean   @default(true)
+  /// 是否允許同一時段多筆訂單共用密碼
+  allowSharedPassword       Boolean   @default(true)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  venue           Venue             @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  slotPasswords   SlotPassword[]
+}
+
+/// 時段密碼：同一時間區段的密碼記錄
+model SlotPassword {
+  id                String    @id @default(cuid())
+  venueId           String
+  ruleId            String
+  /// 時段日期（YYYY-MM-DD）
+  slotDate          String
+  /// 時段類型（由 generationMode 決定）：DAY / MORNING / AFTERNOON / HOUR_XX
+  slotType          String
+  /// 時段開始時間（ISO 8601）
+  slotStartAt       DateTime
+  /// 時段結束時間（ISO 8601）
+  slotEndAt         DateTime
+  /// 密碼指紋：HMAC-SHA256(伺服器金鑰, 六位數密碼)。可比對門鎖輸入、檢查與其他未失效時段是否重複，無法反推密碼
+  codeHash          String
+  /// 密碼密文：AES-256-GCM 加密。同一時段後來付款的顧客、以及後台重新發送時，需要取回同一組密碼經 LINE 寄出
+  codeCiphertext    String
+  /// 遮罩的密碼（僅顯示最後兩位，例如 "****19"）
+  maskedCode        String
+  /// 密碼開放時間（ISO 8601）
+  openAt            DateTime
+  /// 密碼失效時間（ISO 8601）
+  expireAt          DateTime
+  /// 時段狀態：SCHEDULED(排程中) / ACTIVE(已開放) / LOCKED(已鎖定) / EXPIRED(已失效) / CANCELLED(已取消)
+  status            String    @default("SCHEDULED")
+  /// 該時段有效訂單計數
+  activeOrderCount  Int       @default(0)
+  createdAt         DateTime  @default(now())
+  activatedAt       DateTime? // 密碼首次開放的時間
+  expiredAt         DateTime? // 密碼失效的時間
+  revokedAt         DateTime? // 被撤銷的時間
+  revokeReason      String?   // 撤銷原因
+
+  rule              SlotPasswordRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  venue             Venue             @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  bookingSlots      BookingSlotPassword[]
+  passwordLogs      SlotPasswordLog[]
+
+  @@unique([venueId, slotDate, slotType])
+  @@index([venueId, slotDate])
+  @@index([status])
+  @@index([slotStartAt, slotEndAt])
+  @@index([codeHash])
+}
+
+/// 訂單與時段密碼的關聯
+model BookingSlotPassword {
+  id              String    @id @default(cuid())
+  bookingId       String
+  slotPasswordId  String
+  /// 訂單該明細項的開始時間
+  itemStartAt     DateTime
+  /// 訂單該明細項的結束時間
+  itemEndAt       DateTime
+  createdAt       DateTime  @default(now())
+
+  booking         Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  slotPassword    SlotPassword    @relation(fields: [slotPasswordId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([slotPasswordId])
+  @@unique([bookingId, slotPasswordId])
+}
+
+/// 密碼發送日誌：記錄每筆訂單的密碼 LINE 發送情況
+model SlotPasswordLog {
+  id                String    @id @default(cuid())
+  slotPasswordId    String
+  bookingId         String
+  userId            String    // 收件人（會員）
+  /// 發送狀態：PENDING / SENT / FAILED / RETRYING
+  sendStatus        String    @default("PENDING")
+  /// LINE 提供的訊息 ID（成功時）
+  providerMessageId String?
+  /// 發送失敗原因
+  failureReason     String?
+  /// 重試次數
+  retryCount        Int       @default(0)
+  /// 最後一次重試時間
+  lastRetryAt       DateTime?
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  slotPassword      SlotPassword  @relation(fields: [slotPasswordId], references: [id], onDelete: Cascade)
+  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([slotPasswordId, bookingId])
+  @@index([bookingId])
+  @@index([sendStatus])
+  @@index([userId])
 }
 
 /// 即時監控攝影機設定（Camera 01–06）。沒有資料列時使用程式內建的預設值。

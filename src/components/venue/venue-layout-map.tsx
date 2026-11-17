@@ -22,8 +22,8 @@ export function VenueLayoutMap() {
             ))}
             <line x1={UTILITY_POLE.x} y1={UTILITY_POLE.y1} x2={UTILITY_POLE.x} y2={UTILITY_POLE.y2} stroke="#9a6738" strokeWidth=".8" />
             <text x="120" y="30" fontSize="2.1" fill="#6b7280">電線桿</text>
-            {LOCATION_MARKERS.map((m) => <g key={m.id}><circle cx={m.x} cy={m.y} r="2.2" fill="#fff" stroke="#9ca3af" strokeWidth=".35" strokeDasharray=".7 .5" /><text x={m.x} y={m.y + .7} textAnchor="middle" fontSize="2.2" fill="#6b7280">⌖</text></g>)}
-            {CIRCUIT_PLACEMENTS.map((p, i) => { const color = colors[typeOf(p.circuit)]; return <g key={`${p.circuit}-${i}`}><circle cx={p.x} cy={p.y} r="2.2" fill="#fff" stroke={color} strokeWidth=".55" /><circle cx={p.x} cy={p.y} r="1.15" fill={color} opacity=".18" /><text x={p.x + 2.5} y={p.y + .8} fontSize="2.3" fontWeight="700" fill="#374151">{p.circuit}</text></g> })}
+            {LOCATION_MARKERS.map((m) => <g key={m.id}><circle cx={m.x} cy={m.y} r="3.2" fill="#fff" stroke="#9ca3af" strokeWidth=".4" strokeDasharray=".8 .6" /><text x={m.x} y={m.y + 1} textAnchor="middle" fontSize="2.8" fill="#6b7280">⌖</text></g>)}
+            {CIRCUIT_PLACEMENTS.map((p, i) => { const color = colors[typeOf(p.circuit)]; return <g key={`${p.circuit}-${i}`}><circle cx={p.x} cy={p.y} r="3.5" fill="#fff" stroke={color} strokeWidth=".7" /><circle cx={p.x} cy={p.y} r="1.8" fill={color} opacity=".18" /><text x={p.x + 3.9} y={p.y + 1.1} fontSize="2.7" fontWeight="700" fill="#374151">{p.circuit}</text></g> })}
           </svg>
         </div>
       </div>

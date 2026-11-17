@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { addDays, taipeiDateString } from '@/lib/time'
 
 /**
- * 財務與營運指標的唯一計算來源。訂單與財務、營運總覽、收入與退款頁一律呼叫這裡，
+ * 財務與營運指標的唯一計算來源。訂單記錄、營運總覽、收入與退款頁一律呼叫這裡，
  * 同一個指標在不同頁面必定得到同一個數字。
  *
  * 定義：

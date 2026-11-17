@@ -124,7 +124,7 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/templates': '/admin/activities',
   '/admin/incidents': '/admin/monitor?tab=events',
   '/admin/automation': '/admin/devices', // V8.1 排程功能暫時整合到設備總覽
-  // 訂單與財務標籤式導航別名
+  // 訂單記錄標籤式導航別名
   '/admin/finance/payments': '/admin/finance?tab=payments',
   '/admin/refunds': '/admin/finance?tab=refunds',
   '/admin/topup': '/admin/finance?tab=topup',

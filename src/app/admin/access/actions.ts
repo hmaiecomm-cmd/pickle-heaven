@@ -6,6 +6,14 @@ import { prisma } from '@/lib/db'
 import { taipeiToUtc } from '@/lib/time'
 import { DoorGrantError, createManualGrant, reconcileBookingGrants, revokeGrant } from '@/server/door-access-grants'
 import { DoorRemoteError, remoteOpenDoor } from '@/server/door-remote'
+import {
+  AHEAD_DAYS_MAX,
+  AHEAD_DAYS_MIN,
+  EXPIRE_TIME_OPTIONS,
+  GENERATION_MODES,
+  OPEN_TIME_OPTIONS,
+} from '@/server/slot-password-service'
+import { sendSlotPasswordToBooking } from '@/server/slot-password-notification'
 
 type R = { ok: true; message: string } | { ok: false; error: string }
 
@@ -106,31 +114,74 @@ export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: st
 
 // ─────── 預約密碼設定 Server Actions ───────
 
-export async function updatePasswordSettingsAction(data: {
-  passwordGenerationMode: 'DAILY' | 'HOURLY' | 'SPLIT_DAY'
+export interface PasswordRuleInput {
+  generationMode: string
+  generateAheadDays: number
+  passwordOpenTime: string
+  passwordOpenCustomMinutes: number | null
+  passwordExpireTime: string
+  lockWhenNoOrders: boolean
+  allowSharedPassword: boolean
   passwordBookAheadDaysOverride: number | null
-  passwordOpenTime: '10_MINUTES_BEFORE' | 'AT_START_TIME'
-}): Promise<R> {
+}
+
+export async function updatePasswordSettingsAction(data: PasswordRuleInput): Promise<R> {
   const ctx = await guard()
   if (!ctx) return NO_PERMISSION
+
+  if (!(GENERATION_MODES as readonly string[]).includes(data.generationMode)) return { ok: false, error: '密碼產生方式不正確' }
+  if (!(OPEN_TIME_OPTIONS as readonly string[]).includes(data.passwordOpenTime)) return { ok: false, error: '密碼開放時間不正確' }
+  if (!(EXPIRE_TIME_OPTIONS as readonly string[]).includes(data.passwordExpireTime)) return { ok: false, error: '密碼失效時間不正確' }
+  const ahead = Math.round(Number(data.generateAheadDays))
+  if (!Number.isFinite(ahead) || ahead < AHEAD_DAYS_MIN || ahead > AHEAD_DAYS_MAX) {
+    return { ok: false, error: `密碼提前產生天數須為 ${AHEAD_DAYS_MIN}～${AHEAD_DAYS_MAX} 天` }
+  }
+  let customOpen: number | null = null
+  if (data.passwordOpenTime === 'CUSTOM') {
+    customOpen = Math.round(Number(data.passwordOpenCustomMinutes))
+    if (!Number.isFinite(customOpen) || customOpen < 0 || customOpen > 1440) return { ok: false, error: '自訂開放分鐘數須為 0～1440' }
+  }
+  const override = data.passwordBookAheadDaysOverride
+  if (override !== null && (!Number.isInteger(override) || override < 1 || override > 365)) return { ok: false, error: '預約開放提前天數須為 1～365 天' }
 
   try {
     const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
     if (!venue) return { ok: false, error: '尚未建立場館' }
 
-    await prisma.venue.update({
-      where: { id: venue.id },
-      data: {
-        passwordGenerationMode: data.passwordGenerationMode,
-        passwordBookAheadDaysOverride: data.passwordBookAheadDaysOverride,
-        passwordOpenTime: data.passwordOpenTime,
-      },
-    })
+    const rule = {
+      generationMode: data.generationMode,
+      generateAheadDays: ahead,
+      passwordOpenTime: data.passwordOpenTime,
+      passwordOpenCustomMinutes: customOpen,
+      passwordExpireTime: data.passwordExpireTime,
+      lockWhenNoOrders: Boolean(data.lockWhenNoOrders),
+      allowSharedPassword: Boolean(data.allowSharedPassword),
+    }
+    await prisma.slotPasswordRule.upsert({ where: { venueId: venue.id }, create: { venueId: venue.id, ...rule }, update: rule })
+    await prisma.venue.update({ where: { id: venue.id }, data: { passwordBookAheadDaysOverride: override } })
+    await prisma.auditLog.create({ data: { actor: ctx.username, action: 'SLOT_PASSWORD_RULE_UPDATE', target: venue.id, detail: rule } })
 
     revalidatePath('/admin/access')
-    return { ok: true, message: '密碼設定已更新' }
+    return { ok: true, message: '密碼設定已更新（新付款的訂單套用新規則，已發出的密碼不變）' }
   } catch (err) {
     console.error('[password-settings] 更新失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
+  }
+}
+
+/** 後台重新發送某筆訂單的時段密碼（只經 LINE；會員未綁定 LINE 時回報失敗，不改用其他管道） */
+export async function resendSlotPasswordAction(slotPasswordId: string, bookingId: string): Promise<R> {
+  const ctx = await guard()
+  if (!ctx) return NO_PERMISSION
+  try {
+    const r = await sendSlotPasswordToBooking(slotPasswordId, bookingId, { isRetry: true })
+    await prisma.auditLog.create({
+      data: { actor: ctx.username, action: 'SLOT_PASSWORD_RESEND', target: bookingId, detail: { slotPasswordId, ok: r.ok, reason: r.ok ? null : r.reason } },
+    })
+    revalidatePath('/admin/access')
+    return r.ok ? { ok: true, message: '已經由 LINE 重新發送' } : { ok: false, error: r.reason }
+  } catch (err) {
+    console.error('[slot-password] 重新發送失敗', err)
     return { ok: false, error: '操作失敗，請稍後再試' }
   }
 }

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 const GRID_ITEMS = [
   { id: 'courts', label: '場地與預約', href: '/admin/schedule', permission: 'courts' as const, icon: CalendarDays },
   { id: 'monitor', label: '即時監控', href: '/admin/monitor', permission: 'monitor' as const, icon: Cctv },
-  { id: 'finance', label: '訂單與財務', href: '/admin/bookings', permission: 'bookings' as const, icon: CreditCard },
+  { id: 'finance', label: '訂單記錄', href: '/admin/bookings', permission: 'bookings' as const, icon: CreditCard },
   { id: 'members', label: '會員與活動', href: '/admin/members', permission: 'members' as const, icon: UsersRound },
   { id: 'devices', label: '智慧設備管理', href: '/admin/devices', permission: 'device' as const, icon: Layers },
   { id: 'overview', label: '營運總覽', href: '/admin/reports', permission: 'finance' as const, icon: ChartNoAxesColumnIncreasing },

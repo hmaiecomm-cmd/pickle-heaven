@@ -11,7 +11,7 @@ interface Tab {
 
 export function FinanceTabNav({ activeTab, tabs }: { activeTab: string; tabs: Tab[] }) {
   return (
-    <nav className="flex gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 text-sm" aria-label="訂單與財務分頁">
+    <nav className="flex gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 text-sm" aria-label="訂單記錄分頁">
       {tabs.map((t) => (
         <Link
           key={t.id}

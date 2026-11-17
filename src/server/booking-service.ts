@@ -15,6 +15,7 @@ import { syncRefundStatus } from './refund-service'
 import { assertNotRestricted, RestrictedError } from './member-restrictions'
 import { applyPoints } from './points-ledger'
 import { syncGrantForBookingSafe } from './door-access-grants'
+import { syncSlotPasswordsForBookingSafe } from './slot-password-integration'
 
 /** 待付款訂單的付款期限（分鐘） */
 export const PAYMENT_WINDOW_MINUTES = 15
@@ -605,12 +606,17 @@ export async function markBookingPaid(bookingId: string, info: PaidInfo): Promis
   await syncGrantForBookingSafe(bookingId)
 
   if (outcome.conflict) {
+    // 付款後才發現無法履約（REFUND_PENDING）：不建立門禁密碼資格，若先前有暫時資格一併移除
+    await syncSlotPasswordsForBookingSafe(bookingId)
     await refundUnfulfilledPayment(bookingId, info, outcome.conflict)
     return { alreadyPaid: false, conflict: outcome.conflict }
   }
 
   if (lapsed) console.info('[booking] 逾時後付款，名額與時段仍有效，已正常成立', booking.code)
+
   await sendConfirmationNotification(bookingId)
+  // 付款成功 → 加入所屬時段（沿用或建立共用密碼）並只經 LINE 發給這位顧客；失敗不影響訂單成立，排程會補跑
+  await syncSlotPasswordsForBookingSafe(bookingId)
   return { alreadyPaid: false }
 }
 
@@ -669,6 +675,8 @@ export async function recordPaymentFailure(
       rawResponse: (raw ?? undefined) as Prisma.InputJsonValue | undefined,
     },
   })
+  // 付款失敗不建立門禁資格；若之前有暫時資格（例如重複回呼），立即移除並重算時段有效訂單數
+  await syncSlotPasswordsForBookingSafe(bookingId)
 }
 
 async function sendConfirmationNotification(bookingId: string): Promise<void> {
@@ -802,6 +810,8 @@ export async function cancelBooking(
     await tx.voucher.updateMany({ where: { bookingId }, data: { bookingId: null, usedAt: null } })
   }, TX_OPTIONS)
   await syncGrantForBookingSafe(bookingId)
+  // 只移除這筆訂單的時段資格；共用密碼保留給同時段其他有效訂單，時段已無有效訂單才鎖定
+  await syncSlotPasswordsForBookingSafe(bookingId)
 
   // 2. 實付金額優先原路退回；金流不支援或失敗才改為點數（不會兩邊都退）
   let method: 'ORIGINAL' | 'POINTS' = 'POINTS'

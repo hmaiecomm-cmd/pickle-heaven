@@ -78,7 +78,6 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 id="door-remote-title" className="text-sm font-semibold">大門即時控制</h2>
-          <p className="mt-0.5 text-xs text-muted">管理員可遠端即時開啟球場大門。</p>
         </div>
         {state.demo && <Pill tone="violet">Demo 模擬</Pill>}
       </div>
@@ -108,10 +107,6 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
           {message}
         </p>
       )}
-      <p className="mt-3 text-[11px] text-muted">
-        瞬間開門：開啟約 {state.door.pulseSeconds} 秒後自動上鎖，不會永久解鎖，也不會建立門禁授權；消防、緊急逃生與安全聯鎖由門禁控制器負責。
-      </p>
-
       <Sheet open={confirming} onOpenChange={(o) => !o && setConfirming(false)}>
         <SheetContent title="確認開門" description="這次確認只會送出一次開門指令">
           <div className="space-y-4 text-sm">

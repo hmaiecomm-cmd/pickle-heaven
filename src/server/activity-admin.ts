@@ -19,6 +19,7 @@ import { notifySeatWatchers, publicCapacity, seatsUsed } from './activity-servic
 import { cancelBooking } from './booking-service'
 import { applyPoints } from './points-ledger'
 import { syncGrantForBookingSafe } from './door-access-grants'
+import { syncSlotPasswordsForBookingSafe } from './slot-password-integration'
 import { deleteAssetIfUnused } from './media'
 
 /**
@@ -818,6 +819,7 @@ export async function cancelActivitySession(sessionId: string, reason: string, a
       })
     }, TX_OPTIONS)
     await syncGrantForBookingSafe(b.id)
+    await syncSlotPasswordsForBookingSafe(b.id)
     summary.refunded++
     summary.refundedAmount += cashShare
     summary.toPoints += toPoints

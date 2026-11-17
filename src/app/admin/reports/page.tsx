@@ -57,7 +57,7 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
 
   return (
     <div className="space-y-5">
-      <PageTitle title="營運總覽" desc="分析用。所有金額與訂單數都和「訂單與財務」使用同一套算法。" />
+      <PageTitle title="營運總覽" desc="分析用。所有金額與訂單數都和「訂單記錄」使用同一套算法。" />
 
       <section aria-labelledby="today-title">
         <h2 id="today-title" className="mb-2 text-sm font-semibold">

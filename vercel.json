@@ -22,6 +22,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/slot-passwords",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/door-watchdog",
       "schedule": "0 */6 * * *"
     }

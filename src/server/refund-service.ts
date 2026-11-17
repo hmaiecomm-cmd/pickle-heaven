@@ -5,6 +5,8 @@ import { isDemoTenant, prisma } from '@/lib/db'
 import { getPaymentProvider } from '@/lib/payments'
 import { formatDateTime, now } from '@/lib/time'
 import { notifySeatWatchers } from './activity-service'
+import { syncGrantForBookingSafe } from './door-access-grants'
+import { syncSlotPasswordsForBookingSafe } from './slot-password-integration'
 
 /**
  * 逐項退款。
@@ -281,7 +283,12 @@ export async function executeRefund(req: RefundRequest): Promise<RefundResultVie
   }, TX)
 
   if (reserved.duplicate || req.method !== 'ORIGINAL') {
-    if (req.cancelItems && !reserved.duplicate) await notifyReleased(req.bookingId)
+    if (req.cancelItems && !reserved.duplicate) {
+      // 退款取消明細：只移除這筆訂單的門禁授權與時段資格，共用密碼保留給同時段其他有效訂單
+      await syncGrantForBookingSafe(req.bookingId)
+      await syncSlotPasswordsForBookingSafe(req.bookingId)
+      await notifyReleased(req.bookingId)
+    }
     return view(reserved.refund, reserved.duplicate)
   }
 
@@ -337,7 +344,11 @@ export async function executeRefund(req: RefundRequest): Promise<RefundResultVie
     return updated
   }, TX)
 
-  if (ok && r.cancelItems) await notifyReleased(req.bookingId)
+  if (ok && r.cancelItems) {
+    await syncGrantForBookingSafe(req.bookingId)
+    await syncSlotPasswordsForBookingSafe(req.bookingId)
+    await notifyReleased(req.bookingId)
+  }
   return view(finished, false)
 }
 
