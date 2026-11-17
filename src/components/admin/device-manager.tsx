@@ -107,16 +107,10 @@ export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: b
 
   return (
     <div className="space-y-6">
-      {/* 時段設定 */}
-      <TimeSlotSection />
+      {/* 電力迴路配置（頁面最頂端） */}
+      <FloorPlanCollapsible selected={selected} onSelect={setSelected} expanded={planExpanded} onExpandedChange={setPlanExpanded} />
 
-      {/* 設備控制區 */}
-      <section aria-labelledby="device-control-title" className="space-y-3">
-        <h2 id="device-control-title" className="text-sm font-semibold px-1">設備控制</h2>
-        <DeviceGroupList selected={selected} onSelect={setSelected} expandedGroups={expandedGroups} onToggleGroup={toggleGroup} />
-      </section>
-
-      {/* 設備詳情 */}
+      {/* 點選迴路後的設定區（直接在配置下方） */}
       {selected?.type === 'circuit' && (
         <div className="space-y-3">
           <DetailPanel selected={selected} canEditSchedule={canEditSchedule} />
@@ -130,113 +124,12 @@ export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: b
         </div>
       )}
 
-      {/* 電力迴路配置圖（收合） */}
-      <FloorPlanCollapsible selected={selected} onSelect={setSelected} expanded={planExpanded} onExpandedChange={setPlanExpanded} />
+      {/* 設備控制區（分類清單 - 備用） */}
+      <section aria-labelledby="device-control-title" className="space-y-3">
+        <h2 id="device-control-title" className="text-sm font-semibold px-1">設備控制</h2>
+        <DeviceGroupList selected={selected} onSelect={setSelected} expandedGroups={expandedGroups} onToggleGroup={toggleGroup} />
+      </section>
     </div>
-  )
-}
-
-function TimeSlotSection() {
-  const [editMode, setEditMode] = React.useState(false)
-  const [startTime, setStartTime] = React.useState('09:00')
-  const [endTime, setEndTime] = React.useState('17:00')
-  const [preMinutes, setPreMinutes] = React.useState(10)
-  const [postMinutes, setPostMinutes] = React.useState(5)
-
-  return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-      {!editMode ? (
-        <>
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div>
-              <h3 className="text-xs font-medium text-muted">目前時段</h3>
-              <p className="mt-1 text-lg font-semibold">{startTime}–{endTime}</p>
-            </div>
-            <div>
-              <h4 className="text-xs font-medium text-muted">控制模式</h4>
-              <p className="mt-1 text-sm font-medium">已啟用預約動態控制</p>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setEditMode(true)}
-              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
-            >
-              編輯
-            </button>
-            <button
-              type="button"
-              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
-            >
-              查看行事曆
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <h3 className="text-sm font-semibold mb-3">時段設定</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">開始時間</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">結束時間</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">預約前提前開啟（分鐘）</label>
-              <input
-                type="number"
-                min="0"
-                max="120"
-                value={preMinutes}
-                onChange={(e) => setPreMinutes(Number(e.target.value))}
-                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">預約後延遲關閉（分鐘）</label>
-              <input
-                type="number"
-                min="0"
-                max="120"
-                value={postMinutes}
-                onChange={(e) => setPostMinutes(Number(e.target.value))}
-                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
-              />
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setEditMode(false)}
-              className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
-            >
-              儲存
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditMode(false)}
-              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
-            >
-              取消
-            </button>
-          </div>
-        </>
-      )}
-    </section>
   )
 }
 
@@ -479,14 +372,14 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
     <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
       {/* 設備名稱和狀態 */}
       <div>
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="min-w-0">
             <p className="text-xs font-mono font-bold text-zinc-700">迴路 {n}</p>
-            <h3 className="mt-1 text-lg font-semibold">{def.name}</h3>
+            <h3 className="mt-1 text-lg font-semibold truncate">{def.name}</h3>
           </div>
           <div className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 shrink-0', healthColor.bg)}>
             <div className={cn('h-2 w-2 rounded-full', demoHealth === 'critical' ? 'blink-critical' : '', healthColor.dot)} aria-hidden />
-            <span className={cn('text-xs font-semibold', healthColor.text)}>{healthColor.label}</span>
+            <span className={cn('text-xs font-semibold whitespace-nowrap', healthColor.text)}>{healthColor.label}</span>
           </div>
         </div>
         <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', TONE[cat.tone].chip)}>
@@ -494,17 +387,95 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
         </span>
       </div>
 
-      {/* 開關控制 */}
+      {/* 目前時段控制 */}
+      {def.scheduleControlEnabled && (
+        <div className="space-y-3 rounded-lg bg-zinc-50 p-3">
+          <h4 className="text-sm font-semibold text-zinc-900">目前時段控制</h4>
+          <p className="text-xs text-muted">設定此迴路目前的開啟與關閉時間。儲存後會更新此迴路的排程摘要。</p>
+
+          {/* 預約動態控制 */}
+          {def.category === 'RESERVATION_DYNAMIC' && (
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">預約前提前開啟</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  defaultValue="10"
+                  placeholder="分鐘"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">預約後延遲關閉</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  defaultValue="5"
+                  placeholder="分鐘"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 營業時間控制、夜間環境控制 */}
+          {(def.category === 'OPERATING_HOURS' || def.category === 'NIGHT_AMBIENT') && (
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">開啟時間</label>
+                <input
+                  type="time"
+                  defaultValue="09:00"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">關閉時間</label>
+                <input
+                  type="time"
+                  defaultValue="23:00"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 儲存與取消按鈕 */}
+          {canEditSchedule && (
+            <div className="flex gap-2 pt-2 border-t border-zinc-200">
+              <button className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors">
+                儲存設定
+              </button>
+              <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+                取消
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 開啟／關閉控制 */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-700">設備控制</label>
-        <div className="flex gap-2">
-          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-zinc-700">設備目前狀態</label>
+          <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', 'bg-green-50 text-green-700 ring-green-200')}>
+            開啟
+          </span>
+        </div>
+        <div className="flex gap-2 sm:grid sm:grid-cols-2">
+          <button className="flex-1 h-10 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
             開啟
           </button>
-          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+          <button className="flex-1 h-10 rounded-lg border-2 border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
             關閉
           </button>
         </div>
+        <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded">
+          ⚠ Demo Mode：尚未串接真實設備，操作不會送出實際控制指令。
+        </p>
       </div>
 
       {/* 目前排程 */}
