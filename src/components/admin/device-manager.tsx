@@ -74,7 +74,7 @@ type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: 
 export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: boolean }) {
   const [selected, setSelected] = React.useState<Selection>(null)
   const [expandedGroups, setExpandedGroups] = React.useState<Set<CircuitCategory>>(new Set(['RESERVATION_DYNAMIC']))
-  const [planExpanded, setPlanExpanded] = React.useState(false)
+  const [planExpanded, setPlanExpanded] = React.useState(true)
 
   // 提取當前選中迴路的編號（用於 useDeviceAnomalies）
   const currentCircuitId = selected?.type === 'circuit' ? selected.id : null
@@ -107,13 +107,13 @@ export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: b
 
   return (
     <div className="space-y-6">
-      {/* 電力迴路配置（頁面最頂端） */}
-      <FloorPlanCollapsible selected={selected} onSelect={setSelected} expanded={planExpanded} onExpandedChange={setPlanExpanded} />
+      {/* 電力迴路配置圖（頁面最頂端，直接展開） */}
+      <FloorPlanSection selected={selected} onSelect={setSelected} />
 
       {/* 點選迴路後的設定區（直接在配置下方） */}
       {selected?.type === 'circuit' && (
         <div className="space-y-3">
-          <DetailPanel selected={selected} canEditSchedule={canEditSchedule} />
+          <CircuitSettingPanel selected={selected} canEditSchedule={canEditSchedule} />
           <AnomalyPanel
             selected={selected}
             anomalies={anomalies}
@@ -220,6 +220,101 @@ function DeviceGroupList({
         )
       })}
     </div>
+  )
+}
+
+// 電力迴路配置圖（頁面最頂端，直接展開）
+function FloorPlanSection({ selected, onSelect }: { selected: Selection; onSelect: (s: Selection) => void }) {
+  const selectedCircuit = selected?.type === 'circuit' ? selected.id : null
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="p-4">
+        <h2 className="text-sm font-semibold mb-2">電力迴路配置</h2>
+        <p className="text-xs text-muted mb-4">依現場配置圖繪製，比例為示意。尚未串接真實設備時，所有狀態均顯示為 Demo。</p>
+
+        <div className="overflow-x-auto mb-3">
+          <svg viewBox={`0 0 ${PLAN_WIDTH} ${PLAN_HEIGHT}`} className="h-auto w-full min-w-[320px] select-none" role="group" aria-label="電力迴路終點配置圖">
+            <VenuePlanBase />
+
+            {CIRCUIT_PLACEMENTS.map((p, i) => {
+              const tone = toneOf(p.circuit)
+              const Icon = KIND_ICON[p.kind]
+              const isSel = selectedCircuit === p.circuit
+              const name = CIRCUIT_DEFINITIONS[p.circuit].name
+              return (
+                <g
+                  key={`${p.circuit}-${i}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`迴路 ${p.circuit} ${name}`}
+                  aria-pressed={isSel}
+                  onClick={() => onSelect({ type: 'circuit', id: p.circuit })}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect({ type: 'circuit', id: p.circuit })}
+                  className="cursor-pointer outline-none"
+                >
+                  {isSel && <circle cx={p.x} cy={p.y} r="3.3" fill={tone.stroke} opacity="0.18" />}
+                  <circle cx={p.x} cy={p.y} r="2.2" fill="white" stroke={tone.stroke} strokeWidth={isSel ? 0.7 : 0.4} />
+                  <Icon x={p.x - 1.25} y={p.y - 1.25} width={2.5} height={2.5} color={tone.stroke} strokeWidth={2} aria-hidden />
+                  <text x={p.x + 2.6} y={p.y + 0.6} fontSize="1.6" fontWeight={700} fill="#27272a" paintOrder="stroke" stroke="white" strokeWidth="0.5">
+                    {p.circuit}
+                  </text>
+                </g>
+              )
+            })}
+
+            {LOCATION_MARKERS.map((m) => {
+              const isSel = selected?.type === 'marker' && selected.id === m.id
+              return (
+                <g
+                  key={m.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${m.name}（位置標記，不可控制）`}
+                  aria-pressed={isSel}
+                  onClick={() => onSelect({ type: 'marker', id: m.id })}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect({ type: 'marker', id: m.id })}
+                  className="cursor-pointer outline-none"
+                >
+                  <circle cx={m.x} cy={m.y} r="2" fill="white" stroke="#a1a1aa" strokeWidth={isSel ? 0.6 : 0.35} strokeDasharray="0.8 0.6" />
+                  <MapPin x={m.x - 1.1} y={m.y - 1.1} width={2.2} height={2.2} color="#71717a" strokeWidth={2} aria-hidden />
+                </g>
+              )
+            })}
+          </svg>
+        </div>
+
+        {UNPLACED_CIRCUITS.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-900 mb-3">
+            <span className="font-medium">配置圖尚未標出位置：</span>
+            {UNPLACED_CIRCUITS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onSelect({ type: 'circuit', id: n })}
+                aria-pressed={selected?.type === 'circuit' && selected.id === n}
+                className="rounded-full bg-white px-2 py-0.5 ring-1 ring-amber-300 hover:bg-amber-100"
+              >
+                {n} {CIRCUIT_DEFINITIONS[n].name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-zinc-600">
+          {CATEGORIES.filter((c) => c !== 'RESERVED').map((c) => (
+            <li key={c} className="flex items-center gap-1.5">
+              <span className={cn('h-2 w-2 rounded-full', TONE[CATEGORY_INFO[c].tone].dot)} aria-hidden />
+              {CATEGORY_INFO[c].label}（{CATEGORY_INFO[c].range}）
+            </li>
+          ))}
+          <li className="flex items-center gap-1.5">
+            <MapPin className="h-3 w-3 text-zinc-400" aria-hidden />
+            位置標記（不可控制）
+          </li>
+        </ul>
+      </div>
+    </section>
   )
 }
 
@@ -350,6 +445,110 @@ function Legend() {
   )
 }
 
+
+// 點選迴路後的設定區（簡潔設計）
+function CircuitSettingPanel({ selected, canEditSchedule = false }: { selected: Selection; canEditSchedule?: boolean }) {
+  const [deviceOn, setDeviceOn] = React.useState(true)
+  const [startTime, setStartTime] = React.useState('09:00')
+  const [endTime, setEndTime] = React.useState('23:00')
+
+  if (!selected || selected.type !== 'circuit') {
+    return null
+  }
+
+  const n = selected.id
+  const def = CIRCUIT_DEFINITIONS[n]
+  const cat = CATEGORY_INFO[def.category]
+
+  const demoHealth: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
+  const healthColor = HEALTH_COLORS[demoHealth]
+
+  return (
+    <aside aria-label="迴路設定" className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-mono font-bold text-zinc-700">迴路 {n}</p>
+            <h3 className="mt-1 text-sm font-semibold">{def.name}</h3>
+          </div>
+          <div className={cn('flex items-center gap-1.5 rounded-lg px-2 py-1 shrink-0 text-xs font-semibold', healthColor.bg)}>
+            <div className={cn('h-2 w-2 rounded-full', healthColor.dot)} aria-hidden />
+            <span>{healthColor.label}</span>
+          </div>
+        </div>
+        <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', TONE[cat.tone].chip)}>
+          {cat.label}
+        </span>
+      </div>
+
+      {def.scheduleControlEnabled && (
+        <div className="space-y-3 rounded-lg bg-zinc-50 p-3">
+          <h4 className="text-sm font-semibold">目前時段控制</h4>
+          <p className="text-xs text-muted">設定此迴路目前的開啟與關閉時間。</p>
+
+          <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-2">
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1.5">開啟時間</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1.5">關閉時間</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-zinc-700">設備控制</label>
+          <span className="text-xs font-medium text-zinc-700">{deviceOn ? '開啟' : '關閉'}</span>
+        </div>
+
+        <button
+          onClick={() => setDeviceOn(!deviceOn)}
+          className={cn(
+            'relative inline-flex h-8 w-14 items-center rounded-full transition-colors',
+            deviceOn ? 'bg-green-500' : 'bg-gray-300'
+          )}
+          role="switch"
+          aria-checked={deviceOn}
+          aria-label={`設備${deviceOn ? '開啟' : '關閉'}`}
+        >
+          <span className={cn(
+            'inline-block h-6 w-6 transform rounded-full bg-white transition-transform',
+            deviceOn ? 'translate-x-7' : 'translate-x-1'
+          )} />
+        </button>
+
+        <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded">
+          ⚠ Demo Mode：尚未串接真實硬體，操作不會送出實際控制指令。
+        </p>
+      </div>
+
+      {canEditSchedule && (
+        <div className="flex gap-2 pt-2 border-t border-zinc-200">
+          <button className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors">
+            儲存設定
+          </button>
+          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+            取消
+          </button>
+        </div>
+      )}
+    </aside>
+  )
+}
 
 function DetailPanel({ selected, canEditSchedule = false }: { selected: Selection; canEditSchedule?: boolean }) {
   const [scheduleExpanded, setScheduleExpanded] = React.useState(false)
