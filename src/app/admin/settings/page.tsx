@@ -3,7 +3,7 @@ import { Forbidden } from '@/components/admin/page-bits'
 import type { Metadata } from 'next'
 import { SettingsClient } from './settings-client'
 
-export const metadata: Metadata = { title: '球館基本資料' }
+export const metadata: Metadata = { title: '系統設定' }
 
 export const dynamic = 'force-dynamic'
 
