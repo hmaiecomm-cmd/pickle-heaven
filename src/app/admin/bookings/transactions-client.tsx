@@ -178,26 +178,12 @@ export function TransactionsClient({
         >
           商品訂單
         </button>
-<<<<<<< HEAD
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'points'}
-          onClick={() => { setTab('points'); const p = new URLSearchParams(); p.set('tab', 'points'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
-          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}
-        >
-=======
         <button type="button" role="tab" aria-selected={tab === 'points'} onClick={() => setTab('points')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}>
->>>>>>> main
           點數與票券
         </button>
       </div>
 
-<<<<<<< HEAD
-      {tab === 'venue' && (
-=======
       {tab === 'orders' && (
->>>>>>> main
         <>
           <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
             <div className="flex flex-wrap gap-2">
@@ -379,7 +365,6 @@ export function TransactionsClient({
       )}
 
       {tab === 'points' && (
-<<<<<<< HEAD
         <div className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="space-y-2">
@@ -474,10 +459,6 @@ export function TransactionsClient({
               </div>
             </section>
           </div>
-=======
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-600">
-          點數與票券功能開發中...
->>>>>>> main
         </div>
       )}
 
