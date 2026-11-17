@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { VenueLayoutMap } from '@/components/venue/venue-layout-map'
