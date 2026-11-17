@@ -10,6 +10,7 @@ import { useAiFilters } from '@/components/admin/ai-context'
 import type { OrderListResult } from '@/server/admin-orders'
 import { searchOrdersAction } from '@/server/admin-ops-actions'
 import { OrderDrawer } from './order-drawer'
+import type { PointsLedger, Voucher, User } from '@prisma/client'
 
 export const PAYMENT = { PENDING: ['待付款', 'amber'], PAID: ['已付款', 'green'], FAILED: ['付款失敗', 'red'], UNPAID: ['未付款', 'gray'] } as const
 export const ORDER = { ACTIVE: ['有效', 'blue'], CANCELLED: ['已取消', 'gray'], EXPIRED: ['已過期', 'gray'], COMPLETED: ['已完成', 'green'], REFUND_PENDING: ['款項待退', 'red'] } as const
@@ -24,36 +25,61 @@ export const INVOICE = {
   VOIDED: ['已作廢', 'gray'],
 } as const
 
+export const POINTS_KIND = {
+  ADMIN_ADD: '後台加點',
+  ADMIN_DEDUCT: '後台扣點',
+  REDEEM: '結帳折抵',
+  REFUND: '退款回補',
+  RELEASE: '訂單取消歸還',
+} as const
+
+export const VOUCHER_STATUS = {
+  ACTIVE: '有效',
+  USED: '已使用',
+  EXPIRED: '已過期',
+  REVOKED: '已撤銷',
+} as const
+
 export function StatusPill({ map, value }: { map: Record<string, readonly [string, string]>; value: string }) {
   const [label, tone] = map[value] ?? [value, 'gray']
   return <Pill tone={tone as 'gray'}>{label}</Pill>
 }
 
 type Query = OrderListResult['query']
+type PointsLedgerWithUser = PointsLedger & { user: User | null }
+type VoucherWithUser = Voucher & { user: User | null }
 
 const sel = 'h-10 rounded-lg border border-zinc-300 bg-white px-2 text-sm'
 
 export function TransactionsClient({
   initial,
   courts,
+  pointsLedger = [],
+  vouchers = [],
   openOrderId,
   openRefund,
+  openTab,
   perms,
 }: {
   initial: OrderListResult
   courts: { id: string; name: string }[]
+  pointsLedger?: PointsLedgerWithUser[]
+  vouchers?: VoucherWithUser[]
   openOrderId: string | null
   openRefund: boolean
+  openTab?: 'venue' | 'products' | 'points'
   perms: { refund: boolean; invoice: boolean }
 }) {
   const router = useRouter()
   const { toast } = useToast()
-  const [tab, setTab] = React.useState<'orders' | 'products'>('orders')
+  const [tab, setTab] = React.useState<'venue' | 'products' | 'points'>(openTab || 'venue')
   const [data, setData] = React.useState(initial)
   const [draft, setDraft] = React.useState<Query>(initial.query)
   const [loading, setLoading] = React.useState(false)
   const [orderId, setOrderId] = React.useState<string | null>(openOrderId)
   const [expandAdvanced, setExpandAdvanced] = React.useState(false)
+  const [pointsSearch, setPointsSearch] = React.useState('')
+  const [vouchersSearch, setVouchersSearch] = React.useState('')
 
   const filterSummary = [
     data.query.q && `關鍵字「${data.query.q}」`,
@@ -72,7 +98,6 @@ export function TransactionsClient({
       const res = await searchOrdersAction(q)
       if (!res.ok) return toast(res.error, 'error')
       setData(res.data)
-      // 篩選條件保留在網址，重新整理或分享連結都能回到同一個結果
       const params = new URLSearchParams()
       const entries: [string, string | number][] = [
         ['q', q.q], ['dateType', q.dateType], ['from', q.from], ['to', q.to], ['courtId', q.courtId], ['type', q.type],
@@ -80,6 +105,7 @@ export function TransactionsClient({
       ]
       for (const [k, v] of entries) if (v && !(k === 'dateType' && v === 'play') && !(k === 'type' && v === 'all') && !(k === 'sort' && v === 'created_desc') && !(k === 'page' && v === 1)) params.set(k, String(v))
       if (orderId) params.set('order', orderId)
+      params.set('tab', tab)
       router.replace(`/admin/bookings${params.size ? `?${params}` : ''}`, { scroll: false })
     } finally {
       setLoading(false)
@@ -103,25 +129,69 @@ export function TransactionsClient({
   }
   const sortMark = (key: string) => (data.query.sort === `${key}_desc` ? ' ↓' : data.query.sort === `${key}_asc` ? ' ↑' : '')
 
+  const filteredLedger = pointsLedger.filter(p => {
+    const search_text = pointsSearch.toLowerCase()
+    if (!search_text) return true
+    return (
+      p.user?.displayName.toLowerCase().includes(search_text) ||
+      p.user?.email?.toLowerCase().includes(search_text) ||
+      p.reason.toLowerCase().includes(search_text)
+    )
+  })
+
+  const filteredVouchers = vouchers.filter(v => {
+    const search_text = vouchersSearch.toLowerCase()
+    if (!search_text) return true
+    return (
+      v.user?.displayName.toLowerCase().includes(search_text) ||
+      v.user?.email?.toLowerCase().includes(search_text) ||
+      v.title.toLowerCase().includes(search_text) ||
+      v.code.toLowerCase().includes(search_text)
+    )
+  })
+
+  const getVoucherStatus = (v: Voucher) => {
+    if (v.revokedAt) return 'REVOKED'
+    if (v.usedAt) return 'USED'
+    if (v.expiresAt && v.expiresAt < new Date()) return 'EXPIRED'
+    return 'ACTIVE'
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'orders'} onClick={() => setTab('orders')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'orders' && 'bg-white shadow-sm')}>
-          訂場／活動訂單
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'venue'}
+          onClick={() => { setTab('venue'); const p = new URLSearchParams(); p.set('tab', 'venue'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
+          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'venue' && 'bg-white shadow-sm')}
+        >
+          場地與活動
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'products'} onClick={() => setTab('products')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'products' && 'bg-white shadow-sm')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'products'}
+          onClick={() => { setTab('products'); const p = new URLSearchParams(); p.set('tab', 'products'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
+          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'products' && 'bg-white shadow-sm')}
+        >
           商品訂單
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'points'}
+          onClick={() => { setTab('points'); const p = new URLSearchParams(); p.set('tab', 'points'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
+          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}
+        >
+          點數與票券
         </button>
       </div>
 
-      {tab === 'products' ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-          商品訂單尚未開放：系統目前沒有商城與商品資料（商品、庫存、出貨）。開放前不會顯示任何商品訂單。
-        </div>
-      ) : (
+      {tab === 'venue' && (
         <>
           <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
-            {/* 主搜尋區 */}
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-[14rem] flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
@@ -154,7 +224,6 @@ export function TransactionsClient({
               </button>
             </div>
 
-            {/* 高級條件（預設收合） */}
             {expandAdvanced && (
               <div className="space-y-2 border-t border-zinc-100 pt-3">
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
@@ -293,6 +362,110 @@ export function TransactionsClient({
             </button>
           </div>
         </>
+      )}
+
+      {tab === 'products' && (
+        <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
+          商品訂單尚未開放：系統目前沒有商城與商品資料（商品、庫存、出貨）。開放前不會顯示任何商品訂單。
+        </div>
+      )}
+
+      {tab === 'points' && (
+        <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">點數交易</h3>
+                <span className="text-xs text-muted">{filteredLedger.length} 筆</span>
+              </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+                <input
+                  value={pointsSearch}
+                  onChange={(e) => setPointsSearch(e.target.value)}
+                  placeholder="搜尋會員或原因"
+                  className="h-9 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm"
+                  aria-label="搜尋點數交易"
+                />
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden max-h-96 overflow-y-auto">
+                {filteredLedger.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted">沒有點數交易紀錄</div>
+                ) : (
+                  <div className="divide-y divide-zinc-100">
+                    {filteredLedger.map((p) => (
+                      <div key={p.id} className="p-3 hover:bg-zinc-50">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-xs">{p.user?.displayName || '未知會員'}</div>
+                            <div className="text-[11px] text-muted mt-0.5">{POINTS_KIND[p.kind as keyof typeof POINTS_KIND] || p.kind}</div>
+                          </div>
+                          <div className="text-right whitespace-nowrap shrink-0">
+                            <div className={cn('font-semibold text-sm', p.delta > 0 ? 'text-green-600' : 'text-red-600')}>
+                              {p.delta > 0 ? '+' : ''}{p.delta}
+                            </div>
+                            <div className="text-xs text-muted">餘額 {p.balanceAfter}</div>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-muted">{new Date(p.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">票券</h3>
+                <span className="text-xs text-muted">{filteredVouchers.length} 張</span>
+              </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+                <input
+                  value={vouchersSearch}
+                  onChange={(e) => setVouchersSearch(e.target.value)}
+                  placeholder="搜尋票券或會員"
+                  className="h-9 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm"
+                  aria-label="搜尋票券"
+                />
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden max-h-96 overflow-y-auto">
+                {filteredVouchers.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted">沒有票券紀錄</div>
+                ) : (
+                  <div className="divide-y divide-zinc-100">
+                    {filteredVouchers.map((v) => (
+                      <div key={v.id} className="p-3 hover:bg-zinc-50">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-xs line-clamp-1">{v.title}</div>
+                            <div className="text-[11px] text-muted mt-0.5">{v.user?.displayName || '未分配'}</div>
+                          </div>
+                          <div className="text-right whitespace-nowrap shrink-0">
+                            <Pill tone={
+                              getVoucherStatus(v) === 'ACTIVE' ? 'green' :
+                              getVoucherStatus(v) === 'USED' ? 'gray' :
+                              getVoucherStatus(v) === 'EXPIRED' ? 'red' : 'gray'
+                            }>
+                              {VOUCHER_STATUS[getVoucherStatus(v) as keyof typeof VOUCHER_STATUS] || '未知'}
+                            </Pill>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-muted">{v.code}</div>
+                        {v.expiresAt && (
+                          <div className="text-[11px] text-muted mt-1">
+                            有效期至 {new Date(v.expiresAt).toLocaleDateString('zh-TW')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
       )}
 
       {orderId && (
