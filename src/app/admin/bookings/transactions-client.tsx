@@ -53,6 +53,7 @@ export function TransactionsClient({
   const [draft, setDraft] = React.useState<Query>(initial.query)
   const [loading, setLoading] = React.useState(false)
   const [orderId, setOrderId] = React.useState<string | null>(openOrderId)
+  const [expandAdvanced, setExpandAdvanced] = React.useState(false)
 
   const filterSummary = [
     data.query.q && `關鍵字「${data.query.q}」`,
@@ -120,63 +121,109 @@ export function TransactionsClient({
       ) : (
         <>
           <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
+            {/* 主搜尋區 */}
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-[14rem] flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
                 <input
                   value={draft.q}
                   onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-                  placeholder="姓名、Email、電話或訂單編號（Enter 搜尋）"
+                  placeholder="輸入姓名、Email、電話或訂單編號"
                   className="h-10 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm"
                   aria-label="搜尋姓名、Email、電話或訂單編號"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      search()
+                    }
+                  }}
                 />
               </div>
-              <button type="submit" className="h-10 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white" disabled={loading}>
+              <button type="submit" className="h-10 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white disabled:opacity-40" disabled={loading}>
                 搜尋
               </button>
-              <button type="button" onClick={clear} className="h-10 rounded-lg border border-zinc-300 px-3 text-sm">
+              <button type="button" onClick={clear} className="h-10 rounded-lg border border-zinc-300 px-3 text-sm hover:bg-zinc-50">
                 清除條件
               </button>
+              <button
+                type="button"
+                onClick={() => setExpandAdvanced(!expandAdvanced)}
+                className="h-10 rounded-lg border border-zinc-300 px-3 text-sm hover:bg-zinc-50"
+              >
+                更多條件
+              </button>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select className={sel} value={draft.dateType} onChange={(e) => setDraft({ ...draft, dateType: e.target.value as Query['dateType'] })} aria-label="日期類型">
-                <option value="play">預約／活動日期</option>
-                <option value="created">下單日期</option>
-                <option value="paid">付款日期</option>
-              </select>
-              <input type="date" className={sel} value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label="起日" />
-              <span className="text-xs text-muted">～</span>
-              <input type="date" className={sel} value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label="迄日" />
-              <select className={sel} value={draft.courtId} onChange={(e) => setDraft({ ...draft, courtId: e.target.value })} aria-label="場地">
-                <option value="">全部場地</option>
-                {courts.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <select className={sel} value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as Query['type'] })} aria-label="訂單類型">
-                <option value="all">全部類型</option>
-                <option value="court">場地租借</option>
-                <option value="activity">活動報名</option>
-                <option value="mixed">場地＋活動</option>
-              </select>
-              <select className={sel} value={draft.payment} onChange={(e) => setDraft({ ...draft, payment: e.target.value as Query['payment'] })} aria-label="付款狀態">
-                <option value="">付款：全部</option>
-                {Object.entries(PAYMENT).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <select className={sel} value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value as Query['order'] })} aria-label="訂單狀態">
-                <option value="">訂單：全部</option>
-                {Object.entries(ORDER).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <select className={sel} value={draft.refund} onChange={(e) => setDraft({ ...draft, refund: e.target.value as Query['refund'] })} aria-label="退款狀態">
-                <option value="">退款：全部</option>
-                {Object.entries(REFUND).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <select className={sel} value={draft.invoice} onChange={(e) => setDraft({ ...draft, invoice: e.target.value as Query['invoice'] })} aria-label="發票">
-                <option value="">發票：全部</option>
-                <option value="NONE">未開立</option>
-                <option value="HAS">已有發票紀錄</option>
-              </select>
-            </div>
+
+            {/* 高級條件（預設收合） */}
+            {expandAdvanced && (
+              <div className="space-y-2 border-t border-zinc-100 pt-3">
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">日期類型</label>
+                    <select className={sel} value={draft.dateType} onChange={(e) => setDraft({ ...draft, dateType: e.target.value as Query['dateType'] })} aria-label="日期類型">
+                      <option value="play">預約／活動日期</option>
+                      <option value="created">下單日期</option>
+                      <option value="paid">付款日期</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">起始日期</label>
+                    <input type="date" className={sel} value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label="起日" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">結束日期</label>
+                    <input type="date" className={sel} value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label="迄日" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">場地</label>
+                    <select className={sel} value={draft.courtId} onChange={(e) => setDraft({ ...draft, courtId: e.target.value })} aria-label="場地">
+                      <option value="">全部場地</option>
+                      {courts.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">訂單類型</label>
+                    <select className={sel} value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as Query['type'] })} aria-label="訂單類型">
+                      <option value="all">全部類型</option>
+                      <option value="court">場地租借</option>
+                      <option value="activity">活動報名</option>
+                      <option value="mixed">場地＋活動</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">付款狀態</label>
+                    <select className={sel} value={draft.payment} onChange={(e) => setDraft({ ...draft, payment: e.target.value as Query['payment'] })} aria-label="付款狀態">
+                      <option value="">全部狀態</option>
+                      {Object.entries(PAYMENT).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">訂單狀態</label>
+                    <select className={sel} value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value as Query['order'] })} aria-label="訂單狀態">
+                      <option value="">全部狀態</option>
+                      {Object.entries(ORDER).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">退款狀態</label>
+                    <select className={sel} value={draft.refund} onChange={(e) => setDraft({ ...draft, refund: e.target.value as Query['refund'] })} aria-label="退款狀態">
+                      <option value="">全部狀態</option>
+                      {Object.entries(REFUND).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">發票狀態</label>
+                    <select className={sel} value={draft.invoice} onChange={(e) => setDraft({ ...draft, invoice: e.target.value as Query['invoice'] })} aria-label="發票">
+                      <option value="">全部狀態</option>
+                      <option value="NONE">未開立</option>
+                      <option value="HAS">已有發票紀錄</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
 
           <div className={cn('overflow-x-auto rounded-2xl border border-zinc-200 bg-white transition-opacity', loading && 'opacity-60')}>

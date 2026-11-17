@@ -104,6 +104,35 @@ export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: st
   }
 }
 
+// ─────── 預約密碼設定 Server Actions ───────
+
+export async function updatePasswordSettingsAction(data: {
+  passwordGenerationMode: 'DAILY' | 'HOURLY' | 'SPLIT_DAY'
+  passwordBookAheadDaysOverride: number | null
+}): Promise<R> {
+  const ctx = await guard()
+  if (!ctx) return NO_PERMISSION
+
+  try {
+    const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
+    if (!venue) return { ok: false, error: '尚未建立場館' }
+
+    await prisma.venue.update({
+      where: { id: venue.id },
+      data: {
+        passwordGenerationMode: data.passwordGenerationMode,
+        passwordBookAheadDaysOverride: data.passwordBookAheadDaysOverride,
+      },
+    })
+
+    revalidatePath('/admin/access')
+    return { ok: true, message: '密碼設定已更新' }
+  } catch (err) {
+    console.error('[password-settings] 更新失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
+  }
+}
+
 // ─────── 常開排程 Server Actions ───────
 
 type ScheduleResult = { ok: true; message: string } | { ok: false; error: string }

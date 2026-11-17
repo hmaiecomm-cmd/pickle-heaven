@@ -78,7 +78,7 @@ async function main() {
   check('黑名單後既有待付款訂單不能付款（舊 session／購物車同樣生效）', payBlocked === 'UNAUTHORIZED', String(payBlocked))
   const paidBefore = await prisma.booking.count({ where: { userId: user.id } })
   check('黑名單不刪除會員既有訂單', paidBefore === 1)
-  const list = await listPeople({ tab: 'blacklist', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
+  const list = await listPeople({ tab: 'blacklist', q: 'TEST_people', page: 1 })
   check('人員列表「黑名單」分頁列出此會員並顯示受限', list.rows.some((r) => r.id === user.id && r.status === 'blacklist'))
   const detail1 = await getMemberDetail(user.id)
   check('會員詳情標示受限並帶出限制紀錄', detail1?.restrictions.some((r) => r.type === 'BLACKLIST' && r.active && r.internalNote === '內部備註') ?? false)
@@ -86,7 +86,7 @@ async function main() {
   await prisma.memberRestriction.update({ where: { id: restriction.id }, data: { revokedAt: new Date(), revokedBy: 'admin:test', revokeReason: '測試解除' } })
   await assertNotRestricted(user.id, 'booking')
   await assertBookingPayable(booking.id)
-  const list2 = await listPeople({ tab: 'blacklist', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
+  const list2 = await listPeople({ tab: 'blacklist', q: 'TEST_people', page: 1 })
   check('解除後可再付款與預約、黑名單分頁不再列出', !list2.rows.some((r) => r.id === user.id))
 
   // 4. 使用券：發放紀錄與前台同步資料
@@ -97,12 +97,12 @@ async function main() {
   check('點數帳本在詳情頁含 3 筆（加、拒絕不記、扣）', detail2?.ledger.length === 2 && detail2.ledger[0].balanceAfter === 30)
 
   // 5. 搜尋與篩選
-  const byMail = await listPeople({ tab: 'all', q: 'test-people@example', role: '', status: '', sort: 'joined', page: 1 })
+  const byMail = await listPeople({ tab: 'all', q: 'test-people@example', page: 1 })
   check('以 Email 搜尋找到會員', byMail.rows.some((r) => r.id === user.id))
-  const coachList = await listPeople({ tab: 'coaches', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
+  const coachList = await listPeople({ tab: 'coaches', q: 'TEST_people', page: 1 })
   check('未標記教練時不出現在教練分頁', !coachList.rows.some((r) => r.id === user.id))
   await prisma.user.update({ where: { id: user.id }, data: { isCoach: true } })
-  const coachList2 = await listPeople({ tab: 'coaches', q: 'TEST_people', role: '', status: '', sort: 'joined', page: 1 })
+  const coachList2 = await listPeople({ tab: 'coaches', q: 'TEST_people', page: 1 })
   check('標記教練後出現在教練分頁且角色含教練', coachList2.rows.some((r) => r.id === user.id && r.roles.includes('教練')))
 }
 

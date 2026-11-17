@@ -277,6 +277,11 @@ model Venue {
   /// IANA 時區名稱。取消截止等業務規則一律以此計算。
   timezone String @default("Asia/Taipei")
 
+  /// 預約密碼產生模式：DAILY / HOURLY / SPLIT_DAY
+  passwordGenerationMode String @default("DAILY")
+  /// 預約開放提前天數（可選，null 時沿用 bookAheadDays）
+  passwordBookAheadDaysOverride Int?
+
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   courts           Court[]
   priceRules       PriceRule[]

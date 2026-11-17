@@ -1,0 +1,25 @@
+
+> pickle-heaven@1.0.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use by process 25864, using available port 3001 instead.
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.68.108:3001
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 6.7s
+ ✓ Compiled /middleware in 460ms (195 modules)
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 2.4s (1161 modules)
+ GET /admin/login 200 in 4044ms
+ ✓ Compiled in 8s (1175 modules)
+ ✓ Compiled in 1348ms (327 modules)
+ ✓ Compiled in 1408ms (327 modules)
+ ✓ Compiled in 888ms (327 modules)
+ ✓ Compiled in 1227ms (327 modules)
+ ✓ Compiled in 1313ms (327 modules)
+ ✓ Compiled in 876ms (327 modules)
+ ✓ Compiled in 978ms (327 modules)
+ ✓ Compiled in 800ms (327 modules)
