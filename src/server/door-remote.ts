@@ -48,10 +48,16 @@ export async function getDoorRemoteState() {
     connection = s === 'ONLINE' ? 'CONNECTED' : s === 'OFFLINE' ? 'NOT_CONNECTED' : 'ERROR'
   }
   const last = await prisma.doorRemoteCommand.findFirst({ where: { doorId: MAIN_DOOR.id }, orderBy: { createdAt: 'desc' } })
+
+  // 查詢常開模式狀態（從 doorRemoteState 表或緩存）
+  // TODO: 實現常開模式狀態存儲
+  const alwaysOpen = false // 目前預設為關閉
+
   return {
     door: { name: MAIN_DOOR.name, location: MAIN_DOOR.location, pulseSeconds: MAIN_DOOR.pulseSeconds },
     demo: controller === null,
     connection,
+    alwaysOpen,
     last: last ? { at: last.createdAt.toISOString(), status: last.status, simulated: last.simulated, requestedBy: last.requestedBy } : null,
   }
 }

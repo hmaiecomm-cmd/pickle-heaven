@@ -12,6 +12,7 @@ export interface DoorRemoteState {
   door: { name: string; location: string; pulseSeconds: number }
   demo: boolean
   connection: 'CONNECTED' | 'NOT_CONNECTED' | 'ERROR'
+  alwaysOpen: boolean
   last: { at: string; status: string; simulated: boolean; requestedBy: string } | null
 }
 

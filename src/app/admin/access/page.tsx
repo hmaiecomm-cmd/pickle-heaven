@@ -19,6 +19,7 @@ import {
 import { ManualGrantForm, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { PasswordSettings } from './password-settings'
+import { AlwaysOpenToggle } from './always-open-toggle'
 import { getDoorRemoteState } from '@/server/door-remote'
 import { WatchdogClient } from './watchdog-client'
 
@@ -116,6 +117,13 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
     <div className="space-y-5">
       {/* 大門即時控制 - 行動優先 */}
       <DoorRemoteCard state={doorState} canRemote={canRemote} />
+
+      {/* 常開模式 */}
+      <AlwaysOpenToggle
+        isOpen={doorState.alwaysOpen}
+        demo={doorState.demo}
+        canControl={canRemote}
+      />
 
       {/* 預約密碼設定 */}
       {venue && canGrant && (

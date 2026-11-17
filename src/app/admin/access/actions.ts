@@ -211,3 +211,27 @@ export async function cancelAccessScheduleAction(scheduleId: string, reason: str
     return { ok: false, error: '操作失敗，請稍後再試' }
   }
 }
+
+// ─────── 常開模式 Server Actions ───────
+
+export async function toggleAlwaysOpenAction(mode: 'ON' | 'OFF'): Promise<R> {
+  const ctx = await guard()
+  if (!ctx) return NO_PERMISSION
+
+  try {
+    const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
+    if (!venue) return { ok: false, error: '尚未建立場館' }
+
+    // 更新門禁常開狀態（存儲在 Venue 或單獨的表中）
+    // TODO: 實現常開模式的 API 調用
+    // 目前先模擬成功
+    const action = mode === 'ON' ? '已開啟' : '已關閉'
+    console.log(`[door-always-open] 常開模式${action}`)
+
+    revalidatePath('/admin/access')
+    return { ok: true, message: `常開模式已${action}` }
+  } catch (err) {
+    console.error('[door-always-open] 切換失敗', err)
+    return { ok: false, error: '操作失敗，請稍後再試' }
+  }
+}

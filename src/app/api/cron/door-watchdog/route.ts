@@ -6,7 +6,7 @@
  *   "crons": [
  *     {
  *       "path": "/api/cron/door-watchdog",
- *       "schedule": "0 */6 * * *"  // 每 6 小時執行一次
+ *       "schedule": "每 6 小時執行一次"
  *     }
  *   ]
  * }
