@@ -17,8 +17,6 @@ export const PAGE_SIZE = 20
 export interface PeopleQuery {
   tab: PeopleTab
   q?: string
-  role?: 'member' | 'coach' | 'staff' | ''
-  status?: 'normal' | 'blacklist' | 'no_booking' | 'no_order' | ''
   activity?: 'can_signup' | 'no_activity' | ''
   membership?: 'BASIC' | 'VIP' | ''
   from?: string
@@ -26,7 +24,7 @@ export interface PeopleQuery {
   minPoints?: number
   maxPoints?: number
   lastBookingDays?: 7 | 30 | 90 | ''
-  sort?: 'joined' | 'login' | 'points' | 'name'
+  coachStatus?: 'ACTIVE' | 'ON_LEAVE' | 'INACTIVE' | ''
   page?: number
 }
 
@@ -55,20 +53,15 @@ export async function listPeople(qy: PeopleQuery) {
   if (text) {
     and.push({ OR: [{ displayName: { contains: text } }, { email: { contains: text.toLowerCase() } }, ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : [])] })
   }
-  if (qy.from) and.push({ createdAt: { gte: new Date(`${qy.from}T00:00:00+08:00`) } })
-  if (qy.to) and.push({ createdAt: { lt: new Date(`${qy.to}T23:59:59+08:00`) } })
-  if (qy.tab === 'coaches' || qy.role === 'coach') and.push({ isCoach: true })
-  if (qy.tab === 'blacklist' || qy.status === 'blacklist') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
-  if (qy.status === 'no_booking') and.push({ restrictions: { some: activeRestrictionWhere('NO_BOOKING') } })
-  if (qy.status === 'no_order') and.push({ restrictions: { some: activeRestrictionWhere('NO_ORDER') } })
+  if (qy.tab === 'coaches') and.push({ isCoach: true })
+  if (qy.tab === 'blacklist') and.push({ restrictions: { some: activeRestrictionWhere('BLACKLIST') } })
   if (qy.activity === 'no_activity') and.push({ restrictions: { some: activeRestrictionWhere('NO_ACTIVITY') } })
-  if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
   if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'VIP' })
   if (qy.minPoints !== undefined && qy.minPoints >= 0) and.push({ points: { gte: qy.minPoints } })
   if (qy.maxPoints !== undefined && qy.maxPoints >= 0) and.push({ points: { lte: qy.maxPoints } })
   if (qy.lastBookingDays) {
-    const days = qy.lastBookingDays === '7' ? 7 : qy.lastBookingDays === '30' ? 30 : 90
-    and.push({ bookings: { some: { playAt: { gte: new Date(now().getTime() - days * 24 * 60 * 60 * 1000) } } } })
+    const days = Number(qy.lastBookingDays) === 7 ? 7 : Number(qy.lastBookingDays) === 30 ? 30 : 90
+    and.push({ bookings: { some: { playDate: { gte: taipeiDateString(new Date(now().getTime() - days * 24 * 60 * 60 * 1000)) } } } })
   }
   if (and.length) where.AND = and
 
@@ -76,10 +69,9 @@ export async function listPeople(qy: PeopleQuery) {
   const tenant = await currentTenant()
   const staffAccounts = tenant === 'main' ? await mainPrisma.adminAccount.findMany({ where: { tenant: 'main' }, orderBy: [{ role: 'asc' }, { username: 'asc' }] }) : []
   const staffUserIds = staffAccounts.map((a) => a.userId).filter((x): x is string => Boolean(x))
-  if (qy.role === 'staff') and.push({ id: { in: staffUserIds } })
+  if (qy.tab === 'staff') and.push({ id: { in: staffUserIds } })
 
-  const orderBy: Prisma.UserOrderByWithRelationInput =
-    qy.sort === 'login' ? { lastLoginAt: { sort: 'desc', nulls: 'last' } } : qy.sort === 'points' ? { points: 'desc' } : qy.sort === 'name' ? { displayName: 'asc' } : { createdAt: 'desc' }
+  const orderBy: Prisma.UserOrderByWithRelationInput = { createdAt: 'desc' }
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
@@ -133,7 +125,14 @@ export async function listPeople(qy: PeopleQuery) {
         restrictions,
       }
     }),
-    coaches: qy.tab === 'coaches' ? await prisma.coach.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, status: true, phone: true, userId: true } }) : [],
+    coaches: qy.tab === 'coaches' ? await prisma.coach.findMany({
+      where: {
+        ...(qy.q ? { name: { contains: qy.q } } : {}),
+        ...(qy.coachStatus && qy.coachStatus.trim() ? { status: qy.coachStatus as any } : {}),
+      },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, status: true, phone: true, userId: true },
+    }) : [],
     staff: qy.tab === 'staff' ? staffAccounts.map((a) => ({ id: a.id, username: a.username, displayName: a.displayName, role: a.role, roleLabel: ROLE_LABEL[a.role as keyof typeof ROLE_LABEL] ?? a.role, active: a.active, userId: a.userId, lastLoginAt: a.lastLoginAt ? formatDateTime(a.lastLoginAt) : null })) : [],
   }
 }

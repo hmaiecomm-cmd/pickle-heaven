@@ -13,10 +13,6 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
   const coach = await prisma.coach.findUnique({
     where: { id },
-    include: {
-      user: { select: { id: true, displayName: true, email: true, phone: true, pictureUrl: true } },
-      _count: { select: { sessions: true } },
-    },
   })
 
   if (!coach) {
@@ -52,28 +48,14 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
               {coach.status === 'ACTIVE' ? '在職' : coach.status === 'ON_LEAVE' ? '請假' : '停用'}
             </div>
           </div>
-          {coach.user && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">對應會員</label>
-                <Link href={`/admin/members/${coach.user.id}`} className="text-sm text-brand-700 hover:underline">
-                  {coach.user.displayName}
-                </Link>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">Email</label>
-                <div className="text-sm">{coach.user.email ?? '未設定'}</div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">電話</label>
-                <div className="text-sm">{coach.user.phone ?? '未設定'}</div>
-              </div>
-            </>
+          {coach.userId && (
+            <div>
+              <label className="block text-xs font-medium text-muted mb-1">會員 ID</label>
+              <Link href={`/admin/members/${coach.userId}`} className="text-sm text-brand-700 hover:underline">
+                {coach.userId}
+              </Link>
+            </div>
           )}
-          <div>
-            <label className="block text-xs font-medium text-muted mb-1">授課場次</label>
-            <div className="text-sm font-medium">{coach._count.sessions} 場</div>
-          </div>
         </div>
       </section>
 
