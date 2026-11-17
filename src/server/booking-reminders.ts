@@ -12,7 +12,7 @@ import { queueNotification } from './session-scheduler'
  * - 前兩小時：開打前 2 小時起發送；連續或重疊的時段視為同一段，只提醒一次。
  *
  * 提醒時間到了才付款的訂單不補發（剛收到預約成功通知）。
- * 靠 NotificationLog.dedupeKey 去重，重複執行不會重複發送；發送失敗（例如尚未加好友）記為 FAILED，不重試。
+ * 靠 NotificationLog.dedupeKey 去重，重複執行不會重複發送；暫時性失敗會在下一次排程重試。
  */
 
 /** 前一天提醒的時間：開打當天 00:00 往前 4 小時，即前一天 20:00 */
@@ -127,15 +127,18 @@ export async function sendDueReminders(now = new Date(), send: typeof pushMessag
     ]
     for (const reminder of dueReminders(b.id, lines, b.paidAt ?? b.createdAt, now)) {
       // 已發過的先略過，避免每次排程都撞唯一鍵、留下錯誤紀錄
-      const existing = await prisma.notificationLog.findUnique({ where: { dedupeKey: reminder.dedupeKey }, select: { id: true } })
-      if (existing) continue
+      const existing = await prisma.notificationLog.findUnique({ where: { dedupeKey: reminder.dedupeKey }, select: { id: true, status: true } })
+      if (existing?.status === 'SENT') continue
+      if (existing?.status === 'FAILED') {
+        await prisma.notificationLog.update({ where: { id: existing.id }, data: { status: 'PENDING', error: null } })
+      }
       // 先佔位再發送：同時執行時只有一次會發
-      const claimed = await queueNotification({
-        dedupeKey: reminder.dedupeKey,
-        type: 'REMINDER',
-        userId: b.userId,
-        payload: { bookingId: b.id, kind: reminder.kind },
-      })
+      const claimed = existing ? true : await queueNotification({
+          dedupeKey: reminder.dedupeKey,
+          type: 'REMINDER',
+          userId: b.userId,
+          payload: { bookingId: b.id, kind: reminder.kind },
+        })
       if (!claimed) continue
       const text = buildReminderText(reminder.kind, { id: b.id, code: b.code, address: b.venue.address }, reminder.lines)
       const ok = await send(b.user.lineUserId!, [{ type: 'text', text }])
