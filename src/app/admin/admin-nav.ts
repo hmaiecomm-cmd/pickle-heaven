@@ -70,8 +70,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     key: 'orders',
     label: '訂單記錄',
     icon: 'orders',
-    href: '/admin/finance',
-    permission: 'finance',
+    items: [
+      { label: '訂場訂單', href: '/admin/bookings?tab=venue', permission: 'bookings' },
+      { label: '活動訂單', href: '/admin/bookings?tab=activity', permission: 'bookings' },
+      { label: '商品訂單', href: '/admin/bookings?tab=products', permission: 'marketing', notOpen: true },
+      { label: '點數與票券', href: '/admin/bookings?tab=points', permission: 'members' },
+    ],
   },
   {
     key: 'members',
@@ -121,7 +125,6 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/incidents': '/admin/monitor?tab=events',
   '/admin/automation': '/admin/devices', // V8.1 排程功能暫時整合到設備總覽
   // 訂單與財務標籤式導航別名
-  '/admin/bookings': '/admin/finance?tab=bookings',
   '/admin/finance/payments': '/admin/finance?tab=payments',
   '/admin/refunds': '/admin/finance?tab=refunds',
   '/admin/topup': '/admin/finance?tab=topup',

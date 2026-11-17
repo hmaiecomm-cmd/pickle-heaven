@@ -13,13 +13,15 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const ctx = await pagePermission('bookings')
   if (ctx === 'forbidden') return <Forbidden />
   const sp = await searchParams
+  const tab = sp.tab === 'activity' || sp.tab === 'products' || sp.tab === 'points' ? sp.tab : 'venue'
+  const orderType = tab === 'activity' ? 'activity' : tab === 'venue' ? 'court' : 'all'
   const unmasked = await listOrders({
     q: sp.q ?? '',
     dateType: sp.dateType ?? 'play',
     from: sp.from ?? '',
     to: sp.to ?? '',
     courtId: sp.courtId ?? '',
-    type: sp.type ?? 'all',
+    type: sp.type ?? orderType,
     payment: sp.payment ?? '',
     order: sp.order_status ?? '',
     refund: sp.refund_status ?? '',
@@ -54,7 +56,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
         vouchers={vouchers}
         openOrderId={sp.order ?? null}
         openRefund={sp.refund === '1'}
-        openTab={sp.tab as 'venue' | 'products' | 'points' | undefined}
+        openTab={tab}
         perms={{ refund: can(ctx.role, 'refund'), invoice: can(ctx.role, 'invoice') }}
       />
     </div>
