@@ -16,9 +16,8 @@ import {
   listGrants,
   type GrantPhase,
 } from '@/server/door-access-grants'
-import { ManualGrantForm, ReconcileButton, RevokeButton } from './access-client'
+import { ManualGrantForm, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
-import { AccessScheduleManager } from './access-schedule-manager'
 import { PasswordSettings } from './password-settings'
 import { getDoorRemoteState } from '@/server/door-remote'
 
@@ -104,12 +103,11 @@ function Empty({ title, desc }: { title: string; desc: string }) {
 
 async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
   const at = now()
-  const [doorState, grants, members, schedules, venue] = await Promise.all([
+  const [doorState, grants, members, venue] = await Promise.all([
     getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
-    (prisma as any).doorAccessSchedule?.findMany({ where: { enabled: true }, orderBy: { startAt: 'asc' } }).catch(() => []) || Promise.resolve([]),
-    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true } }),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true, passwordOpenTime: true } }),
   ])
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
@@ -117,43 +115,27 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-2">
-        <DoorRemoteCard state={doorState} canRemote={canRemote} />
-        <AccessScheduleManager schedules={schedules as any} canManage={canGrant} />
-      </div>
+      {/* 大門即時控制 - 行動優先 */}
+      <DoorRemoteCard state={doorState} canRemote={canRemote} />
+
+      {/* 預約密碼設定 */}
       {venue && canGrant && (
         <PasswordSettings
           settings={{
             passwordGenerationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
             passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
+            passwordOpenTime: (venue.passwordOpenTime as any) ?? '10_MINUTES_BEFORE',
           }}
           defaultBookAheadDays={venue.bookAheadDays}
         />
       )}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">預約自動授權規則</h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700">
-          <li>訂單付款成功後，自動建立授權（會員在黑名單中則不建立）。</li>
-          <li>
-            有效期間：第一個時段開始前 {ACCESS_BUFFER_BEFORE_MINUTES} 分鐘，到最後一個時段結束後 {ACCESS_BUFFER_AFTER_MINUTES} 分鐘。
-          </li>
-          <li>訂單取消、逾時或待退款時自動撤銷；時間到自動失效。</li>
-          <li>管理者手動撤銷的預約授權，不會被系統自動恢復。</li>
-        </ol>
-        {canGrant ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <ReconcileButton />
-            <span className="text-xs text-muted">若懷疑有訂單漏建或漏撤銷授權，可按此重新比對。</span>
-          </div>
-        ) : (
-          <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-muted">目前角色只能查看門禁授權；建立或撤銷授權需要「門禁授權」權限。</p>
-        )}
-      </section>
 
+      {/* 手動授權 */}
       {canGrant && (
         <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
       )}
 
+      {/* 授權列表 */}
       <section className="rounded-2xl border border-zinc-200 bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-3">
           <h2 className="mr-auto text-sm font-semibold">授權列表</h2>

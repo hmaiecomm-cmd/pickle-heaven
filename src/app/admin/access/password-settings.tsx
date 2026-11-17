@@ -12,6 +12,7 @@ import { updatePasswordSettingsAction } from './actions'
 export interface PasswordSettings {
   passwordGenerationMode: 'DAILY' | 'HOURLY' | 'SPLIT_DAY'
   passwordBookAheadDaysOverride: number | null
+  passwordOpenTime: '10_MINUTES_BEFORE' | 'AT_START_TIME'
 }
 
 const MODE_LABELS: Record<PasswordSettings['passwordGenerationMode'], { label: string; desc: string }> = {
@@ -25,6 +26,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
   const [busy, setBusy] = React.useState(false)
   const [showCustomRules, setShowCustomRules] = React.useState(false)
   const [mode, setMode] = React.useState<PasswordSettings['passwordGenerationMode']>(settings.passwordGenerationMode)
+  const [openTime, setOpenTime] = React.useState<PasswordSettings['passwordOpenTime']>(settings.passwordOpenTime)
   const [customDays, setCustomDays] = React.useState<number | ''>(() => {
     const val = settings.passwordBookAheadDaysOverride
     return val !== null ? val : ''
@@ -42,6 +44,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
       const result = await updatePasswordSettingsAction({
         passwordGenerationMode: mode,
         passwordBookAheadDaysOverride: days,
+        passwordOpenTime: openTime,
       })
 
       if (result.ok) {
@@ -58,6 +61,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
 
   const handleCancel = () => {
     setMode(settings.passwordGenerationMode)
+    setOpenTime(settings.passwordOpenTime)
     setCustomDays(settings.passwordBookAheadDaysOverride !== null ? settings.passwordBookAheadDaysOverride : '')
     setShowCustomRules(false)
     setError(null)
@@ -72,7 +76,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
       {/* 密碼產生模式 */}
       <div className="mt-4 space-y-2">
         <label htmlFor="pwd-mode" className="block text-xs font-semibold text-zinc-700">
-          密碼產生模式
+          密碼產生方式
         </label>
         <select
           id="pwd-mode"
@@ -88,6 +92,24 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
           ))}
         </select>
         <p className="text-xs text-muted">{currentModeLabel.desc}</p>
+      </div>
+
+      {/* 密碼開放時間 */}
+      <div className="mt-4 space-y-2">
+        <label htmlFor="pwd-open-time" className="block text-xs font-semibold text-zinc-700">
+          密碼開放時間
+        </label>
+        <select
+          id="pwd-open-time"
+          value={openTime}
+          onChange={(e) => setOpenTime(e.target.value as PasswordSettings['passwordOpenTime'])}
+          disabled={busy}
+          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"
+        >
+          <option value="10_MINUTES_BEFORE">預約開始前 10 分鐘開放</option>
+          <option value="AT_START_TIME">預約開始時間到才開放</option>
+        </select>
+        <p className="text-xs text-muted">設定顧客何時可以使用預約密碼進入球館。</p>
       </div>
 
       {/* 固定的失效規則 */}

@@ -281,6 +281,8 @@ model Venue {
   passwordGenerationMode String @default("DAILY")
   /// 預約開放提前天數（可選，null 時沿用 bookAheadDays）
   passwordBookAheadDaysOverride Int?
+  /// 密碼開放時間：10_MINUTES_BEFORE / AT_START_TIME
+  passwordOpenTime String @default("10_MINUTES_BEFORE")
 
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   courts           Court[]

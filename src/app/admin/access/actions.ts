@@ -109,6 +109,7 @@ export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: st
 export async function updatePasswordSettingsAction(data: {
   passwordGenerationMode: 'DAILY' | 'HOURLY' | 'SPLIT_DAY'
   passwordBookAheadDaysOverride: number | null
+  passwordOpenTime: '10_MINUTES_BEFORE' | 'AT_START_TIME'
 }): Promise<R> {
   const ctx = await guard()
   if (!ctx) return NO_PERMISSION
@@ -122,6 +123,7 @@ export async function updatePasswordSettingsAction(data: {
       data: {
         passwordGenerationMode: data.passwordGenerationMode,
         passwordBookAheadDaysOverride: data.passwordBookAheadDaysOverride,
+        passwordOpenTime: data.passwordOpenTime,
       },
     })
 

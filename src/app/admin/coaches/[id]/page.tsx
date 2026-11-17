@@ -14,9 +14,6 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
 
   const coach = await prisma.coach.findUnique({
     where: { id },
-    include: {
-      user: { select: { id: true, displayName: true, email: true, phone: true, pictureUrl: true } },
-    },
   })
 
   if (!coach) {
@@ -39,14 +36,14 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
         </Link>
       </div>
 
-      {coach.user && (
+      {coach.userId && (
         <section className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h3 className="font-semibold mb-3 text-sm">對應會員資訊</h3>
           <div className="text-sm space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-muted">會員名稱：</span>
-              <Link href={`/admin/members/${coach.user.id}`} className="text-brand-700 hover:underline">
-                {coach.user.displayName}
+              <span className="text-muted">會員 ID：</span>
+              <Link href={`/admin/members/${coach.userId}`} className="text-brand-700 hover:underline">
+                {coach.userId}
               </Link>
             </div>
           </div>

@@ -82,52 +82,25 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
         {state.demo && <Pill tone="violet">Demo 模擬</Pill>}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-y-2 text-sm">
-          <dt className="text-muted">門禁設備</dt>
-          <dd>
-            {state.door.name}
-            <span className="ml-1 text-xs text-muted">{state.door.location}</span>
-          </dd>
-          <dt className="text-muted">連線狀態</dt>
-          <dd>
-            <Pill tone={conn.tone}>{conn.label}</Pill>
-            {state.demo && <span className="ml-2 text-xs text-muted">尚未串接門禁控制器，以模擬結果示範流程</span>}
-          </dd>
-          <dt className="text-muted">最後操作</dt>
-          <dd data-door-last>
-            {state.last ? (
-              <>
-                {fmt(state.last.at)}・{RESULT_TEXT[state.last.status] ?? state.last.status}
-                {state.last.simulated && '（模擬）'}
-                <span className="ml-1 text-xs text-muted">{state.last.requestedBy}</span>
-              </>
-            ) : (
-              <span className="text-muted">尚無紀錄</span>
-            )}
-          </dd>
-        </dl>
-
-        <div className="flex flex-col gap-2 sm:items-end">
-          {state.demo && canRemote && (
-            <label className="flex items-center gap-2 text-xs text-muted">
-              模擬結果
-              <select value={simulate} onChange={(e) => setSimulate(e.target.value as typeof simulate)} disabled={busy} className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-[rgb(var(--fg))]">
-                {SIMULATE.map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Button size="lg" onClick={ask} disabled={!!blocked || busy} title={blocked ?? undefined} className="w-full bg-red-600 hover:bg-red-700 sm:w-auto">
-            {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <DoorOpen className="h-5 w-5" aria-hidden />}
-            {busy ? '開門中…' : '一鍵強制開門'}
-          </Button>
-          {blocked && <p className="text-xs text-muted">{blocked}</p>}
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm">{state.door.name}</p>
+          <p className="text-xs text-muted">{state.door.location}</p>
         </div>
+
+        <Button
+          size="lg"
+          onClick={ask}
+          disabled={!!blocked || busy}
+          title={blocked ?? undefined}
+          className="w-full bg-red-600 hover:bg-red-700 sm:w-auto"
+        >
+          {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <DoorOpen className="h-5 w-5" aria-hidden />}
+          {busy ? '開門中…' : '一鍵強制開門'}
+        </Button>
       </div>
+
+      {blocked && <p className="mt-3 text-xs text-muted">{blocked}</p>}
 
       {message && (
         <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-sm ${success ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
