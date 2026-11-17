@@ -372,14 +372,14 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
     <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
       {/* 設備名稱和狀態 */}
       <div>
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="min-w-0">
             <p className="text-xs font-mono font-bold text-zinc-700">迴路 {n}</p>
-            <h3 className="mt-1 text-lg font-semibold">{def.name}</h3>
+            <h3 className="mt-1 text-lg font-semibold truncate">{def.name}</h3>
           </div>
           <div className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 shrink-0', healthColor.bg)}>
             <div className={cn('h-2 w-2 rounded-full', demoHealth === 'critical' ? 'blink-critical' : '', healthColor.dot)} aria-hidden />
-            <span className={cn('text-xs font-semibold', healthColor.text)}>{healthColor.label}</span>
+            <span className={cn('text-xs font-semibold whitespace-nowrap', healthColor.text)}>{healthColor.label}</span>
           </div>
         </div>
         <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', TONE[cat.tone].chip)}>
@@ -465,11 +465,11 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
             開啟
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button className="h-10 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
+        <div className="flex gap-2 sm:grid sm:grid-cols-2">
+          <button className="flex-1 h-10 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
             開啟
           </button>
-          <button className="h-10 rounded-lg border-2 border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button className="flex-1 h-10 rounded-lg border-2 border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
             關閉
           </button>
         </div>
