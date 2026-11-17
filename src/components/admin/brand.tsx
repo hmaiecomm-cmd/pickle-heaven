@@ -1,22 +1,29 @@
 /** 後台品牌圖形：DXD 標誌容器、匹克球拍標誌、森林剪影、底部山丘 */
 
-export const BRAND_NAME_ZH = '大新店森林匹克球'
-export const BRAND_NAME_EN = 'DAXINDIAN PICKLEBALL CLUB'
+import Image from 'next/image'
+import { images, brand } from '@/config/site'
 
-// 正式 Logo：綠色 DXD Pickleball Court 標誌（2026-11-16 更新）
-// 包含完整 logo、中英文名稱、品牌標語及多種變體
-// 日後取得 SVG 或高解析透明檔時直接替換此檔；設為 null 會改顯示中性佔位框。
-const BRAND_LOGO_SRC: string | null = '/images/brand/dxd-logo-new.jpg'
+export const BRAND_NAME_ZH = brand.name
+export const BRAND_NAME_EN = brand.englishName
 
-export function BrandLogo({ className }: { className?: string }) {
+/**
+ * 後台 Logo：DXD Pickleball Court 綠色標誌
+ * 完整品牌版本，包含 PICKLEBALL COURT 文字
+ */
+export function BrandLogo({ className, showText = true }: { className?: string; showText?: boolean }) {
   return (
-    <span className={`flex shrink-0 items-center justify-center ${className ?? ''}`}>
-      {BRAND_LOGO_SRC ? (
-        <img src={BRAND_LOGO_SRC} alt="" className="h-full w-full object-contain" />
-      ) : (
-        <span className="h-full w-full rounded-md border border-dashed border-white/35 bg-white/5" aria-hidden />
-      )}
-    </span>
+    <div className={`flex items-center gap-3 ${className ?? ''}`}>
+      <Image
+        src={images.logoFullBrand.src}
+        alt={images.logoFullBrand.alt}
+        width={images.logoFullBrand.width}
+        height={images.logoFullBrand.height}
+        className="h-auto w-auto shrink-0"
+        style={{ width: '100px', height: 'auto' }}
+        priority
+      />
+      {showText && <span className="whitespace-nowrap text-[15px] font-bold leading-tight tracking-wide">{BRAND_NAME_ZH}</span>}
+    </div>
   )
 }
 

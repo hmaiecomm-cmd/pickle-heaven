@@ -67,7 +67,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'orders',
-    label: '訂單與財務',
+    label: '訂單記錄',
     icon: 'orders',
     href: '/admin/finance',
     permission: 'finance',
