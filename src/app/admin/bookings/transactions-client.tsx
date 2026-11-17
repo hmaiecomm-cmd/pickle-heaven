@@ -48,7 +48,7 @@ export function TransactionsClient({
 }) {
   const router = useRouter()
   const { toast } = useToast()
-  const [tab, setTab] = React.useState<'orders' | 'products'>('orders')
+  const [tab, setTab] = React.useState<'orders' | 'products' | 'points'>('orders')
   const [data, setData] = React.useState(initial)
   const [draft, setDraft] = React.useState<Query>(initial.query)
   const [loading, setLoading] = React.useState(false)
@@ -112,13 +112,12 @@ export function TransactionsClient({
         <button type="button" role="tab" aria-selected={tab === 'products'} onClick={() => setTab('products')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'products' && 'bg-white shadow-sm')}>
           商品訂單
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'points'} onClick={() => setTab('points')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}>
+          點數與票券
+        </button>
       </div>
 
-      {tab === 'products' ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-          商品訂單尚未開放：系統目前沒有商城與商品資料（商品、庫存、出貨）。開放前不會顯示任何商品訂單。
-        </div>
-      ) : (
+      {tab === 'orders' && (
         <>
           <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
             {/* 主搜尋區 */}
@@ -293,6 +292,18 @@ export function TransactionsClient({
             </button>
           </div>
         </>
+      )}
+
+      {tab === 'products' && (
+        <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
+          商品訂單尚未開放：系統目前沒有商城與商品資料（商品、庫存、出貨）。開放前不會顯示任何商品訂單。
+        </div>
+      )}
+
+      {tab === 'points' && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-600">
+          點數與票券功能開發中...
+        </div>
       )}
 
       {orderId && (
