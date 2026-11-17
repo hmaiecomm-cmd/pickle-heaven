@@ -20,6 +20,8 @@ import { ManualGrantForm, ReconcileButton, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { AccessScheduleManager } from './access-schedule-manager'
 import { PasswordSettings } from './password-settings'
+import { AutomationRules } from './automation-rules'
+import { PermissionGrants } from './permission-grants'
 import { getDoorRemoteState } from '@/server/door-remote'
 
 export const metadata: Metadata = { title: '門禁權限管理' }
@@ -130,20 +132,17 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
           defaultBookAheadDays={venue.bookAheadDays}
         />
       )}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <AutomationRules />
+        <PermissionGrants />
+      </div>
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">預約自動授權規則</h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700">
-          <li>訂單付款成功後，自動建立授權（會員在黑名單中則不建立）。</li>
-          <li>
-            有效期間：第一個時段開始前 {ACCESS_BUFFER_BEFORE_MINUTES} 分鐘，到最後一個時段結束後 {ACCESS_BUFFER_AFTER_MINUTES} 分鐘。
-          </li>
-          <li>訂單取消、逾時或待退款時自動撤銷；時間到自動失效。</li>
-          <li>管理者手動撤銷的預約授權，不會被系統自動恢復。</li>
-        </ol>
+        <h2 className="text-sm font-semibold">預約授權同步</h2>
+        <p className="mt-1 text-xs text-muted">若懷疑有訂單漏建或漏撤銷授權，可按此重新比對。</p>
         {canGrant ? (
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <ReconcileButton />
-            <span className="text-xs text-muted">若懷疑有訂單漏建或漏撤銷授權，可按此重新比對。</span>
+            <span className="text-xs text-muted">系統將依訂單狀態同步授權資料。</span>
           </div>
         ) : (
           <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-muted">目前角色只能查看門禁授權；建立或撤銷授權需要「門禁授權」權限。</p>

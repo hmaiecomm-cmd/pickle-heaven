@@ -2,11 +2,12 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { DoorOpen, Loader2 } from 'lucide-react'
+import { DoorOpen, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Pill } from '@/components/admin/page-bits'
 import { remoteOpenDoorAction, type DoorOpenResult } from './actions'
+import { AlwaysOpenToggle } from './always-open-toggle'
 
 export interface DoorRemoteState {
   door: { name: string; location: string; pulseSeconds: number }
@@ -42,6 +43,7 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
   const [busy, setBusy] = React.useState(false)
   const [simulate, setSimulate] = React.useState<(typeof SIMULATE)[number][0]>('SUCCESS')
   const [result, setResult] = React.useState<DoorOpenResult | null>(null)
+  const [alwaysOpen, setAlwaysOpen] = React.useState(false)
   const keyRef = React.useRef('')
 
   const blocked = !canRemote ? '目前帳號沒有「遠端開門」權限' : !state.demo && state.connection !== 'CONNECTED' ? '設備未連線，無法遠端開門' : null
@@ -82,7 +84,7 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
         {state.demo && <Pill tone="violet">Demo 模擬</Pill>}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="mt-4 space-y-4">
         <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-y-2 text-sm">
           <dt className="text-muted">門禁設備</dt>
           <dd>
@@ -108,24 +110,37 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
           </dd>
         </dl>
 
-        <div className="flex flex-col gap-2 sm:items-end">
-          {state.demo && canRemote && (
-            <label className="flex items-center gap-2 text-xs text-muted">
-              模擬結果
-              <select value={simulate} onChange={(e) => setSimulate(e.target.value as typeof simulate)} disabled={busy} className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-[rgb(var(--fg))]">
-                {SIMULATE.map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Button size="lg" onClick={ask} disabled={!!blocked || busy} title={blocked ?? undefined} className="w-full sm:w-auto">
-            {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <DoorOpen className="h-5 w-5" aria-hidden />}
-            {busy ? '開門中…' : '一鍵開啟大門'}
-          </Button>
-          {blocked && <p className="text-xs text-muted">{blocked}</p>}
+        <div className="space-y-3 rounded-lg bg-zinc-50 p-3">
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 mb-2">常開模式</label>
+            <AlwaysOpenToggle value={alwaysOpen} onChange={setAlwaysOpen} disabled={busy} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {state.demo && canRemote && (
+              <label className="flex items-center gap-2 text-xs text-muted">
+                模擬結果
+                <select value={simulate} onChange={(e) => setSimulate(e.target.value as typeof simulate)} disabled={busy} className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-[rgb(var(--fg))]">
+                  {SIMULATE.map(([v, label]) => (
+                    <option key={v} value={v}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <Button
+              size="sm"
+              onClick={ask}
+              disabled={!!blocked || busy}
+              title={blocked ?? undefined}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <AlertCircle className="h-4 w-4" aria-hidden />}
+              {busy ? '開門中…' : '一鍵強制開門'}
+            </Button>
+            {blocked && <p className="text-xs text-red-600">{blocked}</p>}
+          </div>
         </div>
       </div>
 
@@ -134,20 +149,20 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
           {message}
         </p>
       )}
-      <p className="mt-3 text-[11px] text-muted">
-        瞬間開門：開啟約 {state.door.pulseSeconds} 秒後自動上鎖，不會永久解鎖，也不會建立門禁授權；消防、緊急逃生與安全聯鎖由門禁控制器負責。
-      </p>
 
       <Sheet open={confirming} onOpenChange={(o) => !o && setConfirming(false)}>
-        <SheetContent title="確認開門" description="這次確認只會送出一次開門指令">
+        <SheetContent title="確認開門" description="此操作會留下操作紀錄">
           <div className="space-y-4 text-sm">
-            <p className="text-base font-semibold">確定要立即開啟{state.door.name}嗎？</p>
+            <div className="rounded-lg bg-red-50 p-3 text-red-900">
+              <p className="font-semibold">確定要立即強制開門嗎？</p>
+              <p className="mt-1 text-sm">此操作會留下操作紀錄。</p>
+            </div>
             {state.demo && <Pill tone="violet">Demo 模式：只會產生模擬結果（{SIMULATE.find(([v]) => v === simulate)?.[1]}），不會真的開門</Pill>}
             <div className="flex gap-2">
-              <Button className="flex-1" onClick={open}>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={open}>
                 確認開門
               </Button>
-              <Button variant="secondary" onClick={() => setConfirming(false)}>
+              <Button variant="secondary" className="flex-1" onClick={() => setConfirming(false)}>
                 取消
               </Button>
             </div>
