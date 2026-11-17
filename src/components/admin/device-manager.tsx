@@ -445,18 +445,25 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
         </div>
       )}
 
-      {/* 開關控制 */}
+      {/* 開啟／關閉控制 */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-700">設備目前狀態：開啟</label>
-        <div className="flex gap-2">
-          <button className="flex-1 h-9 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-zinc-700">設備目前狀態</label>
+          <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', 'bg-green-50 text-green-700 ring-green-200')}>
+            開啟
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button className="h-10 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
             開啟
           </button>
-          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+          <button className="h-10 rounded-lg border-2 border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
             關閉
           </button>
         </div>
-        <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded">Demo Mode：尚未串接真實設備，操作不會送出實際控制指令。</p>
+        <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded">
+          ⚠ Demo Mode：尚未串接真實設備，操作不會送出實際控制指令。
+        </p>
       </div>
 
       {/* 目前排程 */}
