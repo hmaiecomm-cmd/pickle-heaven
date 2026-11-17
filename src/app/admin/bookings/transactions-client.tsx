@@ -163,11 +163,11 @@ export function TransactionsClient({
         <button
           type="button"
           role="tab"
-          aria-selected={tab === 'venue'}
-          onClick={() => { setTab('venue'); const p = new URLSearchParams(); p.set('tab', 'venue'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
-          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'venue' && 'bg-white shadow-sm')}
+          aria-selected={tab === 'orders'}
+          onClick={() => { setTab('orders'); const p = new URLSearchParams(); p.set('tab', 'orders'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
+          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'orders' && 'bg-white shadow-sm')}
         >
-          場地與活動
+          訂場／活動訂單
         </button>
         <button
           type="button"
@@ -178,7 +178,13 @@ export function TransactionsClient({
         >
           商品訂單
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'points'} onClick={() => setTab('points')} className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'points'}
+          onClick={() => { setTab('points'); const p = new URLSearchParams(); p.set('tab', 'points'); router.replace(`/admin/bookings?${p}`, { scroll: false }) }}
+          className={cn('h-9 flex-1 rounded-lg font-medium', tab === 'points' && 'bg-white shadow-sm')}
+        >
           點數與票券
         </button>
       </div>
