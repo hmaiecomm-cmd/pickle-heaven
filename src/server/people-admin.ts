@@ -60,7 +60,7 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.minPoints !== undefined && qy.minPoints >= 0) and.push({ points: { gte: qy.minPoints } })
   if (qy.maxPoints !== undefined && qy.maxPoints >= 0) and.push({ points: { lte: qy.maxPoints } })
   if (qy.lastBookingDays) {
-    const days = qy.lastBookingDays === '7' ? 7 : qy.lastBookingDays === '30' ? 30 : 90
+    const days = Number(qy.lastBookingDays) === 7 ? 7 : Number(qy.lastBookingDays) === 30 ? 30 : 90
     and.push({ bookings: { some: { playDate: { gte: taipeiDateString(new Date(now().getTime() - days * 24 * 60 * 60 * 1000)) } } } })
   }
   if (and.length) where.AND = and
