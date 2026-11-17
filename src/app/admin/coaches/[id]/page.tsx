@@ -36,19 +36,15 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
         </Link>
       </div>
 
-      {coach.user && (
+      {coach.userId && (
         <section className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h3 className="font-semibold mb-3 text-sm">對應會員資訊</h3>
           <div className="text-sm space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-muted">會員 ID：</span>
-              {coach.userId ? (
-                <Link href={`/admin/members/${coach.userId}`} className="text-brand-700 hover:underline">
-                  {coach.userId}
-                </Link>
-              ) : (
-                <span className="text-muted">未關聯</span>
-              )}
+              <Link href={`/admin/members/${coach.userId}`} className="text-brand-700 hover:underline">
+                {coach.userId}
+              </Link>
             </div>
           </div>
         </section>

@@ -219,16 +219,29 @@ export function VenueLayoutMap({ devices = DEFAULT_DEVICES, className = '', inte
       </div>
 
       {/* 圖例 */}
-      <div className="space-y-2 rounded-lg bg-zinc-50 p-4">
+      <div className="space-y-2 rounded-lg bg-zinc-50 p-4 border border-zinc-200">
         <h3 className="text-sm font-semibold mb-3">設備說明</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Object.entries(DEVICE_TYPES).map(([type, { color, label }]) => (
-            <div key={type} className="flex items-center gap-2 text-xs">
+            <div
+              key={type}
+              className="flex items-center gap-2 text-xs p-2 rounded hover:bg-white transition-colors"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                const matchingDevices = devices.filter((d) => d.type === type)
+                if (matchingDevices.length > 0) {
+                  setSelectedDevice(matchingDevices[0].id)
+                }
+              }}
+            >
               <div
-                className="w-4 h-4 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color }}
+                className="w-5 h-5 rounded-full flex-shrink-0 shadow-sm border border-opacity-20"
+                style={{ backgroundColor: color, borderColor: color }}
               />
-              <span className="text-muted">{label}</span>
+              <span className="text-muted flex-1">{label}</span>
+              <span className="text-xs bg-white rounded px-1.5 py-0.5 text-zinc-600">
+                {devices.filter((d) => d.type === type).length}個
+              </span>
             </div>
           ))}
         </div>
