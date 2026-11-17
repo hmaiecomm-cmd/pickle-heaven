@@ -37,7 +37,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '智慧排程', href: '/admin/schedule', permission: 'courts' },
       { label: '場地設定', href: '/admin/courts', permission: 'courts' },
       { label: '維護與封場', href: '/admin/maintenance', permission: 'courts' },
-      { label: '設施地圖', href: '/admin/venue-map', permission: 'courts' },
     ],
   },
   {
