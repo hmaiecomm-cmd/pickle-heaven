@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import Link from 'next/link'
 import {
   AirVent,
   Cable,
@@ -19,6 +18,7 @@ import {
   Server,
   Signpost,
   Tent,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -72,8 +72,9 @@ const toneOf = (n: CircuitNumber) => TONE[CATEGORY_INFO[CIRCUIT_DEFINITIONS[n].c
 type Selection = { type: 'circuit'; id: CircuitNumber } | { type: 'marker'; id: string } | null
 
 export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: boolean }) {
-  const [selected, setSelected] = React.useState<Selection>({ type: 'circuit', id: '01' })
-  const detailRef = React.useRef<HTMLDivElement>(null)
+  const [selected, setSelected] = React.useState<Selection>(null)
+  const [expandedGroups, setExpandedGroups] = React.useState<Set<CircuitCategory>>(new Set(['RESERVATION_DYNAMIC']))
+  const [planExpanded, setPlanExpanded] = React.useState(false)
 
   // 提取當前選中迴路的編號（用於 useDeviceAnomalies）
   const currentCircuitId = selected?.type === 'circuit' ? selected.id : null
@@ -81,40 +82,43 @@ export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: b
   // 獲取異常數據（API 驅動）
   const { anomalies, isUpdating, acknowledge, resolve, refetch } = useDeviceAnomalies(
     currentCircuitId || '01',
-    'admin@example.com', // TODO: 從用戶會話獲取操作人
-    10000 // 10 秒自動刷新
+    'admin@example.com',
+    10000
   )
 
-  // WebSocket 實時推送（收到異常更新時自動刷新）
+  // WebSocket 實時推送
   useAnomalyWebSocket(true, (event) => {
-    // 如果更新涉及當前迴路，刷新異常列表
     if (event.circuitId === currentCircuitId) {
       refetch()
     }
   })
 
-  // 從下方清單選取時，詳情面板可能在畫面外，捲動到可見處
-  const selectFromList = (s: Selection) => {
-    setSelected(s)
-    requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  const toggleGroup = (category: CircuitCategory) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(category)) {
+        newSet.delete(category)
+      } else {
+        newSet.add(category)
+      }
+      return newSet
+    })
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <section aria-labelledby="map-title" className="rounded-2xl border border-zinc-200 bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 id="map-title" className="text-sm font-semibold">
-              電力迴路終點配置圖
-            </h2>
-            <p className="text-[11px] text-muted">依現場配置圖繪製，比例為示意</p>
-          </div>
-          <FloorPlan selected={selected} onSelect={setSelected} />
-          <UnplacedNote selected={selected} onSelect={setSelected} />
-          <Legend />
-        </section>
+      {/* 時段設定 */}
+      <TimeSlotSection />
 
-        <div ref={detailRef} className="scroll-mt-4 space-y-3">
+      {/* 設備控制區 */}
+      <section aria-labelledby="device-control-title" className="space-y-3">
+        <h2 id="device-control-title" className="text-sm font-semibold px-1">設備控制</h2>
+        <DeviceGroupList selected={selected} onSelect={setSelected} expandedGroups={expandedGroups} onToggleGroup={toggleGroup} />
+      </section>
+
+      {/* 設備詳情 */}
+      {selected?.type === 'circuit' && (
+        <div className="space-y-3">
           <DetailPanel selected={selected} canEditSchedule={canEditSchedule} />
           <AnomalyPanel
             selected={selected}
@@ -124,10 +128,240 @@ export function DeviceManager({ canEditSchedule = false }: { canEditSchedule?: b
             onResolve={resolve}
           />
         </div>
-      </div>
+      )}
 
-      <CircuitList selected={selected} onSelect={selectFromList} />
+      {/* 電力迴路配置圖（收合） */}
+      <FloorPlanCollapsible selected={selected} onSelect={setSelected} expanded={planExpanded} onExpandedChange={setPlanExpanded} />
     </div>
+  )
+}
+
+function TimeSlotSection() {
+  const [editMode, setEditMode] = React.useState(false)
+  const [startTime, setStartTime] = React.useState('09:00')
+  const [endTime, setEndTime] = React.useState('17:00')
+  const [preMinutes, setPreMinutes] = React.useState(10)
+  const [postMinutes, setPostMinutes] = React.useState(5)
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4">
+      {!editMode ? (
+        <>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <h3 className="text-xs font-medium text-muted">目前時段</h3>
+              <p className="mt-1 text-lg font-semibold">{startTime}–{endTime}</p>
+            </div>
+            <div>
+              <h4 className="text-xs font-medium text-muted">控制模式</h4>
+              <p className="mt-1 text-sm font-medium">已啟用預約動態控制</p>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setEditMode(true)}
+              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
+            >
+              編輯
+            </button>
+            <button
+              type="button"
+              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
+            >
+              查看行事曆
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h3 className="text-sm font-semibold mb-3">時段設定</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">開始時間</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">結束時間</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">預約前提前開啟（分鐘）</label>
+              <input
+                type="number"
+                min="0"
+                max="120"
+                value={preMinutes}
+                onChange={(e) => setPreMinutes(Number(e.target.value))}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">預約後延遲關閉（分鐘）</label>
+              <input
+                type="number"
+                min="0"
+                max="120"
+                value={postMinutes}
+                onChange={(e) => setPostMinutes(Number(e.target.value))}
+                className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
+            >
+              儲存
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function DeviceGroupList({
+  selected,
+  onSelect,
+  expandedGroups,
+  onToggleGroup,
+}: {
+  selected: Selection
+  onSelect: (s: Selection) => void
+  expandedGroups: Set<CircuitCategory>
+  onToggleGroup: (category: CircuitCategory) => void
+}) {
+  const selectedCircuit = selected?.type === 'circuit' ? selected.id : null
+
+  return (
+    <div className="space-y-2">
+      {CATEGORIES.map((category) => {
+        const info = CATEGORY_INFO[category]
+        const items = CIRCUIT_NUMBERS.filter((n) => CIRCUIT_DEFINITIONS[n].category === category)
+        const isExpanded = expandedGroups.has(category)
+
+        return (
+          <div key={category} className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            {/* 群組標題 */}
+            <button
+              type="button"
+              onClick={() => onToggleGroup(category)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors"
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 shrink-0', TONE[info.tone].chip)}>
+                  {info.range}
+                </span>
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-medium truncate">{info.label}</p>
+                  <p className="text-xs text-muted truncate">{items.length} 個設備</p>
+                </div>
+              </div>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', isExpanded && 'rotate-180')} />
+            </button>
+
+            {/* 展開設備列表 */}
+            {isExpanded && (
+              <div className="border-t border-zinc-100 divide-y divide-zinc-100">
+                {items.map((n) => {
+                  const def = CIRCUIT_DEFINITIONS[n]
+                  const spec = CIRCUIT_SPECS[n]
+                  const isSel = selectedCircuit === n
+                  const demoHealth: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
+
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => onSelect({ type: 'circuit', id: n })}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                        isSel ? 'bg-brand-50/50' : 'hover:bg-zinc-50'
+                      )}
+                    >
+                      {/* 圖示 */}
+                      <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', TONE[info.tone].chip)}>
+                        <Lightbulb className="h-4 w-4" />
+                      </div>
+
+                      {/* 設備資訊 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs font-mono font-bold text-zinc-700">迴路 {n}</span>
+                          <span className="text-sm font-medium truncate">{def.name}</span>
+                        </div>
+                        <p className="text-xs text-muted mt-0.5">{CATEGORY_INFO[def.category].label}</p>
+                      </div>
+
+                      {/* 狀態指示 */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className={cn('h-2 w-2 rounded-full', HEALTH_COLORS[demoHealth].dot)} />
+                        <ChevronRight className="h-4 w-4 text-muted" />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function FloorPlanCollapsible({
+  selected,
+  onSelect,
+  expanded,
+  onExpandedChange,
+}: {
+  selected: Selection
+  onSelect: (s: Selection) => void
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
+}) {
+  const selectedCircuit = selected?.type === 'circuit' ? selected.id : null
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onExpandedChange(!expanded)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors border-b border-zinc-100"
+      >
+        <h3 className="text-sm font-semibold">電力迴路配置圖</h3>
+        <ChevronDown className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')} />
+      </button>
+
+      {expanded && (
+        <div className="p-4">
+          <FloorPlan selected={selected} onSelect={onSelect} />
+          <UnplacedNote selected={selected} onSelect={onSelect} />
+          <Legend />
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -223,76 +457,77 @@ function Legend() {
   )
 }
 
-function Row({ label, value, pending }: { label: string; value: React.ReactNode; pending?: boolean }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-2 text-sm">
-      <dt className="shrink-0 text-muted">{label}</dt>
-      <dd className={cn('text-right', pending && 'text-amber-700')}>{value}</dd>
-    </div>
-  )
-}
 
 function DetailPanel({ selected, canEditSchedule = false }: { selected: Selection; canEditSchedule?: boolean }) {
   const [scheduleExpanded, setScheduleExpanded] = React.useState(false)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
+  const [detailsExpanded, setDetailsExpanded] = React.useState(false)
 
-  if (selected?.type === 'marker') {
-    const m = LOCATION_MARKERS.find((x) => x.id === selected.id)!
-    return (
-      <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
-        <p className="text-xs text-muted">位置標記</p>
-        <h3 className="mt-1 text-base font-semibold">{m.name}</h3>
-        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">這是位置標記，不是電力迴路，沒有任何控制功能。</p>
-      </aside>
-    )
+  if (!selected || selected.type !== 'circuit') {
+    return null
   }
-  if (!selected) {
-    return (
-      <aside aria-label="設備詳情" className="grid place-items-center rounded-2xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-muted">
-        點選配置圖或清單中的設備查看配置
-      </aside>
-    )
-  }
+
   const n = selected.id
   const def = CIRCUIT_DEFINITIONS[n]
   const cat = CATEGORY_INFO[def.category]
   const spec = CIRCUIT_SPECS[n]
-  const yesNo = (v: boolean) => (v ? '可' : '不可')
 
-  // Demo: 模擬異常狀態（Phase 5 示範）
   const demoHealth: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
   const demoAnomalies = demoHealth !== 'healthy' ? (demoHealth === 'critical' ? 2 : 1) : 0
   const healthColor = HEALTH_COLORS[demoHealth]
 
   return (
-    <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4">
-      {/* 健康狀態指示 */}
-      <div className={cn('mb-3 flex items-center gap-2 rounded-lg px-3 py-2', healthColor.bg)}>
-        <div className={cn('h-3 w-3 rounded-full', demoHealth === 'critical' ? 'blink-critical' : '', healthColor.dot)} aria-hidden />
-        <span className={cn('text-xs font-semibold', healthColor.text)}>{healthColor.label}</span>
-        {demoAnomalies > 0 && <span className={cn('ml-auto text-xs font-medium', healthColor.text)}>{demoAnomalies} 個異常</span>}
+    <aside aria-label="設備詳情" className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
+      {/* 設備名稱和狀態 */}
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-mono font-bold text-zinc-700">迴路 {n}</p>
+            <h3 className="mt-1 text-lg font-semibold">{def.name}</h3>
+          </div>
+          <div className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 shrink-0', healthColor.bg)}>
+            <div className={cn('h-2 w-2 rounded-full', demoHealth === 'critical' ? 'blink-critical' : '', healthColor.dot)} aria-hidden />
+            <span className={cn('text-xs font-semibold', healthColor.text)}>{healthColor.label}</span>
+          </div>
+        </div>
+        <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1', TONE[cat.tone].chip)}>
+          {cat.label}
+        </span>
       </div>
 
-      <p className="text-xs text-muted">迴路 {n}</p>
-      <h3 className="mt-1 text-base font-semibold">{def.name}</h3>
-      <span className={cn('mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1', TONE[cat.tone].chip)}>
-        {cat.label}・{cat.schedule}
-      </span>
-      <p className="mt-2 text-xs text-muted">{cat.rule}</p>
-      {def.category === 'ALWAYS_ON' && <p className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800">24 小時供電迴路，不受預約與排程控制。</p>}
+      {/* 開關控制 */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-zinc-700">設備控制</label>
+        <div className="flex gap-2">
+          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+            開啟
+          </button>
+          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+            關閉
+          </button>
+        </div>
+      </div>
+
+      {/* 目前排程 */}
       {def.scheduleControlEnabled && (
         <>
+          <div>
+            <p className="text-xs font-medium text-zinc-700">目前排程</p>
+            <p className="mt-1 text-sm font-medium">{cat.schedule}</p>
+            <p className="mt-1 text-xs text-muted">預約前提前開啟 10 分鐘，預約後延遲關閉 5 分鐘</p>
+          </div>
+
+          {/* 排程設定按鈕 */}
           <button
             type="button"
             onClick={() => setScheduleExpanded(!scheduleExpanded)}
-            className="mt-4 w-full inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50"
+            className="w-full h-9 flex items-center justify-between gap-2 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50 transition-colors"
           >
-            <Clock className="h-4 w-4" aria-hidden />
-            {scheduleExpanded ? '收合排程設定' : '展開排程設定'}
-            <ChevronDown className={cn('h-4 w-4 transition-transform ml-auto', scheduleExpanded && 'rotate-180')} aria-hidden />
+            <span>排程設定</span>
+            <ChevronDown className={cn('h-4 w-4 transition-transform', scheduleExpanded && 'rotate-180')} />
           </button>
+
           {scheduleExpanded && (
-            <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
+            <div className="pt-2 border-t border-zinc-200">
               <ControlSchedulePanel
                 key={n}
                 circuitNumber={n}
@@ -303,7 +538,37 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
           )}
         </>
       )}
+
+      {/* 詳細資料 */}
+      <button
+        type="button"
+        onClick={() => setDetailsExpanded(!detailsExpanded)}
+        className="w-full h-9 flex items-center justify-between gap-2 rounded-lg border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50 transition-colors"
+      >
+        <span>查看詳細資料</span>
+        <ChevronDown className={cn('h-4 w-4 transition-transform', detailsExpanded && 'rotate-180')} />
+      </button>
+
+      {detailsExpanded && (
+        <div className="pt-2 border-t border-zinc-200 space-y-2 text-sm">
+          <Row label="位置" value={circuitLocation(n)} />
+          <Row label="電壓" value={spec.voltage || '待確認'} pending={isPending(spec.voltage)} />
+          <Row label="負載" value={spec.load || '待確認'} pending={isPending(spec.load)} />
+          <Row label="連線狀態" value="未連線（Demo）" />
+          <Row label="Demo 模式" value="是" />
+          {spec.note && <Row label="備註" value={spec.note} />}
+        </div>
+      )}
     </aside>
+  )
+}
+
+function Row({ label, value, pending }: { label: string; value: React.ReactNode; pending?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-muted text-xs">{label}</dt>
+      <dd className={cn('text-right text-xs', pending && 'text-amber-700')}>{value}</dd>
+    </div>
   )
 }
 
@@ -431,74 +696,3 @@ function AnomalyPanel({
   )
 }
 
-function CircuitList({ selected, onSelect }: { selected: Selection; onSelect: (s: Selection) => void }) {
-  return (
-    <section aria-labelledby="circuits-title" className="rounded-2xl border border-zinc-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
-        <h2 id="circuits-title" className="text-sm font-semibold">
-          18 路強電控制迴路
-        </h2>
-        <p className="flex items-center gap-1 text-[11px] text-muted">
-          <Cable className="h-3.5 w-3.5" aria-hidden />
-          尚未確認的電壓、負載與控制器一律標示「待確認」
-        </p>
-      </div>
-
-      <div className="hidden grid-cols-[2.5rem_minmax(0,1.4fr)_minmax(0,1.3fr)_7rem] gap-3 border-b border-zinc-100 px-4 py-2 text-[11px] font-medium text-muted md:grid">
-        <span>編號</span>
-        <span>控制設備／區域</span>
-        <span>電壓／負載（功率）</span>
-        <span className="text-right">狀態</span>
-      </div>
-
-      {CATEGORIES.map((c) => {
-        const info = CATEGORY_INFO[c]
-        const items = CIRCUIT_NUMBERS.filter((n) => CIRCUIT_DEFINITIONS[n].category === c)
-        return (
-          <div key={c} className="border-b border-zinc-100 last:border-b-0">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-zinc-50/70 px-4 py-2">
-              <span className={cn('inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1', TONE[info.tone].chip)}>
-                {info.range}　{info.label}・{info.schedule}
-              </span>
-              <span className="text-[11px] text-muted">{info.rule}</span>
-            </div>
-            <ul>
-              {items.map((n) => {
-                const def = CIRCUIT_DEFINITIONS[n]
-                const spec = CIRCUIT_SPECS[n]
-                const isSel = selected?.type === 'circuit' && selected.id === n
-                const power = `${spec.voltage}／${spec.load}`
-                return (
-                  <li key={n}>
-                    <button
-                      type="button"
-                      onClick={() => onSelect({ type: 'circuit', id: n })}
-                      aria-pressed={isSel}
-                      className={cn(
-                        'grid w-full grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors md:grid-cols-[2.5rem_minmax(0,1.4fr)_minmax(0,1.3fr)_7rem]',
-                        isSel ? 'bg-emerald-50/70' : 'hover:bg-zinc-50',
-                      )}
-                    >
-                      <span className="font-mono text-xs font-semibold text-zinc-500">{n}</span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">
-                          {def.name}
-                          {spec.units ? <span className="ml-1 font-normal text-muted">（{spec.units}）</span> : null}
-                        </span>
-                        <span className="block truncate text-[11px] text-muted">{circuitLocation(n)}</span>
-                      </span>
-                      <span className={cn('hidden truncate text-xs md:block', isPending(power) ? 'text-amber-700' : 'text-zinc-700')}>{power}</span>
-                      <span className="justify-self-end text-xs font-medium text-amber-700">
-                        {c === 'RESERVED' ? <span className="text-zinc-500">預留未使用</span> : '未連線（Demo）'}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )
-      })}
-    </section>
-  )
-}
