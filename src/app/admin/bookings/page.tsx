@@ -46,9 +46,19 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
     include: { user: true },
   })
 
+  // 根據 tab 設定標題和描述
+  const titleConfig = {
+    venue: { title: '訂場訂單', desc: '查看與管理顧客的場地預約訂單。' },
+    activity: { title: '活動訂單', desc: '查看與管理顧客的活動報名訂單。' },
+    products: { title: '商品訂單', desc: '查看與管理顧客的商品訂單。' },
+    points: { title: '點數與票券', desc: '查看顧客的點數交易與票券記錄。' },
+  } as const
+
+  const { title, desc } = titleConfig[tab as keyof typeof titleConfig]
+
   return (
     <div>
-      <PageTitle title="訂單記錄" desc="管理場地預約、活動報名、商品訂單和點數票券交易。" />
+      <PageTitle title={title} desc={desc} />
       <TransactionsClient
         initial={initial}
         courts={courts}
