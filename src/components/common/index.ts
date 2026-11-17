@@ -1,7 +1,7 @@
 // 通用组件导出
 export { KPICard } from './KPICard'
 export { StatusBadge, EmptyState, LoadingState, ErrorState } from './StatusBadge'
-export { ChartCard, BarChart, LineChart, HBarChart, SERIES_DOT } from './charts'
+export { ChartCard, BarChart, LineChart, HBarChart, PieChart, StatCard, HeatmapChart, SERIES_DOT } from './charts'
 export type { Point, Series } from './charts'
 
 // 其他组件待实现（Phase 1B）

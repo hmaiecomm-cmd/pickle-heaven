@@ -3,6 +3,8 @@ import { CalendarDays, Cctv, ChartNoAxesColumnIncreasing, CreditCard, Layers, Us
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { Hills } from '@/components/admin/brand'
+import { AccessQuickCard } from './access-quick-card'
+import { getDoorRemoteState } from '@/server/door-remote'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,24 +22,37 @@ export default async function AdminDashboard() {
   if (!ctx) return null
 
   const availableItems = GRID_ITEMS.filter((item) => can(ctx.role, item.permission))
+  const canRemote = can(ctx.role, 'access.remote')
+  const hasAccessPermission = can(ctx.role, 'access')
+
+  const doorState = hasAccessPermission ? await getDoorRemoteState() : null
 
   return (
     <div className="relative">
       <Hills className="pointer-events-none fixed bottom-0 right-0 hidden h-28 w-[calc(100%-15rem)] md:block" />
-      <nav aria-label="後台功能" className="relative grid grid-cols-2 gap-3 sm:gap-5 lg:h-[calc(100dvh-9rem)] lg:grid-cols-3 lg:grid-rows-2">
-        {availableItems.map(({ id, label, href, icon: Icon }) => (
-          <Link
-            key={id}
-            href={href}
-            className="group flex aspect-square flex-col items-center justify-center gap-3 rounded-[28px] border border-[#e6eadf] bg-white/95 shadow-[0_2px_10px_rgba(31,77,52,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342] sm:gap-5 lg:aspect-auto"
-          >
-            <span className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-[#eef7e6] to-[#dcefcf] transition-colors group-hover:from-[#e3f2d8] group-hover:to-[#cde7bb] sm:h-20 sm:w-20 lg:h-24 lg:w-24">
-              <Icon className="h-8 w-8 text-[#2f7d3b] sm:h-10 sm:w-10 lg:h-12 lg:w-12" strokeWidth={1.7} aria-hidden />
-            </span>
-            <span className="text-[15px] font-bold tracking-tight text-[#1f2a22] sm:text-lg lg:text-xl">{label}</span>
-          </Link>
-        ))}
-      </nav>
+      <div className="space-y-6">
+        <nav aria-label="後台功能" className="relative grid grid-cols-2 gap-3 sm:gap-5 lg:h-auto lg:grid-cols-3 lg:grid-rows-2">
+          {availableItems.map(({ id, label, href, icon: Icon }) => (
+            <Link
+              key={id}
+              href={href}
+              className="group flex aspect-square flex-col items-center justify-center gap-3 rounded-[28px] border border-[#e6eadf] bg-white/95 shadow-[0_2px_10px_rgba(31,77,52,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342] sm:gap-5 lg:aspect-auto"
+            >
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-[#eef7e6] to-[#dcefcf] transition-colors group-hover:from-[#e3f2d8] group-hover:to-[#cde7bb] sm:h-20 sm:w-20 lg:h-24 lg:w-24">
+                <Icon className="h-8 w-8 text-[#2f7d3b] sm:h-10 sm:w-10 lg:h-12 lg:w-12" strokeWidth={1.7} aria-hidden />
+              </span>
+              <span className="text-[15px] font-bold tracking-tight text-[#1f2a22] sm:text-lg lg:text-xl">{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* 門禁權限控制區 */}
+        {doorState && hasAccessPermission && (
+          <div className="mt-6">
+            <AccessQuickCard doorState={doorState} canRemote={canRemote} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

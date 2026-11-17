@@ -227,3 +227,179 @@ function Empty({ height }: { height: number }) {
     </div>
   )
 }
+
+/** 圓餅圖：顯示比例構成 */
+export function PieChart({ data, series = 'series-1', height = 160 }: { data: Point[]; series?: Series; height?: number }) {
+  if (data.length === 0) return <Empty height={height} />
+
+  const id = useId()
+  const total = data.reduce((s, d) => s + d.value, 0)
+  const radius = 35
+  const cx = 50
+  const cy = 50
+
+  const colors = ['#0fa36b', '#eb6834', '#2a78d6', '#7cb342', '#d4a574', '#c27c0e']
+  let angle = -90
+
+  return (
+    <div className="relative" style={{ height }}>
+      <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-labelledby={id}>
+        <title id={id}>{data.map((d) => `${d.label} ${fmt(d.value)}`).join('、')}</title>
+        {data.map((d, i) => {
+          const sliceAngle = (d.value / total) * 360
+          const startAngle = angle * (Math.PI / 180)
+          const endAngle = (angle + sliceAngle) * (Math.PI / 180)
+
+          const x1 = cx + radius * Math.cos(startAngle)
+          const y1 = cy + radius * Math.sin(startAngle)
+          const x2 = cx + radius * Math.cos(endAngle)
+          const y2 = cy + radius * Math.sin(endAngle)
+
+          const largeArc = sliceAngle > 180 ? 1 : 0
+          const pathData = [
+            `M ${cx} ${cy}`,
+            `L ${x1} ${y1}`,
+            `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`,
+            'Z',
+          ].join(' ')
+
+          angle += sliceAngle
+
+          return (
+            <path
+              key={i}
+              d={pathData}
+              fill={colors[i % colors.length]}
+              opacity="0.9"
+            />
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
+/** KPI 統計卡片：數字、標籤、趨勢 */
+export function StatCard({
+  label,
+  value,
+  unit = '',
+  trend,
+  icon,
+  color = 'green',
+}: {
+  label: string
+  value: string | number
+  unit?: string
+  trend?: { value: number; label: string; up: boolean }
+  icon?: ReactNode
+  color?: 'green' | 'orange' | 'blue' | 'red'
+}) {
+  const bgColor = {
+    green: 'bg-gradient-to-br from-[#eef7e6] to-[#dcefcf]',
+    orange: 'bg-gradient-to-br from-[#fef3f0] to-[#fde5dd]',
+    blue: 'bg-gradient-to-br from-[#eef5ff] to-[#dde9ff]',
+    red: 'bg-gradient-to-br from-[#fef3f1] to-[#fde5e0]',
+  }
+
+  const textColor = {
+    green: 'text-[#2f7d3b]',
+    orange: 'text-[#b74513]',
+    blue: 'text-[#2a78d6]',
+    red: 'text-[#c1341d]',
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-xs text-muted">{label}</p>
+          <div className="mt-2 flex items-baseline gap-1">
+            <p className={`text-2xl font-bold tabular ${textColor[color]}`}>{value}</p>
+            {unit && <p className="text-xs text-muted">{unit}</p>}
+          </div>
+          {trend && (
+            <p className={`mt-1.5 text-xs font-medium ${trend.up ? 'text-green-600' : 'text-red-600'}`}>
+              {trend.up ? '↑' : '↓'} {trend.value} {trend.label}
+            </p>
+          )}
+        </div>
+        {icon && <div className={`rounded-full p-3 ${bgColor[color]}`}>{icon}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** 熱力圖：時段 × 日期的使用率 */
+export function HeatmapChart({
+  data,
+  days,
+  slots,
+  height = 200,
+}: {
+  data: Array<{ dayIndex: number; slotIndex: number; rate: number }>
+  days: string[]
+  slots: string[]
+  height?: number
+}) {
+  if (data.length === 0) return <Empty height={height} />
+
+  const cellW = 100 / days.length
+  const cellH = 100 / slots.length
+
+  const getColor = (rate: number) => {
+    if (rate >= 80) return '#0a7a3b'
+    if (rate >= 60) return '#1a9d4f'
+    if (rate >= 40) return '#6bc34a'
+    if (rate >= 20) return '#c5e1a5'
+    return '#f1f8e9'
+  }
+
+  return (
+    <div style={{ height }} className="flex gap-2">
+      {/* 左側時段標籤 */}
+      <div className="w-12 flex-shrink-0 space-y-px">
+        {slots.map((slot, i) => (
+          <div
+            key={i}
+            className="text-[9px] text-muted flex items-center justify-end pr-1"
+            style={{ height: `${100 / slots.length}%` }}
+          >
+            {slot}
+          </div>
+        ))}
+      </div>
+
+      {/* 熱力圖 */}
+      <div className="flex-1 relative">
+        <svg viewBox={`0 0 ${100 * days.length} 100`} preserveAspectRatio="xMidYMid slice" className="h-full w-full">
+          {data.map((d, i) => {
+            const cell = data.find((x) => x.dayIndex === d.dayIndex && x.slotIndex === d.slotIndex)
+            const rate = cell?.rate ?? 0
+            return (
+              <rect
+                key={i}
+                x={d.dayIndex * cellW}
+                y={d.slotIndex * cellH}
+                width={cellW}
+                height={cellH}
+                fill={getColor(rate)}
+                stroke="white"
+                strokeWidth="1"
+              />
+            )
+          })}
+        </svg>
+
+        {/* 底部日期標籤 */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex text-[9px] text-muted">
+          {days.map((day, i) => (
+            <div key={i} className="text-center" style={{ width: `${cellW}%` }}>
+              {day}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
