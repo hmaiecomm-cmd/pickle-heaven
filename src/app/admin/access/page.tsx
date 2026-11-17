@@ -20,6 +20,7 @@ import { ManualGrantForm, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { PasswordSettings } from './password-settings'
 import { getDoorRemoteState } from '@/server/door-remote'
+import { WatchdogClient } from './watchdog-client'
 
 export const metadata: Metadata = { title: '門禁權限管理' }
 export const dynamic = 'force-dynamic'
@@ -84,9 +85,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
       {tab === 'logs' && (
         <Empty title="尚無進出紀錄" desc="進出紀錄由門禁控制器回報。目前尚未串接門禁控制器，因此沒有任何紀錄；串接後會在這裡顯示每次刷卡、密碼或開門的時間與結果。" />
       )}
-      {tab === 'alerts' && (
-        <Empty title="尚無異常事件" desc="異常事件（例如授權下發失敗、控制器離線、時鐘偏差）由門禁控制器與監控程式產生。目前尚未串接，因此沒有資料。" />
-      )}
+      {tab === 'alerts' && <AlertsTab />}
       {tab === 'audit' && <AuditTab />}
     </div>
   )
@@ -216,6 +215,12 @@ function DevicesTab() {
       <p className="border-t border-zinc-100 px-4 py-3 text-xs text-muted">門禁設備只負責「誰可以進入」，與智慧設備管理的電源開關分開；這裡沒有遠端開門功能，串接硬體後才會開放並另外檢查權限。</p>
     </section>
   )
+}
+
+async function AlertsTab() {
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
+  if (!venue) return <Empty title="無法載入" desc="找不到活動的場館。" />
+  return <WatchdogClient venueId={venue.id} />
 }
 
 async function AuditTab() {
