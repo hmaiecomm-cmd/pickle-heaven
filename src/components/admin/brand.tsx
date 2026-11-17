@@ -7,19 +7,19 @@ export const BRAND_NAME_ZH = brand.name
 export const BRAND_NAME_EN = brand.englishName
 
 /**
- * 後台 Logo：DXD Pickleball Court 綠色標誌
- * 完整品牌版本，包含 PICKLEBALL COURT 文字
+ * 後台 Logo：DXD Pickleball Court 綠色圖示
+ * 使用透明背景的簡潔 DXD 圖示版本
  */
 export function BrandLogo({ className, showText = true }: { className?: string; showText?: boolean }) {
   return (
     <div className={`flex items-center gap-3 ${className ?? ''}`}>
       <Image
-        src={images.logoFullBrand.src}
-        alt={images.logoFullBrand.alt}
-        width={images.logoFullBrand.width}
-        height={images.logoFullBrand.height}
+        src={images.logo.src}
+        alt={images.logo.alt}
+        width={images.logo.width}
+        height={images.logo.height}
         className="h-auto w-auto shrink-0"
-        style={{ width: '100px', height: 'auto' }}
+        style={{ width: '72px', height: 'auto' }}
         priority
       />
       {showText && <span className="whitespace-nowrap text-[15px] font-bold leading-tight tracking-wide">{BRAND_NAME_ZH}</span>}
