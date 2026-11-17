@@ -77,22 +77,77 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           total={data.total}
         />
 
-          {tab === 'coaches' && data.coaches.length > 0 && (
-            <section className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm">
-              <h2 className="font-semibold">教練名冊（教練資料）</h2>
-              <p className="text-xs text-muted">教練的授課時段與時薪在「活動管理 → 教練」維護；這裡列出名冊與對應會員。</p>
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {data.coaches.map((c) => (
-                  <li key={c.id} className="rounded-lg border border-zinc-200 px-3 py-1.5">
-                    {c.name}
-                    <span className="ml-1 text-xs text-muted">{c.status === 'ACTIVE' ? '在職' : c.status === 'ON_LEAVE' ? '請假' : '停用'}</span>
-                    {c.userId && <Link href={`/admin/members/${c.userId}`} className="ml-2 text-xs text-brand-700 hover:underline">對應會員</Link>}
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {tab === 'coaches' && (
+            <>
+              {data.coaches.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-muted">
+                  目前沒有教練
+                </div>
+              ) : (
+                <>
+                  {/* 桌面版：表格 */}
+                  <section className="hidden lg:block overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-50 text-left text-xs text-muted">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">教練名稱</th>
+                          <th className="px-3 py-2 font-medium">聯繫方式</th>
+                          <th className="px-3 py-2 font-medium">狀態</th>
+                          <th className="px-3 py-2 font-medium">對應會員</th>
+                          <th className="px-3 py-2 font-medium">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {data.coaches.map((c) => (
+                          <tr key={c.id}>
+                            <td className="px-3 py-2 font-medium">{c.name}</td>
+                            <td className="px-3 py-2 text-xs">{c.phone ?? <span className="text-muted">未提供</span>}</td>
+                            <td className="px-3 py-2">
+                              <Pill tone={c.status === 'ACTIVE' ? 'green' : c.status === 'ON_LEAVE' ? 'amber' : 'gray'}>
+                                {c.status === 'ACTIVE' ? '在職' : c.status === 'ON_LEAVE' ? '請假' : '停用'}
+                              </Pill>
+                            </td>
+                            <td className="px-3 py-2 text-xs">
+                              {c.userId ? <Link href={`/admin/members/${c.userId}`} className="text-brand-700 hover:underline">檢視會員</Link> : <span className="text-muted">—</span>}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Link href={`/admin/coaches/${c.id}`} className="inline-flex h-8 items-center rounded-lg border border-zinc-300 px-2 text-xs hover:bg-zinc-50">編輯</Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+
+                  {/* 平板版及手機版：卡片式 */}
+                  <section className="lg:hidden space-y-2 rounded-2xl">
+                    {data.coaches.map((c) => (
+                      <div key={c.id} className="rounded-2xl border border-zinc-200 bg-white p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">{c.name}</div>
+                            <div className="text-xs text-muted mt-1">{c.phone ?? '未提供聯繫方式'}</div>
+                            <div className="mt-2">
+                              <Pill tone={c.status === 'ACTIVE' ? 'green' : c.status === 'ON_LEAVE' ? 'amber' : 'gray'} className="text-xs">
+                                {c.status === 'ACTIVE' ? '在職' : c.status === 'ON_LEAVE' ? '請假' : '停用'}
+                              </Pill>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 shrink-0">
+                            {c.userId && <Link href={`/admin/members/${c.userId}`} className="text-xs text-brand-700 hover:underline">檢視會員</Link>}
+                            <Link href={`/admin/coaches/${c.id}`} className="text-xs text-brand-700 hover:underline">編輯</Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )}
+            </>
           )}
 
+          {tab !== 'coaches' && (
+            <>
           {/* 桌面版：表格 */}
           <section className="hidden lg:block overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
             <table className="w-full text-sm">
@@ -195,6 +250,8 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               {data.page > 1 && <Link href={qs({ page: String(data.page - 1) })} className="rounded-lg border border-zinc-300 px-3 py-1">上一頁</Link>}
               {data.page < data.pages && <Link href={qs({ page: String(data.page + 1) })} className="rounded-lg border border-zinc-300 px-3 py-1">下一頁</Link>}
             </nav>
+          )}
+            </>
           )}
         </>
     </div>
