@@ -388,30 +388,62 @@ function DetailPanel({ selected, canEditSchedule = false }: { selected: Selectio
       </div>
 
       {/* 目前時段控制 */}
-      <div className="space-y-3 rounded-lg bg-zinc-50 p-3">
-        <h4 className="text-sm font-semibold text-zinc-900">目前時段控制</h4>
-        <p className="text-xs text-muted">設定此迴路目前的開啟與關閉時間。儲存後會更新此迴路的排程摘要。</p>
+      {def.scheduleControlEnabled && (
+        <div className="space-y-3 rounded-lg bg-zinc-50 p-3">
+          <h4 className="text-sm font-semibold text-zinc-900">目前時段控制</h4>
+          <p className="text-xs text-muted">設定此迴路目前的開啟與關閉時間。儲存後會更新此迴路的排程摘要。</p>
 
-        {/* 時間控制欄位 */}
-        <div className="space-y-2">
-          <div>
-            <label className="block text-xs font-medium text-zinc-700 mb-1.5">開啟時間</label>
-            <input
-              type="time"
-              defaultValue="09:00"
-              className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-700 mb-1.5">關閉時間</label>
-            <input
-              type="time"
-              defaultValue="23:00"
-              className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
-            />
-          </div>
+          {/* 預約動態控制 */}
+          {def.category === 'RESERVATION_DYNAMIC' && (
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">預約前提前開啟</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  defaultValue="10"
+                  placeholder="分鐘"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">預約後延遲關閉</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  defaultValue="5"
+                  placeholder="分鐘"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 營業時間控制、夜間環境控制 */}
+          {(def.category === 'OPERATING_HOURS' || def.category === 'NIGHT_AMBIENT') && (
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">開啟時間</label>
+                <input
+                  type="time"
+                  defaultValue="09:00"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1.5">關閉時間</label>
+                <input
+                  type="time"
+                  defaultValue="23:00"
+                  className="w-full h-9 rounded-lg border border-zinc-300 px-3 text-sm bg-white"
+                />
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* 開關控制 */}
       <div className="space-y-2">
