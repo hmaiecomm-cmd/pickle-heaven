@@ -447,10 +447,18 @@ function Legend() {
 
 
 // 點選迴路後的設定區（簡潔設計）
-function CircuitSettingPanel({ selected, canEditSchedule = false }: { selected: Selection; canEditSchedule?: boolean }) {
+function CircuitSettingPanel({
+  selected,
+  canEditSchedule = false
+}: {
+  selected: Selection
+  canEditSchedule?: boolean
+}) {
   const [deviceOn, setDeviceOn] = React.useState(true)
   const [startTime, setStartTime] = React.useState('09:00')
   const [endTime, setEndTime] = React.useState('23:00')
+  const [isToggling, setIsToggling] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
 
   if (!selected || selected.type !== 'circuit') {
     return null
@@ -462,6 +470,21 @@ function CircuitSettingPanel({ selected, canEditSchedule = false }: { selected: 
 
   const demoHealth: DeviceHealth = n === '12' ? 'critical' : n === '05' ? 'warning' : 'healthy'
   const healthColor = HEALTH_COLORS[demoHealth]
+
+  const handleToggleDevice = async () => {
+    setIsToggling(true)
+    // 模擬 API 呼叫延遲（200ms）
+    await new Promise(resolve => setTimeout(resolve, 200))
+    setDeviceOn(!deviceOn)
+    setIsToggling(false)
+  }
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true)
+    // 模擬 API 呼叫延遲（500ms）
+    await new Promise(resolve => setTimeout(resolve, 500))
+    setIsSaving(false)
+  }
 
   return (
     <aside aria-label="迴路設定" className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-4">
@@ -512,21 +535,38 @@ function CircuitSettingPanel({ selected, canEditSchedule = false }: { selected: 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-zinc-700">設備控制</label>
-          <span className="text-xs font-medium text-zinc-700">{deviceOn ? '開啟' : '關閉'}</span>
+          <span className={cn('text-xs font-medium', deviceOn ? 'text-green-600' : 'text-gray-500')}>
+            {deviceOn ? '開啟中' : '已關閉'}
+          </span>
         </div>
 
         <button
-          onClick={() => setDeviceOn(!deviceOn)}
+          onClick={handleToggleDevice}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !isToggling) {
+              e.preventDefault()
+              handleToggleDevice()
+            }
+          }}
+          disabled={isToggling}
           className={cn(
-            'relative inline-flex h-8 w-14 items-center rounded-full transition-colors',
-            deviceOn ? 'bg-green-500' : 'bg-gray-300'
+            'relative inline-flex h-8 w-14 items-center rounded-full',
+            'transition-all duration-200 ease-out',
+            'focus:outline-none focus:ring-2 focus:ring-offset-2',
+            'disabled:opacity-70 disabled:cursor-not-allowed',
+            deviceOn
+              ? 'bg-green-500 focus:ring-green-400'
+              : 'bg-gray-300 focus:ring-gray-400'
           )}
           role="switch"
           aria-checked={deviceOn}
-          aria-label={`設備${deviceOn ? '開啟' : '關閉'}`}
+          aria-disabled={isToggling}
+          aria-label={`設備${deviceOn ? '開啟' : '關閉'}${isToggling ? '，切換中' : ''}`}
         >
           <span className={cn(
-            'inline-block h-6 w-6 transform rounded-full bg-white transition-transform',
+            'inline-block h-6 w-6 rounded-full bg-white',
+            'transform transition-all duration-200 ease-out',
+            'shadow-sm',
             deviceOn ? 'translate-x-7' : 'translate-x-1'
           )} />
         </button>
@@ -538,10 +578,21 @@ function CircuitSettingPanel({ selected, canEditSchedule = false }: { selected: 
 
       {canEditSchedule && (
         <div className="flex gap-2 pt-2 border-t border-zinc-200">
-          <button className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors">
-            儲存設定
+          <button
+            onClick={handleSaveSettings}
+            disabled={isSaving}
+            className="flex-1 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <span className="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                儲存中
+              </>
+            ) : (
+              '儲存設定'
+            )}
           </button>
-          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors">
+          <button className="flex-1 h-9 rounded-lg border border-zinc-300 bg-white text-sm font-medium hover:bg-zinc-50 transition-colors disabled:opacity-50" disabled={isSaving}>
             取消
           </button>
         </div>
