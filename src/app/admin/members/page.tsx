@@ -15,7 +15,7 @@ const TABS: { key: PeopleTab; label: string }[] = [
 ]
 const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-sm'
 
-type SP = { tab?: string; q?: string; activity?: string; membership?: string; from?: string; to?: string; minPoints?: string; maxPoints?: string; lastBookingDays?: string; page?: string }
+type SP = { tab?: string; q?: string; activity?: string; membership?: string; from?: string; to?: string; minPoints?: string; maxPoints?: string; lastBookingDays?: string; coachStatus?: string; page?: string }
 
 /**
  * 會員與教練管理：會員（LINE 登入自動建立；另有停用前留下的 Google 會員）、教練、黑名單。
@@ -73,6 +73,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             minPoints: sp.minPoints,
             maxPoints: sp.maxPoints,
             lastBookingDays: sp.lastBookingDays,
+            coachStatus: sp.coachStatus,
           }}
           total={data.total}
         />

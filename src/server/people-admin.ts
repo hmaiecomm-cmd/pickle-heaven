@@ -24,6 +24,7 @@ export interface PeopleQuery {
   minPoints?: number
   maxPoints?: number
   lastBookingDays?: 7 | 30 | 90 | ''
+  coachStatus?: 'ACTIVE' | 'ON_LEAVE' | 'INACTIVE' | ''
   page?: number
 }
 
@@ -59,7 +60,7 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.minPoints !== undefined && qy.minPoints >= 0) and.push({ points: { gte: qy.minPoints } })
   if (qy.maxPoints !== undefined && qy.maxPoints >= 0) and.push({ points: { lte: qy.maxPoints } })
   if (qy.lastBookingDays) {
-    const days = qy.lastBookingDays === '7' ? 7 : qy.lastBookingDays === '30' ? 30 : 90
+    const days = Number(qy.lastBookingDays) === 7 ? 7 : Number(qy.lastBookingDays) === 30 ? 30 : 90
     and.push({ bookings: { some: { playDate: { gte: taipeiDateString(new Date(now().getTime() - days * 24 * 60 * 60 * 1000)) } } } })
   }
   if (and.length) where.AND = and
@@ -124,7 +125,14 @@ export async function listPeople(qy: PeopleQuery) {
         restrictions,
       }
     }),
-    coaches: qy.tab === 'coaches' ? await prisma.coach.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, status: true, phone: true, userId: true } }) : [],
+    coaches: qy.tab === 'coaches' ? await prisma.coach.findMany({
+      where: {
+        ...(qy.q ? { name: { contains: qy.q } } : {}),
+        ...(qy.coachStatus && qy.coachStatus.trim() ? { status: qy.coachStatus as any } : {}),
+      },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, status: true, phone: true, userId: true },
+    }) : [],
     staff: qy.tab === 'staff' ? staffAccounts.map((a) => ({ id: a.id, username: a.username, displayName: a.displayName, role: a.role, roleLabel: ROLE_LABEL[a.role as keyof typeof ROLE_LABEL] ?? a.role, active: a.active, userId: a.userId, lastLoginAt: a.lastLoginAt ? formatDateTime(a.lastLoginAt) : null })) : [],
   }
 }
