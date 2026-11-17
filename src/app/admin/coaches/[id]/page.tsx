@@ -16,7 +16,6 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
     where: { id },
     include: {
       user: { select: { id: true, displayName: true, email: true, phone: true, pictureUrl: true } },
-      _count: { select: { sessions: true } },
     },
   })
 
@@ -49,10 +48,6 @@ export default async function CoachDetailPage({ params }: { params: Promise<{ id
               <Link href={`/admin/members/${coach.user.id}`} className="text-brand-700 hover:underline">
                 {coach.user.displayName}
               </Link>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted">授課場次：</span>
-              <span className="font-medium">{coach._count.sessions} 場</span>
             </div>
           </div>
         </section>
