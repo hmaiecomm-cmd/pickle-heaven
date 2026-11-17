@@ -27,13 +27,28 @@ export async function BookingsTab({ searchParams = {} }: { searchParams?: Record
   const initial = can(ctx.role, 'finance') ? unmasked : maskOrderListAmounts(unmasked)
   const courts = await prisma.court.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } })
 
+  const pointsLedger = await prisma.pointsLedger.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: { user: true },
+  })
+
+  const vouchers = await prisma.voucher.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: { user: true },
+  })
+
   return (
     <div>
       <TransactionsClient
         initial={initial}
         courts={courts}
+        pointsLedger={pointsLedger}
+        vouchers={vouchers}
         openOrderId={searchParams.order ?? null}
         openRefund={searchParams.refund === '1'}
+        openTab={searchParams.tab as 'venue' | 'products' | 'points' | undefined}
         perms={{ refund: can(ctx.role, 'refund'), invoice: can(ctx.role, 'invoice') }}
       />
     </div>

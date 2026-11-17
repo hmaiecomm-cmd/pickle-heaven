@@ -6,7 +6,7 @@ import { listOrders, maskOrderListAmounts } from '@/server/admin-orders'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { TransactionsClient } from './transactions-client'
 
-export const metadata: Metadata = { title: '訂場與活動訂單' }
+export const metadata: Metadata = { title: '訂單記錄' }
 export const dynamic = 'force-dynamic'
 
 export default async function AdminBookingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -30,14 +30,31 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   // 沒有財務權限：金額在伺服器端清除，不送到前端
   const initial = can(ctx.role, 'finance') ? unmasked : maskOrderListAmounts(unmasked)
   const courts = await prisma.court.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } })
+
+  // 查詢點數和票券數據
+  const pointsLedger = await prisma.pointsLedger.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: { user: true },
+  })
+
+  const vouchers = await prisma.voucher.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: { user: true },
+  })
+
   return (
     <div>
-      <PageTitle title="交易管理" desc="付款、訂單、退款、發票狀態分開顯示；退款與取消預約是不同動作，確認畫面會列出連動效果。" />
+      <PageTitle title="訂單記錄" desc="管理場地預約、活動報名、商品訂單和點數票券交易。" />
       <TransactionsClient
         initial={initial}
         courts={courts}
+        pointsLedger={pointsLedger}
+        vouchers={vouchers}
         openOrderId={sp.order ?? null}
         openRefund={sp.refund === '1'}
+        openTab={sp.tab as 'venue' | 'products' | 'points' | undefined}
         perms={{ refund: can(ctx.role, 'refund'), invoice: can(ctx.role, 'invoice') }}
       />
     </div>
