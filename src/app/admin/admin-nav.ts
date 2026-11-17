@@ -74,10 +74,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'members',
-    label: '會員與活動',
+    label: '會員與教練',
     icon: 'members',
-    href: '/admin/members',
-    permission: 'members',
+    items: [
+      { label: '會員管理', href: '/admin/members', permission: 'members' },
+      { label: '教練', href: '/admin/members?tab=coaches', permission: 'members' },
+      { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members' },
+    ],
   },
   {
     key: 'reports',
@@ -126,15 +129,16 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/expenses': '/admin/finance?tab=expenses',
   '/admin/finance/daily': '/admin/finance?tab=daily',
   '/admin/bookings/products': '/admin/finance?tab=products',
-  // 會員與活動標籤式導航別名
-  '/admin/members/history': '/admin/members?tab=history',
-  '/admin/activities': '/admin/members?tab=activities',
-  '/admin/sessions': '/admin/members?tab=sessions',
-  '/admin/registrations': '/admin/members?tab=registrations',
-  '/admin/events': '/admin/members?tab=events',
-  '/admin/marketing/vouchers': '/admin/members?tab=vouchers',
-  '/admin/marketing/products': '/admin/members?tab=products',
-  '/admin/marketing/campaigns': '/admin/members?tab=campaigns',
+  // 會員與教練導航別名
+  '/admin/members/history': '/admin/members',
+  // 舊活動相關頁面重定向到會員管理
+  '/admin/activities': '/admin/members',
+  '/admin/sessions': '/admin/members',
+  '/admin/registrations': '/admin/members',
+  '/admin/events': '/admin/members',
+  '/admin/marketing/vouchers': '/admin/members',
+  '/admin/marketing/products': '/admin/members',
+  '/admin/marketing/campaigns': '/admin/members',
 }
 
 /**

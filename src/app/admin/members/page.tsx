@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden, PageTitle, Pill } from '@/components/admin/page-bits'
 import { listPeople, PAGE_SIZE, type PeopleTab } from '@/server/people-admin'
+import { MembersSearchForm } from './search-form'
 
 export const metadata: Metadata = { title: '人員管理' }
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,6 @@ export const dynamic = 'force-dynamic'
 const TABS: { key: PeopleTab; label: string }[] = [
   { key: 'all', label: '全部會員' },
   { key: 'coaches', label: '教練' },
-  { key: 'staff', label: '工作人員與管理員' },
   { key: 'blacklist', label: '黑名單' },
 ]
 const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-sm'
@@ -18,7 +18,7 @@ const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 tex
 type SP = { tab?: string; q?: string; activity?: string; membership?: string; page?: string }
 
 /**
- * 人員管理：會員（LINE 登入自動建立；另有停用前留下的 Google 會員）、教練、工作人員與管理員、黑名單。
+ * 會員與教練管理：會員（LINE 登入自動建立；另有停用前留下的 Google 會員）、教練、黑名單。
  * 列表只讀；管理操作在詳情頁並由後端驗證權限。
  */
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -38,90 +38,30 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     return `/admin/members?${u}`
   }
 
+  const qsTab = (newTab: string) => {
+    const u = new URLSearchParams()
+    u.set('tab', newTab)
+    return `/admin/members?${u}`
+  }
+
   return (
     <div className="space-y-4">
-      <PageTitle title="人員管理" desc="會員於首次以 LINE 登入時自動建立（同一帳號不會重複新增）。Google 登入已停用，舊 Google 會員資料仍保留。教練身分與後台角色分開；黑名單是帳戶限制狀態，不改變角色。" />
+      <PageTitle title="會員與教練" desc="會員於首次以 LINE 登入時自動建立。教練身分與後台角色分開；黑名單是帳戶限制狀態，不改變角色。" />
 
-      <nav className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" aria-label="人員分頁">
+      <nav className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" aria-label="會員與教練分頁">
         {TABS.map((t) => (
-          <Link key={t.key} href={qs({ tab: t.key, page: undefined })} aria-current={tab === t.key ? 'page' : undefined} className={`rounded-lg px-3 py-1.5 font-medium ${tab === t.key ? 'bg-white shadow-sm' : 'text-muted hover:text-[rgb(var(--fg))]'}`}>
+          <Link key={t.key} href={qsTab(t.key)} aria-current={tab === t.key ? 'page' : undefined} className={`rounded-lg px-3 py-1.5 font-medium ${tab === t.key ? 'bg-white shadow-sm' : 'text-muted hover:text-[rgb(var(--fg))]'}`}>
             {t.label}
           </Link>
         ))}
       </nav>
 
-      {tab === 'staff' ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white">
-          <ul className="divide-y divide-zinc-100 text-sm">
-            {data.staff.length === 0 && <li className="p-6 text-center text-muted">展示環境不顯示真實員工帳號；正式環境請以擁有者登入。</li>}
-            {data.staff.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-                <span>
-                  <span className="font-semibold">{a.username}</span>
-                  <span className="ml-2 text-xs text-muted">{a.displayName}・最近登入 {a.lastLoginAt ?? '—'}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Pill tone="blue">{a.roleLabel}</Pill>
-                  <Pill tone={a.active ? 'green' : 'gray'}>{a.active ? '啟用' : '停用'}</Pill>
-                  {a.userId ? <Link href={`/admin/members/${a.userId}`} className="text-xs text-brand-700 hover:underline">對應會員</Link> : <span className="text-xs text-muted">未對應會員</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-zinc-100 px-4 py-2 text-xs text-muted">新增、停用、重設密碼請到「設定管理 → 員工帳號與權限」（擁有者）。</p>
-        </section>
-      ) : (
-        <>
-          <form method="get" className="rounded-2xl border border-[rgb(var(--border))] bg-white p-3 space-y-2 md:space-y-0" aria-label="篩選人員">
-            <input type="hidden" name="tab" value={tab} />
-            {/* 第一列：搜尋框 */}
-            <div className="flex flex-col md:flex-row md:gap-2 md:items-center md:justify-start">
-              <input name="q" defaultValue={sp.q ?? ''} placeholder="輸入姓名、Email 或電話" className={`${sel} w-full md:flex-1 md:min-w-0`} aria-label="搜尋人員" />
-              {/* 平板版及以上：控制項在同一列 */}
-              <div className="hidden md:flex gap-2 items-center">
-                {tab === 'all' && (
-                  <select name="membership" defaultValue={sp.membership ?? ''} className={sel} aria-label="會員等級">
-                    <option value="">全部等級</option>
-                    <option value="BASIC">普通會員</option>
-                    <option value="VIP">VIP 會員</option>
-                  </select>
-                )}
-                {tab !== 'blacklist' && (
-                  <select name="activity" defaultValue={sp.activity ?? ''} className={sel} aria-label="活動資格">
-                    <option value="">全部資格</option>
-                    <option value="can_signup">可以報名</option>
-                    <option value="no_activity">禁止報名</option>
-                  </select>
-                )}
-                <button type="submit" className="h-9 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white shrink-0">搜尋</button>
-                <Link href={`/admin/members?tab=${tab}`} className="h-9 rounded-lg border border-zinc-300 px-3 text-sm flex items-center hover:bg-zinc-50 shrink-0">清除</Link>
-              </div>
-            </div>
-
-            {/* 手機版：分行排列 */}
-            <div className="md:hidden space-y-2">
-              {tab === 'all' && (
-                <select name="membership" defaultValue={sp.membership ?? ''} className={`${sel} w-full`} aria-label="會員等級">
-                  <option value="">全部等級</option>
-                  <option value="BASIC">普通會員</option>
-                  <option value="VIP">VIP 會員</option>
-                </select>
-              )}
-              {tab !== 'blacklist' && (
-                <select name="activity" defaultValue={sp.activity ?? ''} className={`${sel} w-full`} aria-label="活動資格">
-                  <option value="">全部資格</option>
-                  <option value="can_signup">可以報名</option>
-                  <option value="no_activity">禁止報名</option>
-                </select>
-              )}
-              <div className="flex gap-2">
-                <button type="submit" className="flex-1 h-9 rounded-lg bg-brand-600 text-sm font-medium text-white">搜尋</button>
-                <Link href={`/admin/members?tab=${tab}`} className="flex-1 h-9 rounded-lg border border-zinc-300 text-sm flex items-center justify-center hover:bg-zinc-50">清除</Link>
-              </div>
-            </div>
-
-            <div className="text-xs text-muted pt-1">共 {data.total} 位會員</div>
-          </form>
+      <>
+        <MembersSearchForm
+          tab={tab}
+          currentQuery={{ q: sp.q, activity: sp.activity, membership: sp.membership }}
+          total={data.total}
+        />
 
           {tab === 'coaches' && data.coaches.length > 0 && (
             <section className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm">
@@ -243,7 +183,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             </nav>
           )}
         </>
-      )}
     </div>
   )
 }
