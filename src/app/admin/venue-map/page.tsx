@@ -11,8 +11,8 @@ export default async function VenueMapPage() {
   if (ctx === 'forbidden') return <Forbidden />
 
   return (
-    <div className="space-y-6">
-      <PageTitle title="設施地圖" desc="場館設備與設施配置" />
+    <div className=\"space-y-6\">
+      <PageTitle title=\"設施地圖\" desc=\"場館設備與設施配置\" />
       <VenueLayoutMap interactive />
     </div>
   )
