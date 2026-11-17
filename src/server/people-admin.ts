@@ -23,6 +23,9 @@ export interface PeopleQuery {
   membership?: 'BASIC' | 'VIP' | ''
   from?: string
   to?: string
+  minPoints?: number
+  maxPoints?: number
+  lastBookingDays?: 7 | 30 | 90 | ''
   sort?: 'joined' | 'login' | 'points' | 'name'
   page?: number
 }
@@ -61,6 +64,12 @@ export async function listPeople(qy: PeopleQuery) {
   if (qy.activity === 'no_activity') and.push({ restrictions: { some: activeRestrictionWhere('NO_ACTIVITY') } })
   if (qy.status === 'normal') and.push({ restrictions: { none: activeRestrictionWhere() } })
   if (qy.membership && qy.membership.trim() !== '') and.push({ membershipLevel: qy.membership as 'BASIC' | 'VIP' })
+  if (qy.minPoints !== undefined && qy.minPoints >= 0) and.push({ points: { gte: qy.minPoints } })
+  if (qy.maxPoints !== undefined && qy.maxPoints >= 0) and.push({ points: { lte: qy.maxPoints } })
+  if (qy.lastBookingDays) {
+    const days = qy.lastBookingDays === '7' ? 7 : qy.lastBookingDays === '30' ? 30 : 90
+    and.push({ bookings: { some: { playAt: { gte: new Date(now().getTime() - days * 24 * 60 * 60 * 1000) } } } })
+  }
   if (and.length) where.AND = and
 
   // 工作人員與管理員：以後台帳號為主（正式資料庫），可對應會員
