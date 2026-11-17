@@ -194,7 +194,7 @@ function SidebarNav({ user }: { user: ShellUser }) {
         <BrandLogo showText={true} />
       </Link>
 
-      <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="後台選單">
+      <nav className="admin-sidebar-scroll flex-1 overflow-y-auto px-3 pb-3" aria-label="後台選單">
         <ul className="space-y-1">
           {groups.map((g) => {
             const Icon = NAV_ICON[g.icon]
