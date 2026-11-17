@@ -8,11 +8,6 @@ import { MembersSearchForm } from './search-form'
 export const metadata: Metadata = { title: '人員管理' }
 export const dynamic = 'force-dynamic'
 
-const TABS: { key: PeopleTab; label: string }[] = [
-  { key: 'all', label: '全部會員' },
-  { key: 'coaches', label: '教練' },
-  { key: 'blacklist', label: '黑名單' },
-]
 const sel = 'h-9 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-sm'
 
 type SP = { tab?: string; q?: string; activity?: string; membership?: string; from?: string; to?: string; minPoints?: string; maxPoints?: string; lastBookingDays?: string; coachStatus?: string; page?: string }
@@ -24,7 +19,8 @@ type SP = { tab?: string; q?: string; activity?: string; membership?: string; fr
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<SP> }) {
   if ((await pagePermission('members')) === 'forbidden') return <Forbidden />
   const sp = await searchParams
-  const tab = (TABS.some((t) => t.key === sp.tab) ? sp.tab : 'all') as PeopleTab
+  const validTabs: PeopleTab[] = ['all', 'coaches', 'blacklist']
+  const tab = (validTabs.includes(sp.tab as any) ? sp.tab : 'all') as PeopleTab
   const data = await listPeople({
     tab,
     q: sp.q,
@@ -43,23 +39,10 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     return `/admin/members?${u}`
   }
 
-  const qsTab = (newTab: string) => {
-    const u = new URLSearchParams()
-    u.set('tab', newTab)
-    return `/admin/members?${u}`
-  }
 
   return (
     <div className="space-y-4">
       <PageTitle title="會員與教練" desc="會員於首次以 LINE 登入時自動建立。教練身分與後台角色分開；黑名單是帳戶限制狀態，不改變角色。" />
-
-      <nav className="flex gap-1 rounded-xl bg-zinc-100 p-1 text-sm" aria-label="會員與教練分頁">
-        {TABS.map((t) => (
-          <Link key={t.key} href={qsTab(t.key)} aria-current={tab === t.key ? 'page' : undefined} className={`rounded-lg px-3 py-1.5 font-medium ${tab === t.key ? 'bg-white shadow-sm' : 'text-muted hover:text-[rgb(var(--fg))]'}`}>
-            {t.label}
-          </Link>
-        ))}
-      </nav>
 
       <>
         <MembersSearchForm
