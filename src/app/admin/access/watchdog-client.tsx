@@ -53,7 +53,7 @@ export function WatchdogClient({ venueId }: { venueId: string }) {
       setLastRunAt(new Date(data.runAt))
 
       if (data.summary.failed > 0) {
-        toast(`檢測完成：${data.summary.failed} 項失敗，${data.summary.passed} 項通過`, 'warning')
+        toast(`檢測完成：${data.summary.failed} 項失敗，${data.summary.passed} 項通過`, 'error')
       } else {
         toast('✅ 所有檢測通過', 'success')
       }
