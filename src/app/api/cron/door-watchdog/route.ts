@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           data: {
             venueId: venue.id,
             alertType: 'WATCHDOG_CRON_RUN',
-            severity: failedChecks > 0 ? 'ERROR' : 'CLEARED',
+            severity: failedChecks > 0 ? 'ERROR' : 'HEALTHY',
             title: `定時檢測 (${summary.passed}/${summary.total})`,
             description: `自動執行・通過: ${summary.passed}, 失敗: ${failedChecks}`,
             status: 'CLOSED',

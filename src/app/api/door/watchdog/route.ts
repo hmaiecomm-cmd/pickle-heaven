@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('venue.admin'))) return unauthorized()
+    if (!(await requireAdminApi('access.grant'))) return unauthorized()
 
     const body = await request.json().catch(() => ({}))
     const venueId = body.venueId
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       data: {
         venueId,
         alertType: 'WATCHDOG_CHECK_RUN',
-        severity: summary.failed > 0 ? 'ERROR' : 'CLEARED',
+        severity: summary.failed > 0 ? 'ERROR' : 'HEALTHY',
         title: `健康檢測完成 (${summary.passed}/${summary.total})`,
         description: `通過: ${summary.passed}, 失敗: ${summary.failed}`,
         status: 'CLOSED',
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('venue.admin'))) return unauthorized()
+    if (!(await requireAdminApi('access.grant'))) return unauthorized()
 
     const url = new URL(request.url)
     const venueId = url.searchParams.get('venueId')
