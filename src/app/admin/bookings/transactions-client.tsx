@@ -179,13 +179,6 @@ export function TransactionsClient({
             </div>
           </form>
 
-          <div className="flex items-center justify-between text-sm">
-            <p>
-              共 <strong>{data.total}</strong> 筆{filterSummary && <span className="text-muted">（{filterSummary}）</span>}
-            </p>
-            <p className="text-[11px] text-muted">查詢時間 {new Date(data.queriedAt).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</p>
-          </div>
-
           <div className={cn('overflow-x-auto rounded-2xl border border-zinc-200 bg-white transition-opacity', loading && 'opacity-60')}>
             <table className="w-full min-w-[1080px] text-sm">
               <thead className="bg-zinc-50 text-left text-xs text-muted">
