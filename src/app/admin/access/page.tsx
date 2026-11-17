@@ -19,6 +19,7 @@ import {
 import { ManualGrantForm, ReconcileButton, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { AccessScheduleManager } from './access-schedule-manager'
+import { PasswordSettings } from './password-settings'
 import { getDoorRemoteState } from '@/server/door-remote'
 
 export const metadata: Metadata = { title: '門禁權限管理' }
@@ -103,11 +104,12 @@ function Empty({ title, desc }: { title: string; desc: string }) {
 
 async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
   const at = now()
-  const [doorState, grants, members, schedules] = await Promise.all([
+  const [doorState, grants, members, schedules, venue] = await Promise.all([
     getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
     (prisma as any).doorAccessSchedule?.findMany({ where: { enabled: true }, orderBy: { startAt: 'asc' } }).catch(() => []) || Promise.resolve([]),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true } }),
   ])
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
@@ -119,6 +121,15 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
         <DoorRemoteCard state={doorState} canRemote={canRemote} />
         <AccessScheduleManager schedules={schedules as any} canManage={canGrant} />
       </div>
+      {venue && canGrant && (
+        <PasswordSettings
+          settings={{
+            passwordGenerationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
+            passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
+          }}
+          defaultBookAheadDays={venue.bookAheadDays}
+        />
+      )}
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">預約自動授權規則</h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-700">
