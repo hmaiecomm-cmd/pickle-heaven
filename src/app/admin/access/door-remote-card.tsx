@@ -121,9 +121,9 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
               </select>
             </label>
           )}
-          <Button size="lg" onClick={ask} disabled={!!blocked || busy} title={blocked ?? undefined} className="w-full sm:w-auto">
+          <Button size="lg" onClick={ask} disabled={!!blocked || busy} title={blocked ?? undefined} className="w-full bg-red-600 hover:bg-red-700 sm:w-auto">
             {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <DoorOpen className="h-5 w-5" aria-hidden />}
-            {busy ? '開門中…' : '一鍵開啟大門'}
+            {busy ? '開門中…' : '一鍵強制開門'}
           </Button>
           {blocked && <p className="text-xs text-muted">{blocked}</p>}
         </div>
