@@ -107,7 +107,7 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
     getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
-    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true } }),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true, passwordOpenTime: true } }),
   ])
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
@@ -124,6 +124,7 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
           settings={{
             passwordGenerationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
             passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
+            passwordOpenTime: (venue.passwordOpenTime as any) ?? '10_MINUTES_BEFORE',
           }}
           defaultBookAheadDays={venue.bookAheadDays}
         />
