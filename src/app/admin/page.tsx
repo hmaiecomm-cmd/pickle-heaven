@@ -39,36 +39,35 @@ export default async function AdminDashboard() {
   return (
     <div className="relative">
       <Hills className="pointer-events-none fixed bottom-0 right-0 hidden h-28 w-[calc(100%-15rem)] md:block" />
-      <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-        {/* 六宮格：手機 2×3、平板 2×3 或 3×2、電腦 3×2 */}
-        <nav aria-label="後台功能" className="relative grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:grid-cols-3 lg:gap-6">
+      <div className="space-y-3 sm:space-y-3 lg:space-y-3">
+        {/* 區塊 1：六宮格 3×2（桌面）/ 3×2（手機優先） */}
+        <nav aria-label="後台功能" className="grid grid-cols-3 gap-2 sm:gap-2 md:gap-3 lg:grid-cols-3 lg:gap-4">
           {availableItems.map(({ id, label, href, icon: Icon }) => (
             <Link
               key={id}
               href={href}
-              className="group flex aspect-square flex-col items-center justify-center gap-2 rounded-[20px] sm:rounded-[24px] md:rounded-[28px] border border-[#e6eadf] bg-white/95 shadow-[0_2px_10px_rgba(31,77,52,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342] sm:gap-3 md:gap-4 lg:gap-5"
+              className="group flex flex-col items-center justify-start gap-1 py-2 sm:py-2.5 md:py-3 lg:py-4 px-1 rounded-lg sm:rounded-xl border border-[#e6eadf] bg-white/95 shadow-[0_1px_3px_rgba(31,77,52,0.06)] transition-all hover:shadow-[0_4px_12px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342]"
             >
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-[#eef7e6] to-[#dcefcf] transition-colors group-hover:from-[#e3f2d8] group-hover:to-[#cde7bb] sm:h-16 sm:w-16 md:h-20 md:w-20 lg:h-24 lg:w-24">
-                <Icon className="h-6 w-6 text-[#2f7d3b] sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12" strokeWidth={1.7} aria-hidden />
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#eef7e6] to-[#dcefcf] transition-colors group-hover:from-[#e3f2d8] group-hover:to-[#cde7bb] sm:h-11 sm:w-11 md:h-14 md:w-14 lg:h-16 lg:w-16">
+                <Icon className="h-5 w-5 text-[#2f7d3b] sm:h-6 sm:w-6 md:h-7 md:w-7 lg:h-8 lg:w-8" strokeWidth={1.7} aria-hidden />
               </span>
-              <span className="text-xs font-bold tracking-tight text-[#1f2a22] text-center line-clamp-2 sm:text-sm md:text-base lg:text-lg">{label}</span>
+              <span className="text-xs font-bold tracking-tight text-[#1f2a22] text-center line-clamp-2 sm:text-xs md:text-sm lg:text-base leading-tight">{label}</span>
             </Link>
           ))}
         </nav>
 
-        {/* 門禁權限控制區 */}
-        {doorState && hasAccessPermission && (
-          <div>
-            <AccessQuickCard doorState={doorState} canRemote={canRemote} />
-          </div>
-        )}
+        {/* 區塊 2：門禁控制 + 監視器 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2 md:gap-3 lg:gap-4">
+          {/* 左側：開門按鈕 + 常開開關 */}
+          {doorState && hasAccessPermission && (
+            <AccessQuickCard doorState={doorState} canRemote={canRemote} compact={true} />
+          )}
 
-        {/* 大門監視器影像 */}
-        {doorCamera && canMonitor && (
-          <div>
-            <DoorMonitorCard camera={doorCamera} canMonitor={true} />
-          </div>
-        )}
+          {/* 右側：監視器 */}
+          {doorCamera && canMonitor && (
+            <DoorMonitorCard camera={doorCamera} canMonitor={true} compact={true} />
+          )}
+        </div>
       </div>
     </div>
   )

@@ -17,15 +17,57 @@ interface DoorMonitorCardProps {
     } | null
   }
   canMonitor: boolean
+  compact?: boolean
 }
 
 /**
  * 首頁大門監視器卡片 - 顯示大門實時監視器影像
  * 手機、平板、電腦版都全寬顯示
  */
-export function DoorMonitorCard({ camera, canMonitor }: DoorMonitorCardProps) {
+export function DoorMonitorCard({ camera, canMonitor, compact = false }: DoorMonitorCardProps) {
   if (!canMonitor || !camera?.demo) {
     return null
+  }
+
+  if (compact) {
+    return (
+      <Link
+        href="/admin/monitor"
+        className="group relative block w-full overflow-hidden rounded-lg sm:rounded-xl border border-[#e6eadf] bg-white/95 shadow-[0_1px_3px_rgba(31,77,52,0.06)] transition-all hover:shadow-[0_4px_12px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342]"
+      >
+        {/* 監視器影像容器 - 16:9 */}
+        <div className="relative w-full overflow-hidden bg-zinc-900" style={{ aspectRatio: '16 / 9', maxHeight: '240px' }}>
+          {/* 背景影像 */}
+          <div
+            className="absolute inset-0 object-contain"
+            style={{
+              backgroundImage: `url('${camera.demo.main}')`,
+              backgroundPosition: camera.demo.mainPosition || 'center',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+
+          {/* LIVE 標籤 */}
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 sm:px-2.5 sm:py-1">
+            <CircleDot className="h-1.5 w-1.5 sm:h-2 sm:w-2 fill-red-600 text-white animate-pulse" aria-hidden />
+            <span className="text-xs font-bold text-white">LIVE</span>
+          </div>
+
+          {/* 大門名稱 */}
+          <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 rounded bg-black/60 px-1.5 py-0.5 sm:px-2 sm:py-1">
+            <p className="text-xs font-semibold text-white truncate max-w-[150px] sm:max-w-[200px]">{camera.name}</p>
+          </div>
+
+          {/* 進入監控提示 */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+            <span className="text-white text-xs sm:text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              查看完整監控
+            </span>
+          </div>
+        </div>
+      </Link>
+    )
   }
 
   return (
