@@ -1,0 +1,207 @@
+
+> pickle-heaven@1.0.0 build
+> node scripts/generate-prisma.mjs && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 864ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+[patch-prisma] 已修補 #main-entry-point → ./index.js
+   ▲ Next.js 15.5.29
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 47s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/31) ...
+   Generating static pages (7/31) 
+   Generating static pages (15/31) 
+   Generating static pages (23/31) 
+ ✓ Generating static pages (31/31)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                     Size  First Load JS
+┌ ƒ /                                                        1.22 kB         119 kB
+├ ƒ /_not-found                                                346 B         103 kB
+├ ƒ /account                                                 9.46 kB         129 kB
+├ ƒ /account/dupr-tab                                        1.28 kB         106 kB
+├ ƒ /account/topup                                            3.8 kB         120 kB
+├ ƒ /account/topup/[id]                                      5.61 kB         122 kB
+├ ƒ /account/topup/confirm                                   5.83 kB         123 kB
+├ ƒ /admin                                                   6.18 kB         138 kB
+├ ƒ /admin/access                                              13 kB         139 kB
+├ ƒ /admin/activities                                          200 B         106 kB
+├ ƒ /admin/activities/[id]                                   9.69 kB         152 kB
+├ ƒ /admin/activities/new                                     4.5 kB         133 kB
+├ ƒ /admin/ai-assistant                                        346 B         103 kB
+├ ƒ /admin/ai-courts                                           346 B         103 kB
+├ ƒ /admin/audit                                               200 B         106 kB
+├ ƒ /admin/automation                                          889 B         120 kB
+├ ƒ /admin/bookings                                          15.4 kB         142 kB
+├ ƒ /admin/bookings/products                                   194 B         106 kB
+├ ƒ /admin/change-password                                   5.44 kB         115 kB
+├ ƒ /admin/coaches/[id]                                      1.32 kB         107 kB
+├ ƒ /admin/control                                           7.91 kB         134 kB
+├ ƒ /admin/courts                                            7.43 kB         143 kB
+├ ƒ /admin/devices                                              8 kB         127 kB
+├ ƒ /admin/events                                            9.46 kB         145 kB
+├ ƒ /admin/expenses                                          13.4 kB         144 kB
+├ ƒ /admin/finance                                           2.63 kB         115 kB
+├ ƒ /admin/finance/daily                                       200 B         106 kB
+├ ƒ /admin/finance/payments                                  5.16 kB         140 kB
+├ ƒ /admin/home                                              2.89 kB         112 kB
+├ ƒ /admin/incidents                                         5.86 kB         118 kB
+├ ƒ /admin/invoices                                          5.55 kB         141 kB
+├ ƒ /admin/login                                             5.07 kB         114 kB
+├ ƒ /admin/logs                                              3.05 kB         109 kB
+├ ƒ /admin/maintenance                                        9.8 kB         139 kB
+├ ƒ /admin/marketing                                         16.9 kB         146 kB
+├ ƒ /admin/marketing/activities/[id]                           346 B         103 kB
+├ ƒ /admin/marketing/activities/new                            346 B         103 kB
+├ ƒ /admin/marketing/campaigns                                 194 B         106 kB
+├ ƒ /admin/marketing/products                                  194 B         106 kB
+├ ƒ /admin/marketing/vouchers                                  194 B         106 kB
+├ ƒ /admin/members                                           1.57 kB         107 kB
+├ ƒ /admin/members/[id]                                       7.4 kB         120 kB
+├ ƒ /admin/members/history                                     200 B         106 kB
+├ ƒ /admin/members/points                                      200 B         106 kB
+├ ƒ /admin/members/restrictions                                200 B         106 kB
+├ ƒ /admin/monitor                                           18.8 kB         131 kB
+├ ƒ /admin/pricing                                           5.94 kB         127 kB
+├ ƒ /admin/receipts                                            346 B         103 kB
+├ ƒ /admin/refunds                                             200 B         106 kB
+├ ƒ /admin/registrations                                       200 B         106 kB
+├ ƒ /admin/remote-control-watchdog                           2.75 kB         108 kB
+├ ƒ /admin/reports                                           4.29 kB         114 kB
+├ ƒ /admin/reports/activities                                  200 B         106 kB
+├ ƒ /admin/reports/members                                     200 B         106 kB
+├ ƒ /admin/reports/utilization                                 200 B         106 kB
+├ ƒ /admin/schedule                                          6.13 kB         133 kB
+├ ƒ /admin/sessions                                          4.81 kB         131 kB
+├ ƒ /admin/sessions/[id]                                     8.68 kB         121 kB
+├ ƒ /admin/settings                                          9.71 kB         131 kB
+├ ƒ /admin/settings/devices                                    194 B         106 kB
+├ ƒ /admin/settings/payments                                   194 B         106 kB
+├ ƒ /admin/settings/site                                       194 B         106 kB
+├ ƒ /admin/settings/staff                                    5.49 kB         118 kB
+├ ƒ /admin/settings/topup                                    4.16 kB         117 kB
+├ ƒ /admin/templates                                         8.95 kB         121 kB
+├ ƒ /admin/topup                                              2.6 kB         115 kB
+├ ƒ /admin/venue-map                                          3.8 kB         110 kB
+├ ƒ /admin/watchdog                                          2.54 kB         108 kB
+├ ƒ /api/admin/ai/actions                                      346 B         103 kB
+├ ƒ /api/admin/ai/chat                                         346 B         103 kB
+├ ƒ /api/admin/audit                                           346 B         103 kB
+├ ƒ /api/admin/automation/logs                                 346 B         103 kB
+├ ƒ /api/admin/automation/rules                                346 B         103 kB
+├ ƒ /api/admin/automation/rules/[id]                           346 B         103 kB
+├ ƒ /api/admin/circuits/schedule                               346 B         103 kB
+├ ƒ /api/admin/circuits/schedule/audit                         346 B         103 kB
+├ ƒ /api/admin/circuits/schedule/preview                       346 B         103 kB
+├ ƒ /api/admin/coaches                                         346 B         103 kB
+├ ƒ /api/admin/coaches/[id]                                    346 B         103 kB
+├ ƒ /api/admin/control/command                                 346 B         103 kB
+├ ƒ /api/admin/courts                                          346 B         103 kB
+├ ƒ /api/admin/courts/[id]                                     346 B         103 kB
+├ ƒ /api/admin/courts/[id]/status                              346 B         103 kB
+├ ƒ /api/admin/devices                                         346 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies                     346 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies/[id]/acknowledge    346 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies/[id]/resolve        346 B         103 kB
+├ ƒ /api/admin/devices/statistics                              346 B         103 kB
+├ ƒ /api/admin/events                                          346 B         103 kB
+├ ƒ /api/admin/expenses                                        346 B         103 kB
+├ ƒ /api/admin/expenses/[id]                                   346 B         103 kB
+├ ƒ /api/admin/expenses/[id]/status                            346 B         103 kB
+├ ƒ /api/admin/expenses/attachments                            346 B         103 kB
+├ ƒ /api/admin/expenses/attachments/[id]                       346 B         103 kB
+├ ƒ /api/admin/expenses/duplicates                             346 B         103 kB
+├ ƒ /api/admin/finance/revenue                                 346 B         103 kB
+├ ƒ /api/admin/finance/summary                                 346 B         103 kB
+├ ƒ /api/admin/home/draft                                      346 B         103 kB
+├ ƒ /api/admin/invoices                                        346 B         103 kB
+├ ƒ /api/admin/invoices/[id]/status                            346 B         103 kB
+├ ƒ /api/admin/logs                                            346 B         103 kB
+├ ƒ /api/admin/marketing/[kind]                                346 B         103 kB
+├ ƒ /api/admin/marketing/[kind]/[id]                           346 B         103 kB
+├ ƒ /api/admin/media                                           346 B         103 kB
+├ ƒ /api/admin/members                                         346 B         103 kB
+├ ƒ /api/admin/members/[id]/level                              346 B         103 kB
+├ ƒ /api/admin/mfa/setup                                       346 B         103 kB
+├ ƒ /api/admin/mfa/verify                                      346 B         103 kB
+├ ƒ /api/admin/payments                                        346 B         103 kB
+├ ƒ /api/admin/pricing                                         346 B         103 kB
+├ ƒ /api/admin/pricing/tiers                                   346 B         103 kB
+├ ƒ /api/admin/receipts                                        346 B         103 kB
+├ ƒ /api/admin/receipts/[id]/confirm                           346 B         103 kB
+├ ƒ /api/admin/settings                                        346 B         103 kB
+├ ƒ /api/admin/settings/venue/[id]                             346 B         103 kB
+├ ƒ /api/admin/watchdog                                        346 B         103 kB
+├ ƒ /api/auth/dupr/authorize                                   346 B         103 kB
+├ ƒ /api/auth/dupr/callback                                    346 B         103 kB
+├ ƒ /api/booking/cancel                                        346 B         103 kB
+├ ƒ /api/bookings/[id]/status                                  346 B         103 kB
+├ ƒ /api/cron/check-schedules                                  346 B         103 kB
+├ ƒ /api/cron/door-watchdog                                    346 B         103 kB
+├ ƒ /api/cron/expire-bookings                                  346 B         103 kB
+├ ƒ /api/cron/reminders                                        346 B         103 kB
+├ ƒ /api/cron/sessions                                         346 B         103 kB
+├ ƒ /api/cron/slot-passwords                                   346 B         103 kB
+├ ƒ /api/cron/watchdog                                         346 B         103 kB
+├ ƒ /api/door/access                                           346 B         103 kB
+├ ƒ /api/door/schedule                                         346 B         103 kB
+├ ƒ /api/door/verify-code                                      346 B         103 kB
+├ ƒ /api/door/watchdog                                         346 B         103 kB
+├ ƒ /api/dupr/link                                             346 B         103 kB
+├ ƒ /api/dupr/me                                               346 B         103 kB
+├ ƒ /api/dupr/sync-ratings                                     346 B         103 kB
+├ ƒ /api/health                                                346 B         103 kB
+├ ƒ /api/marketing/announcements                               346 B         103 kB
+├ ƒ /api/marketing/banners                                     346 B         103 kB
+├ ƒ /api/marketing/promotion-cards                             346 B         103 kB
+├ ƒ /api/payments/[provider]/notify                            346 B         103 kB
+├ ƒ /api/payments/tappay/prime                                 346 B         103 kB
+├ ƒ /api/preview/[pageType]                                    346 B         103 kB
+├ ƒ /api/remote-control/watchdog                               346 B         103 kB
+├ ƒ /api/test/send-booking-confirmed                           346 B         103 kB
+├ ƒ /api/test/send-reminder                                    346 B         103 kB
+├ ƒ /api/topup/[id]/status                                     346 B         103 kB
+├ ƒ /api/ws/anomalies                                          346 B         103 kB
+├ ƒ /booking                                                 10.6 kB         149 kB
+├ ƒ /booking/[code]                                          7.33 kB         116 kB
+├ ƒ /bookings                                                  346 B         103 kB
+├ ƒ /bookings/[id]                                           9.42 kB         140 kB
+├ ƒ /cart                                                    9.96 kB         122 kB
+├ ƒ /checkout                                                9.41 kB         145 kB
+├ ƒ /checkout/[id]                                           2.42 kB         138 kB
+├ ƒ /checkout/result                                         4.57 kB         117 kB
+├ ƒ /checkout/simulator                                      4.52 kB         114 kB
+├ ƒ /dupr/link-error                                          2.4 kB         105 kB
+├ ƒ /dupr/link-success                                       1.92 kB         104 kB
+├ ƒ /line-check                                              6.88 kB         116 kB
+├ ƒ /media/[id]                                                346 B         103 kB
+├ ƒ /order-tabs-preview                                        346 B         103 kB
+├ ƒ /privacy                                                   194 B         106 kB
+├ ○ /robots.txt                                                346 B         103 kB
+├ ƒ /sessions                                                3.38 kB         139 kB
+└ ƒ /terms                                                     194 B         106 kB
++ First Load JS shared by all                                 102 kB
+  ├ chunks/1255-1ac7579e2d94c260.js                          46.1 kB
+  ├ chunks/4bd1b696-182b6b13bdad92e3.js                      54.2 kB
+  └ other shared chunks (total)                              1.96 kB
+
+
+ƒ Middleware                                                 39.6 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

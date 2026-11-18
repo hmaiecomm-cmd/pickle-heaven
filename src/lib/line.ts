@@ -149,6 +149,131 @@ export async function sendServiceMessage(
   }
 }
 
+export interface LineAccountStatus {
+  configured: boolean
+  /** Token 有效且查得到帳號 */
+  connected: boolean
+  displayName: string | null
+  basicId: string | null
+  pictureUrl: string | null
+  followers: number | null
+  blocks: number | null
+  /** 群發實際會收到的人數（扣除封鎖等） */
+  reachable: number | null
+  /** 每月可推播則數；null 表示無上限 */
+  quota: number | null
+  usedThisMonth: number | null
+}
+
+/** 唯讀查詢官方帳號資訊與本月額度，供後台顯示連接狀態 */
+export async function getLineAccountStatus(): Promise<LineAccountStatus> {
+  const empty: LineAccountStatus = {
+    configured: false,
+    connected: false,
+    displayName: null,
+    basicId: null,
+    pictureUrl: null,
+    followers: null,
+    blocks: null,
+    reachable: null,
+    quota: null,
+    usedThisMonth: null,
+  }
+  const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
+  if (!token) return empty
+
+  const get = async <T,>(path: string): Promise<T | null> => {
+    try {
+      const res = await fetch(`https://api.line.me${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      return res.ok ? ((await res.json()) as T) : null
+    } catch {
+      return null
+    }
+  }
+
+  // 好友統計以前一天（台北時間）為準，當天資料 LINE 尚未產生
+  const yesterday = new Date(Date.now() + 8 * 3600_000 - 86_400_000).toISOString().slice(0, 10).replace(/-/g, '')
+  const [info, quota, usage, insight] = await Promise.all([
+    get<{ basicId: string; displayName: string; pictureUrl?: string }>('/v2/bot/info'),
+    get<{ type: 'none' | 'limited'; value?: number }>('/v2/bot/message/quota'),
+    get<{ totalUsage: number }>('/v2/bot/message/quota/consumption'),
+    get<{ status: string; followers?: number; blocks?: number; targetedReaches?: number }>(`/v2/bot/insight/followers?date=${yesterday}`),
+  ])
+  if (!info) return { ...empty, configured: true }
+
+  return {
+    configured: true,
+    connected: true,
+    displayName: info.displayName,
+    basicId: info.basicId,
+    pictureUrl: info.pictureUrl ?? null,
+    followers: insight?.status === 'ready' ? (insight.followers ?? null) : null,
+    blocks: insight?.status === 'ready' ? (insight.blocks ?? null) : null,
+    reachable: insight?.status === 'ready' ? (insight.targetedReaches ?? null) : null,
+    quota: quota?.type === 'limited' ? (quota.value ?? null) : null,
+    usedThisMonth: usage?.totalUsage ?? null,
+  }
+}
+
+export type LineSendTarget = { kind: 'broadcast' } | { kind: 'multicast'; to: string[] }
+
+/**
+ * 行銷訊息：broadcast 發給全部好友，multicast 發給指定名單（每次最多 500 人）。
+ * 每次請求帶 X-Line-Retry-Key，網路重試時 LINE 不會重複發送。
+ */
+export async function sendLineMarketing(
+  target: LineSendTarget,
+  messages: unknown[],
+): Promise<{ sent: number; failed: number; error: string | null }> {
+  if (await isDemoTenant()) return { sent: 0, failed: 0, error: '展示環境不會實際發送 LINE 訊息' }
+  const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
+  if (!token) return { sent: 0, failed: 0, error: '尚未設定 LINE_MESSAGING_CHANNEL_ACCESS_TOKEN' }
+
+  const post = async (path: string, body: unknown): Promise<string | null> => {
+    try {
+      const res = await fetch(`https://api.line.me${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'X-Line-Retry-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) return null
+      const detail = await res.text().catch(() => '')
+      console.error('[line] 行銷訊息失敗', path, res.status, detail)
+      return `LINE 回應 ${res.status}${detail ? `：${detail.slice(0, 200)}` : ''}`
+    } catch (err) {
+      console.error('[line] 行銷訊息例外', err)
+      return err instanceof Error ? err.message : '連線失敗'
+    }
+  }
+
+  if (target.kind === 'broadcast') {
+    const error = await post('/v2/bot/message/broadcast', { messages })
+    return { sent: error ? 0 : 1, failed: error ? 1 : 0, error }
+  }
+
+  let sent = 0
+  let failed = 0
+  let error: string | null = null
+  for (let i = 0; i < target.to.length; i += 500) {
+    const chunk = target.to.slice(i, i + 500)
+    const err = await post('/v2/bot/message/multicast', { to: chunk, messages })
+    if (err) {
+      failed += chunk.length
+      error = err
+    } else {
+      sent += chunk.length
+    }
+  }
+  return { sent, failed, error }
+}
+
 export interface BookingNotifyPayload {
   code: string
   venueName: string

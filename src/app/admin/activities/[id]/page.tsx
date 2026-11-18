@@ -7,7 +7,8 @@ import { Forbidden } from '@/components/admin/page-bits'
 import { prisma } from '@/lib/db'
 import { ACTIVITY_TYPE_LABEL, type ActivityTypeKey, type PriceUnitKey } from '@/lib/activity-shared'
 import { getActivityAdmin } from '@/server/activity-admin'
-import { ActivityEditor, type EditorForm } from '../activity-editor'
+import { ActivityEditor } from '../activity-editor'
+import { editorFormFromActivity } from '../editor-initial'
 import { SessionsTable } from '../sessions-table'
 import { ArchiveButton } from './archive-button'
 
@@ -24,44 +25,7 @@ export default async function EditActivityPage({ params }: { params: Promise<{ i
   if (!data || !venue) notFound()
   const a = data.activity
 
-  const initial: EditorForm = {
-    title: a.title,
-    type: a.type as ActivityTypeKey,
-    customTypeLabel: a.customTypeLabel ?? '',
-    summary: a.summary ?? '',
-    description: a.description ?? '',
-    levelLabel: a.levelLabel ?? '',
-    requirements: a.requirements ?? '',
-    includes: a.includes ?? '',
-    refundNote: a.refundNote ?? '',
-    coverAssetId: a.coverAssetId,
-    coverFocusX: a.coverFocusX,
-    coverFocusY: a.coverFocusY,
-    hostId: a.hostId,
-    visibility: (a.visibility as 'PUBLIC' | 'UNLISTED' | 'PRIVATE') ?? 'PUBLIC',
-    locationNote: a.locationNote ?? '',
-    price: a.price,
-    priceUnit: a.priceUnit as PriceUnitKey,
-    capacity: a.capacity,
-    reservedCapacity: a.reservedCapacity,
-    maxPerOrder: a.maxPerOrder,
-    repeatKind: a.repeatKind as 'ONCE' | 'WEEKLY',
-    weekdays: a.weekdays,
-    intervalWeeks: a.intervalWeeks,
-    startMinute: a.startMinute,
-    endMinute: a.endMinute,
-    bufferBeforeMinutes: a.bufferBeforeMinutes,
-    bufferAfterMinutes: a.bufferAfterMinutes,
-    seriesStartDate: a.seriesStartDate,
-    endMode: a.occurrenceCount && !a.seriesEndDate ? 'COUNT' : 'DATE',
-    seriesEndDate: a.seriesEndDate ?? a.seriesStartDate,
-    occurrenceCount: a.occurrenceCount ?? 8,
-    skipDates: a.skipDates,
-    courtIds: a.courtIds,
-    openDaysBefore: a.openDaysBefore,
-    openMinute: a.openMinute,
-    closeMinutesBefore: a.closeMinutesBefore,
-  }
+  const initial = editorFormFromActivity(a)
   const grid = { openMinute: venue.openMinute, closeMinute: venue.closeMinute, slotMinutes: venue.slotMinutes }
   const courts = venue.courts.map((c) => ({ id: c.id, name: c.name, active: c.active }))
 

@@ -106,7 +106,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     icon: 'settings',
     items: [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true, group: '場館與品牌設定' },
-      { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true, group: '場館與品牌設定' },
+      { label: '官網頁面管理', href: '/admin/home', permission: 'settings', group: '場館與品牌設定' },
       { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff', group: '主管與權限設定' },
       { label: '操作紀錄', href: '/admin/audit', permission: 'audit', group: '主管與權限設定' },
       { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings', group: '通知與串接設定' },

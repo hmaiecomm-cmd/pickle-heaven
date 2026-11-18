@@ -110,7 +110,7 @@ export function ActivityManagementSection({ activities }: ActivityManagementSect
                 編輯
               </Link>
               <Link
-                href={`/admin/activities/${activity.id}?preview=true`}
+                href={`/admin/marketing/activities/${activity.id}?preview=1`}
                 className="inline-flex items-center justify-center gap-1 rounded-lg bg-zinc-100 px-2 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
               >
                 <Eye className="h-4 w-4" aria-hidden />

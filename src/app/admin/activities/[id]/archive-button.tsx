@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { archiveActivityAction } from '@/server/activity-admin-actions'
 
 /** 下架活動（草稿則刪除）。有報名的場次需先逐場取消，才會允許下架。 */
-export function ArchiveButton({ id, draft, disabled }: { id: string; draft: boolean; disabled: boolean }) {
+export function ArchiveButton({ id, draft, disabled, listHref = '/admin/activities' }: { id: string; draft: boolean; disabled: boolean; listHref?: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const [busy, setBusy] = React.useState(false)
@@ -22,7 +22,7 @@ export function ArchiveButton({ id, draft, disabled }: { id: string; draft: bool
         try {
           const res = await archiveActivityAction(id)
           toast(res.message ?? '', res.ok ? 'success' : 'error')
-          if (res.ok) router.push('/admin/activities')
+          if (res.ok) router.push(listHref)
         } finally {
           setBusy(false)
         }

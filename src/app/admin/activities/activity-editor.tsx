@@ -1,8 +1,12 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CalendarCheck2, Eye, Plus, Save, Send, UserRound, X } from 'lucide-react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { AlertTriangle, ArrowLeft, CalendarCheck2, CheckCircle2, ChevronDown, Eye, Loader2, Plus, Save, Send, UserRound, X } from 'lucide-react'
+import { ActivityCard } from '@/components/activities/activity-card'
+import { priceText } from '@/components/activities/activity-cover'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
@@ -12,9 +16,14 @@ import {
   ACTIVITY_TYPE_LABEL,
   ACTIVITY_TYPE_OPTIONS,
   MAX_OCCURRENCES,
+  PRICE_UNIT_LABEL,
   PRICE_UNIT_OPTION_LABEL,
+  SIGNUP_STATE_LABEL,
   activityTimeLabel,
+  describeRule,
+  seatsPerUnit,
   shortDateLabel,
+  type ActivityCardDTO,
   type ActivityTypeKey,
   type PriceUnitKey,
 } from '@/lib/activity-shared'
@@ -93,6 +102,41 @@ const VISIBILITY: { v: EditorForm['visibility']; label: string; desc: string }[]
 type Avail = { courtId: string; name: string; ok: boolean; reasons: string[] }[]
 
 /**
+ * 編輯器所在入口的路徑：行銷入口與舊活動頁各自返回自己的列表。
+ * 由 server component 傳入，只能是字串；`:id` 代入活動 ID。
+ */
+export interface EditorPaths {
+  list: string
+  edit: string
+  occupancy: string
+}
+
+const DEFAULT_PATHS: EditorPaths = {
+  list: '/admin/activities',
+  edit: '/admin/activities/:id',
+  occupancy: '/admin/maintenance?tab=activity&activity=:id',
+}
+
+const withId = (template: string, id: string) => template.replace(':id', encodeURIComponent(id))
+
+export interface EditorFlash {
+  mode: 'draft' | 'publish'
+  created: number
+  failed: number
+}
+
+type SectionId = 'cover' | 'basic' | 'schedule' | 'pricing' | 'host' | 'visibility' | 'summary'
+type FieldIssue = { section: SectionId; fieldId: string; message: string }
+
+/** 依伺服器錯誤訊息判斷該展開哪一區（伺服器只回一句話） */
+function issueFromMessage(message: string): FieldIssue {
+  if (/名稱|標題/.test(message)) return { section: 'basic', fieldId: 'a-title', message }
+  if (/分類/.test(message)) return { section: 'basic', fieldId: 'a-type', message }
+  if (/名額|價格|費用/.test(message)) return { section: 'pricing', fieldId: 'a-cap', message }
+  return { section: 'schedule', fieldId: 'a-start-date', message }
+}
+
+/**
  * 活動編輯器：完整編輯頁分六區，底部固定「儲存草稿／預覽／發布」。
  * 選好時間後即查詢每面場地是否可用；發布前必須預覽，衝突日期要明確排除。
  */
@@ -102,12 +146,24 @@ export function ActivityEditor({
   initial,
   venue,
   courts,
+  variant = 'classic',
+  paths = DEFAULT_PATHS,
+  breadcrumb,
+  flash = null,
+  openPreviewOnMount = false,
 }: {
   activityId: string | null
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | null
   initial: EditorForm
   venue: { openMinute: number; closeMinute: number; slotMinutes: number }
   courts: { id: string; name: string; active: boolean }[]
+  /** workbench：B 版單頁工作台（行銷入口）；classic：原本的分區長表單 */
+  variant?: 'classic' | 'workbench'
+  paths?: EditorPaths
+  breadcrumb?: React.ReactNode
+  /** 首次儲存後換到編輯網址時，帶過來顯示的結果 */
+  flash?: EditorFlash | null
+  openPreviewOnMount?: boolean
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -121,6 +177,30 @@ export function ActivityEditor({
   const [occupyLabel, setOccupyLabel] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState<null | 'preview' | 'draft' | 'publish'>(null)
   const [result, setResult] = React.useState<{ message: string; failed: { date: string; reason: string }[]; created: number } | null>(null)
+  const workbench = variant === 'workbench'
+  const [doneMode, setDoneMode] = React.useState<'draft' | 'publish' | null>(flash?.mode ?? null)
+  const [openSections, setOpenSections] = React.useState<Set<SectionId>>(new Set(['cover', 'basic', 'summary']))
+  const [issues, setIssues] = React.useState<FieldIssue[]>([])
+  const [serverError, setServerError] = React.useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = React.useState(false)
+  React.useEffect(() => {
+    if (!flash) return
+    setResult({
+      message: flash.mode === 'publish' ? `已發布，建立 ${flash.created} 場` : '草稿已儲存',
+      failed: flash.failed > 0 ? [{ date: '', reason: `${flash.failed} 場未建立，請到下方場次列表查看` }] : [],
+      created: flash.created,
+    })
+    // 結果已顯示，從網址移除參數，重新整理時不會再出現一次
+    if (activityId) window.history.replaceState(null, '', withId(paths.edit, activityId))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flash])
+  React.useEffect(() => {
+    if (!openPreviewOnMount) return
+    setPreviewOpen(true)
+    void runPreview()
+    // 只在進入頁面時執行一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const published = status === 'PUBLISHED'
   const lockSchedule = published // 已發布：時間、場地、價格、名額改用場次列表的「修改」
@@ -199,26 +279,74 @@ export function ActivityEditor({
 
   const runPreview = async () => {
     setBusy('preview')
-    setResult(null)
+    if (!workbench) setResult(null)
+    setServerError(null)
     try {
       const res = await previewActivityAction(payload(form), activityId)
-      if (!res.ok) return toast(res.message, 'error')
+      if (!res.ok) {
+        if (workbench) setServerError(res.message)
+        return toast(res.message, 'error')
+      }
       setPreview(res.preview)
       setPreviewKey(scheduleKey)
       setExclude(new Set())
       if (res.preview.error) toast(res.preview.error, 'error')
-      document.getElementById('sec-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (!workbench) document.getElementById('sec-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     } finally {
       setBusy(null)
     }
   }
 
+  /** 前端先擋明顯的缺漏；伺服器仍會用同一套規則重新驗證 */
+  const validate = (mode: 'draft' | 'publish'): FieldIssue[] => {
+    const out: FieldIssue[] = []
+    if (!form.title.trim()) out.push({ section: 'basic', fieldId: 'a-title', message: '請輸入活動名稱' })
+    if (form.type === 'OTHER' && !form.customTypeLabel.trim()) out.push({ section: 'basic', fieldId: 'a-custom', message: '請輸入自訂分類名稱' })
+    if (!lockSchedule) {
+      if (!form.seriesStartDate) out.push({ section: 'schedule', fieldId: 'a-start-date', message: '請選擇日期' })
+      if (form.repeatKind === 'WEEKLY' && form.weekdays.length === 0) out.push({ section: 'schedule', fieldId: 'a-weekdays', message: '請選擇每週的哪幾天' })
+      if (form.endMinute <= form.startMinute) out.push({ section: 'schedule', fieldId: 'a-et', message: '結束時間必須晚於開始時間' })
+      if ((mode === 'publish' || holdDays > 0) && form.courtIds.length === 0) out.push({ section: 'schedule', fieldId: 'a-courts', message: '請選擇使用場地' })
+      if ((Number(form.capacity) || 0) < 1) out.push({ section: 'pricing', fieldId: 'a-cap', message: '總名額至少 1 人' })
+      if ((Number(form.reservedCapacity) || 0) >= (Number(form.capacity) || 0)) out.push({ section: 'pricing', fieldId: 'a-res', message: '保留名額必須小於總名額' })
+    }
+    return out
+  }
+
+  /** 驗證失敗：展開相關區塊、捲到第一個欄位並聚焦 */
+  const showIssues = (list: FieldIssue[]) => {
+    setIssues(list)
+    if (list.length === 0) return
+    setOpenSections((o) => new Set([...o, ...list.map((i) => i.section)]))
+    setPreviewOpen(false)
+    requestAnimationFrame(() => {
+      const el = document.getElementById(list[0].fieldId) ?? document.getElementById(`wb-${list[0].section}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (el && 'focus' in el) (el as HTMLElement).focus({ preventScroll: true })
+    })
+  }
+  const issueFor = (fieldId: string) => issues.find((i) => i.fieldId === fieldId)?.message
+  React.useEffect(() => {
+    if (issues.length) setIssues((list) => list.filter((i) => validate('publish').some((v) => v.fieldId === i.fieldId)))
+    // 只在欄位變動時重算已標示的錯誤
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form])
+
   const save = async (mode: 'draft' | 'publish') => {
+    if (workbench) {
+      const list = validate(mode)
+      if (list.length) {
+        showIssues(list)
+        toast(list[0].message, 'error')
+        return
+      }
+    }
     if (mode === 'publish' && !previewFresh) {
       toast('請先預覽場次並確認衝突', 'info')
       return
     }
     setBusy(mode)
+    setServerError(null)
     try {
       const res = await saveActivityAction({
         id: activityId,
@@ -227,11 +355,23 @@ export function ActivityEditor({
         excludeDates: mode === 'publish' ? [...exclude] : [],
         holdDays: mode === 'draft' ? holdDays : 0,
       })
-      if (!res.ok) return toast(res.message, 'error')
-      toast(res.message ?? '已儲存', res.result.failed.length > 0 ? 'info' : 'success')
-      setResult({ message: res.result.message, failed: res.result.failed, created: res.result.created.length })
-      if (!activityId) router.replace(`/admin/activities/${res.result.activityId}`)
-      else {
+      if (!res.ok) {
+        // 失敗時留在工作台，表單內容不動；衝突訊息同時顯示在預覽面板
+        if (workbench) {
+          setServerError(res.message)
+          if (mode === 'draft') showIssues([issueFromMessage(res.message)])
+        }
+        return toast(res.message, 'error')
+      }
+      toast(mode === 'draft' && workbench ? '草稿已儲存' : (res.message ?? '已儲存'), res.result.failed.length > 0 ? 'info' : 'success')
+      setResult({ message: mode === 'draft' && workbench ? '草稿已儲存' : res.result.message, failed: res.result.failed, created: res.result.created.length })
+      setDoneMode(mode)
+      if (mode === 'publish') setPreviewOpen(false)
+      if (!activityId) {
+        // 首次儲存：換成編輯網址（replace，返回鍵仍回到活動列表），結果帶到新頁面顯示
+        const q = workbench ? `?done=${mode}&c=${res.result.created.length}&f=${res.result.failed.length}` : ''
+        router.replace(`${withId(paths.edit, res.result.activityId)}${q}`)
+      } else {
         router.refresh()
         setPreview(null)
       }
@@ -253,27 +393,10 @@ export function ActivityEditor({
   const publicCapacity = Math.max(0, (Number(form.capacity) || 0) - (Number(form.reservedCapacity) || 0))
   const capacityError = (Number(form.reservedCapacity) || 0) >= (Number(form.capacity) || 0) ? '保留名額必須小於總名額' : null
 
-  return (
-    <div className="space-y-4 pb-24">
-      {/* 區段導覽 */}
-      <nav aria-label="編輯區段" className="no-scrollbar -mx-4 overflow-x-auto px-4">
-        <ul className="flex min-w-max gap-1 rounded-xl bg-zinc-100 p-1 text-xs">
-          {SECTIONS.map(([id, label]) => (
-            <li key={id}>
-              <a href={`#sec-${id}`} className="block rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-white hover:text-[rgb(var(--fg))]">
-                {label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {/* 1 基本資料 */}
-      <Card id="sec-basic">
-        <CardContent className="space-y-4">
-          <h2 className="text-sm font-semibold">1 基本資料</h2>
+  const basicFields = (
+    <>
           <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
-            <Field label="活動名稱" htmlFor="a-title" required>
+            <Field label="活動名稱" htmlFor="a-title" required error={issueFor('a-title')}>
               <Input id="a-title" value={form.title} maxLength={60} placeholder="例：新手友善 Open Play" onChange={(e) => set('title', e.target.value)} />
             </Field>
             <Field label="分類" htmlFor="a-type">
@@ -287,7 +410,7 @@ export function ActivityEditor({
             </Field>
           </div>
           {form.type === 'OTHER' && (
-            <Field label="自訂分類名稱" htmlFor="a-custom" hint="會顯示在前台卡片的分類標籤">
+            <Field label="自訂分類名稱" htmlFor="a-custom" hint="會顯示在前台卡片的分類標籤" error={issueFor('a-custom')}>
               <Input id="a-custom" value={form.customTypeLabel} maxLength={30} placeholder="例：親子體驗" onChange={(e) => set('customTypeLabel', e.target.value)} />
             </Field>
           )}
@@ -305,20 +428,11 @@ export function ActivityEditor({
               <Input id="a-req" value={form.requirements} maxLength={500} onChange={(e) => set('requirements', e.target.value)} />
             </Field>
           </div>
-        </CardContent>
-      </Card>
+    </>
+  )
 
-      {/* 2 場次與場地 */}
-      <Card id="sec-schedule">
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">2 場次與場地（Asia/Taipei）</h2>
-            {lockSchedule ? (
-              <span className="text-xs text-muted">已發布：可延長系列或加入排除日期；個別場次的時間、場地請用上方場次列表「修改」或「新增場次」</span>
-            ) : (
-              <span className="text-xs text-muted">每個日期都是獨立場次（獨立 ID、名額與訂單）；報名的是單一場次</span>
-            )}
-          </div>
+  const scheduleFields = (
+    <>
           <div className="flex gap-2" role="radiogroup" aria-label="重複方式">
             {(['ONCE', 'WEEKLY'] as const).map((k) => (
               <button
@@ -336,7 +450,7 @@ export function ActivityEditor({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={form.repeatKind === 'ONCE' ? '日期' : '系列開始日期'} htmlFor="a-start-date">
+            <Field label={form.repeatKind === 'ONCE' ? '日期' : '系列開始日期'} htmlFor="a-start-date" error={issueFor('a-start-date')}>
               <Input id="a-start-date" type="date" value={form.seriesStartDate} disabled={lockSchedule} onChange={(e) => set('seriesStartDate', e.target.value)} />
             </Field>
             <Field label="開始時間" htmlFor="a-st">
@@ -348,7 +462,7 @@ export function ActivityEditor({
                 ))}
               </select>
             </Field>
-            <Field label="結束時間" htmlFor="a-et" hint="可以 30 分鐘為單位；跨午夜顯示「翌日」">
+            <Field label="結束時間" htmlFor="a-et" hint="可以 30 分鐘為單位；跨午夜顯示「翌日」" error={issueFor('a-et')}>
               <select id="a-et" className={sel} value={form.endMinute} disabled={lockSchedule} onChange={(e) => set('endMinute', Number(e.target.value))}>
                 {slotOptions.filter((m) => m > form.startMinute).map((m) => (
                   <option key={m} value={m}>
@@ -372,8 +486,9 @@ export function ActivityEditor({
 
           {form.repeatKind === 'WEEKLY' && (
             <div className="space-y-4 rounded-xl bg-zinc-50 p-3">
-              <fieldset>
+              <fieldset id="a-weekdays" tabIndex={-1}>
                 <legend className="mb-2 text-sm font-medium">每週的哪幾天（可多選）</legend>
+                {issueFor('a-weekdays') && <p className="mb-2 text-xs text-red-700">{issueFor('a-weekdays')}</p>}
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAY_LABELS.map((label, d) => {
                     const on = form.weekdays.includes(d)
@@ -428,7 +543,7 @@ export function ActivityEditor({
             </div>
           </div>
 
-          <fieldset>
+          <fieldset id="a-courts" tabIndex={-1} className={cn(issueFor('a-courts') && 'rounded-xl ring-2 ring-red-300 ring-offset-4')}>
             <legend className="mb-2 text-sm font-medium">
               使用場地 <span className="text-red-600">＊必填</span>
               <span className="ml-1 text-xs font-normal text-muted">可選一面或多面；選好時間後顯示每面場地是否可用（以第一個日期為準）。本館目前沒有棚區資料，直接選球場。</span>
@@ -463,16 +578,11 @@ export function ActivityEditor({
               </p>
             )}
           </fieldset>
-        </CardContent>
-      </Card>
+    </>
+  )
 
-      {/* 3 費用與名額 */}
-      <Card id="sec-pricing">
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">3 費用與名額</h2>
-            {lockSchedule && <span className="text-xs text-muted">已發布：價格與名額請在場次列表「修改」並選擇套用範圍</span>}
-          </div>
+  const pricingFields = (
+    <>
           <div className="grid gap-4 sm:grid-cols-4">
             <Field label="報名價格（NT$）" htmlFor="a-price" hint={Number(form.price) === 0 ? '0 元會明示為「免費」' : undefined}>
               <Input id="a-price" type="number" min={0} value={form.price} disabled={lockSchedule} onChange={(e) => set('price', Number(e.target.value))} />
@@ -486,7 +596,7 @@ export function ActivityEditor({
                 ))}
               </select>
             </Field>
-            <Field label="總名額（人）" htmlFor="a-cap">
+            <Field label="總名額（人）" htmlFor="a-cap" error={issueFor('a-cap')}>
               <Input id="a-cap" type="number" min={1} value={form.capacity} disabled={lockSchedule} onChange={(e) => set('capacity', Number(e.target.value))} />
             </Field>
             <Field label="內部保留名額" htmlFor="a-res" hint={capacityError ?? `對外開放 ${publicCapacity} 人`}>
@@ -527,31 +637,11 @@ export function ActivityEditor({
           <Field label="取消規則補充說明" htmlFor="a-refund" hint="退款比例一律依系統規則（72 小時前全額…）計算，這裡只寫補充說明，不會改變退款金額">
             <Textarea id="a-refund" rows={2} value={form.refundNote} maxLength={500} onChange={(e) => set('refundNote', e.target.value)} />
           </Field>
-        </CardContent>
-      </Card>
+    </>
+  )
 
-      {/* 4 圖片與主持人 */}
-      <Card id="sec-media">
-        <CardContent className="space-y-4">
-          <h2 className="text-sm font-semibold">4 圖片與主持人</h2>
-          <div>
-            <p className="mb-2 text-sm font-medium">封面圖片（建議 16:9，可拖曳焦點；未上傳時使用品牌預設圖）</p>
-            <CoverUploader
-              assetId={form.coverAssetId}
-              focusX={form.coverFocusX}
-              focusY={form.coverFocusY}
-              typeLabel={form.type === 'OTHER' && form.customTypeLabel ? form.customTypeLabel : ACTIVITY_TYPE_LABEL[form.type]}
-              onChange={(v) => setForm((f) => ({ ...f, coverAssetId: v.assetId, coverFocusX: v.focusX, coverFocusY: v.focusY }))}
-            />
-          </div>
-          <HostPicker value={form.hostId} onChange={(id) => set('hostId', id)} />
-        </CardContent>
-      </Card>
-
-      {/* 5 公開方式 */}
-      <Card id="sec-visibility">
-        <CardContent className="space-y-3">
-          <h2 className="text-sm font-semibold">5 公開方式</h2>
+  const visibilityFields = (
+    <>
           <p className="text-xs text-muted">公開與否只影響前台是否顯示與可否報名；已發布的活動不論公開方式都會鎖住場地。</p>
           <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="公開方式">
             {VISIBILITY.map((o) => (
@@ -564,25 +654,11 @@ export function ActivityEditor({
               </label>
             ))}
           </div>
-        </CardContent>
-      </Card>
+    </>
+  )
 
-      {/* 6 預覽與發布 */}
-      <Card id="sec-preview">
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold">6 預覽與發布</h2>
-              <p className="text-xs text-muted">
-                {activityTimeLabel(form.startMinute, form.endMinute)}・{form.courtIds.length} 面場地・發布前必須先預覽；衝突日期要明確排除才能發布，排除後會列出實際建立清單
-              </p>
-            </div>
-            <Button type="button" size="sm" variant="secondary" loading={busy === 'preview'} onClick={runPreview}>
-              <Eye className="h-4 w-4" aria-hidden />
-              {preview ? '重新預覽' : '預覽場次'}
-            </Button>
-          </div>
-
+  const previewBody = (
+    <>
           {preview && !previewFresh && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">排程設定已變更，請重新預覽</p>}
 
           {preview && (
@@ -647,6 +723,428 @@ export function ActivityEditor({
               )}
             </>
           )}
+    </>
+  )
+
+  const typeLabel = form.type === 'OTHER' && form.customTypeLabel ? form.customTypeLabel : ACTIVITY_TYPE_LABEL[form.type]
+
+  const coverField = (
+    <CoverUploader
+      variant={workbench ? 'compact' : 'full'}
+      assetId={form.coverAssetId}
+      focusX={form.coverFocusX}
+      focusY={form.coverFocusY}
+      typeLabel={typeLabel}
+      onChange={(v) => setForm((f) => ({ ...f, coverAssetId: v.assetId, coverFocusX: v.focusX, coverFocusY: v.focusY }))}
+    />
+  )
+
+  if (workbench) {
+    const toggle = (id: SectionId) =>
+      setOpenSections((o) => {
+        const n = new Set(o)
+        if (n.has(id)) n.delete(id)
+        else n.add(id)
+        return n
+      })
+    const sec = (id: SectionId, title: string) => ({
+      id,
+      title,
+      open: openSections.has(id),
+      onToggle: () => toggle(id),
+      hasError: issues.some((i) => i.section === id),
+    })
+
+    const scheduleText =
+      form.repeatKind === 'WEEKLY'
+        ? `${describeRule(form)}，${shortDateLabel(form.seriesStartDate)} 起${form.endMode === 'COUNT' ? `共 ${form.occurrenceCount} 次` : `至 ${shortDateLabel(form.seriesEndDate)}`}`
+        : form.seriesStartDate
+          ? shortDateLabel(form.seriesStartDate)
+          : '尚未選擇日期'
+    const coverSrc = form.coverAssetId ? `/media/${form.coverAssetId}` : null
+    const occupyText = occupyLabel ?? activityTimeLabel(form.startMinute, form.endMinute)
+    const holdText = published ? '已發布：場次時段已鎖定，一般預約不能訂' : holdDays > 0 ? `草稿保留場地 ${holdDays} 天，到期自動釋放` : '草稿不占場，發布後才鎖定時段'
+
+    // 用前台的活動卡片元件呈現，預覽與實際上架一致
+    const rows = previewFresh ? (preview?.rows.filter((r) => r.status === 'NEW' || r.status === 'EXISTS') ?? []) : []
+    const dates = rows.length ? rows.map((r) => r.date) : [form.seriesStartDate]
+    const cover = { src: coverSrc, thumb: form.coverAssetId ? `/media/${form.coverAssetId}?size=thumb` : null, focusX: form.coverFocusX, focusY: form.coverFocusY }
+    const card: ActivityCardDTO = {
+      key: 'preview',
+      activityId,
+      title: form.title || '（未命名活動）',
+      type: form.type,
+      typeLabel,
+      levelLabel: form.levelLabel || null,
+      summary: form.summary || null,
+      cover,
+      host: null,
+      sessions: dates.slice(0, 8).map((date, i) => ({
+        id: `preview-${i}`,
+        activityId,
+        title: form.title || '（未命名活動）',
+        type: form.type,
+        typeLabel,
+        visibility: 'PUBLIC' as const,
+        host: null,
+        locationNote: form.locationNote || null,
+        levelLabel: form.levelLabel || null,
+        summary: form.summary || null,
+        description: form.description || null,
+        requirements: form.requirements || null,
+        includes: form.includes || null,
+        refundNote: form.refundNote || null,
+        cover,
+        date,
+        dateLabel: date ? shortDateLabel(date) : '—',
+        startMinute: form.startMinute,
+        endMinute: form.endMinute,
+        timeLabel: activityTimeLabel(form.startMinute, form.endMinute),
+        startAt: '',
+        endAt: '',
+        courtIds: form.courtIds,
+        courtNames: selectedCourts.map((c) => c.name),
+        price: Number(form.price) || 0,
+        priceUnit: form.priceUnit,
+        unitLabel: PRICE_UNIT_LABEL[form.priceUnit],
+        seatsPerUnit: seatsPerUnit(form.priceUnit),
+        capacity: publicCapacity,
+        remaining: publicCapacity,
+        maxQuantity: Math.max(1, Number(form.maxPerOrder) || 1),
+        state: 'OPEN' as const,
+        stateLabel: SIGNUP_STATE_LABEL.OPEN,
+        opensAtLabel: null,
+        closesAtLabel: '',
+        mine: null,
+        watching: false,
+      })),
+    }
+
+    const openPreview = async () => {
+      setPreviewOpen(true)
+      if (!lockSchedule && !previewFresh) await runPreview()
+    }
+    const startPublish = async () => {
+      const list = validate('publish')
+      if (list.length) {
+        showIssues(list)
+        toast(list[0].message, 'error')
+        return
+      }
+      await openPreview()
+    }
+
+    const btn =
+      'inline-flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-[11px] font-semibold leading-tight transition-colors disabled:opacity-50 sm:h-10 sm:flex-row sm:gap-1.5 sm:px-4 sm:text-sm'
+    const ghost = cn(btn, 'border-brand-700/30 bg-white text-brand-800 hover:bg-brand-50')
+    const primary = cn(btn, 'border-brand-700 bg-brand-700 text-white hover:bg-brand-800')
+    const publishBlocked = !previewFresh || unresolved.length > 0 || (preview?.error ?? null) !== null || form.courtIds.length === 0 || Boolean(capacityError)
+
+    return (
+      <div className="pb-[max(2rem,env(safe-area-inset-bottom))]">
+        {/* 頂部：麵包屑與操作（固定在捲動區頂端，手機鍵盤彈出時也不會被遮） */}
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg))]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">{breadcrumb}</div>
+            <div className="grid grid-cols-4 gap-2 md:flex md:flex-shrink-0">
+              <Link href={paths.list} className={ghost}>
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                返回活動列表
+              </Link>
+              <button type="button" className={ghost} disabled={busy !== null} onClick={() => save('draft')}>
+                {busy === 'draft' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+                {published ? '儲存變更' : holdDays > 0 ? '存草稿並保留' : '儲存草稿'}
+              </button>
+              <button type="button" className={ghost} disabled={busy !== null} onClick={openPreview}>
+                <Eye className="h-4 w-4" aria-hidden />
+                預覽
+              </button>
+              <button type="button" className={primary} disabled={busy !== null || status === 'ARCHIVED'} onClick={startPublish}>
+                {busy === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : published ? <CalendarCheck2 className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+                {published ? '建立新場次' : '發布活動'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {result && (
+          <div role="status" className={cn('mb-4 rounded-2xl border p-4 text-sm', result.failed.length ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50')}>
+            <p className="flex items-center gap-2 font-semibold text-emerald-900">
+              <CheckCircle2 className="h-5 w-5" aria-hidden />
+              {doneMode === 'publish' ? `活動已發布${result.created ? `，建立 ${result.created} 場` : ''}` : result.message}
+            </p>
+            {result.failed.map((f, i) => (
+              <p key={i} className="mt-1 text-xs text-amber-800">
+                {f.date ? `${shortDateLabel(f.date)}：` : ''}
+                {f.reason}
+              </p>
+            ))}
+            {doneMode === 'publish' && activityId && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={paths.list} className="inline-flex h-9 items-center rounded-lg border border-brand-700/30 bg-white px-3 text-sm font-medium text-brand-800 hover:bg-brand-50">
+                  返回活動列表
+                </Link>
+                <Link href={withId(paths.occupancy, activityId)} className="inline-flex h-9 items-center rounded-lg bg-brand-700 px-3 text-sm font-medium text-white hover:bg-brand-800">
+                  查看活動占場
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+        {issues.length > 0 && (
+          <div role="alert" className="mb-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
+            <span>請修正：{issues.map((i) => i.message).join('、')}</span>
+          </div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+          {/* 封面：手機與直向平板排在最上面，電腦在右欄 */}
+          <div className="lg:col-start-2 lg:row-start-1">
+            <WbSection {...sec('cover', '活動封面')}>{coverField}</WbSection>
+          </div>
+
+          <div className="space-y-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            <WbSection {...sec('basic', '基本資料')}>
+              {basicFields}
+            </WbSection>
+            <WbSection
+              {...sec('schedule', '場次與場地')}
+              note={lockSchedule ? '已發布：個別場次的時間、場地請用上方場次列表「修改」或「新增場次」' : '時區 Asia/Taipei；每個日期都是獨立場次'}
+            >
+              {scheduleFields}
+            </WbSection>
+            <WbSection {...sec('pricing', '費用與名額')} note={lockSchedule ? '已發布：價格與名額請在場次列表「修改」' : undefined}>
+              {pricingFields}
+            </WbSection>
+            <WbSection {...sec('host', '主持人')}>
+              <HostPicker value={form.hostId} onChange={(id) => set('hostId', id)} />
+            </WbSection>
+            <WbSection {...sec('visibility', '公開方式')}>{visibilityFields}</WbSection>
+          </div>
+
+          {/* 活動摘要：即時反映表單 */}
+          <div className="lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:self-start">
+            <WbSection {...sec('summary', '活動摘要')}>
+              <div className="flex gap-3">
+                <div className="h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                  {coverSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`${coverSrc}?size=thumb`} alt="" className="h-full w-full object-cover" style={{ objectPosition: `${form.coverFocusX}% ${form.coverFocusY}%` }} />
+                  ) : (
+                    <div className="grid h-full place-items-center text-[10px] text-muted">預設封面</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="break-words font-semibold">{form.title || <span className="text-muted">（尚未輸入名稱）</span>}</p>
+                  <p className="text-xs text-muted">
+                    {typeLabel}・{VISIBILITY.find((v) => v.v === form.visibility)?.label}
+                  </p>
+                </div>
+              </div>
+              <dl className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1.5 rounded-xl bg-zinc-50 p-3 text-sm">
+                <dt className="text-muted">場次</dt>
+                <dd>{scheduleText}</dd>
+                <dt className="text-muted">時間</dt>
+                <dd className="tabular">{activityTimeLabel(form.startMinute, form.endMinute)}</dd>
+                <dt className="text-muted">球場</dt>
+                <dd className={cn(selectedCourts.length === 0 && 'text-red-700')}>{selectedCourts.map((c) => c.name).join('、') || '尚未選擇'}</dd>
+                <dt className="text-muted">費用</dt>
+                <dd>{priceText(Number(form.price) || 0, PRICE_UNIT_LABEL[form.priceUnit])}</dd>
+                <dt className="text-muted">名額</dt>
+                <dd>
+                  {Number(form.capacity) || 0} 人{(Number(form.reservedCapacity) || 0) > 0 ? `（對外 ${publicCapacity} 人）` : ''}
+                </dd>
+                <dt className="text-muted">占用時段</dt>
+                <dd>{selectedCourts.length ? `${selectedCourts.map((c) => c.name).join('、')} ${occupyText}` : '選擇球場後顯示'}</dd>
+              </dl>
+              {previewFresh && preview && (
+                <p className="text-xs">
+                  預覽結果：可建立 {preview.counts.new} 場・已建立 {preview.counts.exists} 場・
+                  <span className={cn(preview.counts.conflict > 0 && 'font-semibold text-red-700')}>衝突 {preview.counts.conflict} 場</span>
+                </p>
+              )}
+              <div className="rounded-xl border border-dashed border-[rgb(var(--border))] p-3 text-xs">
+                <p className={cn('font-medium', published || holdDays > 0 ? 'text-amber-800' : 'text-muted')}>{holdText}</p>
+                {!published && (
+                  <label className="mt-2 flex items-center gap-2">
+                    草稿保留場地
+                    <select className="h-9 flex-1 rounded-lg border border-[rgb(var(--border))] bg-white px-2 text-xs" value={holdDays} onChange={(e) => setHoldDays(Number(e.target.value))}>
+                      <option value={0}>不保留（草稿不占場）</option>
+                      <option value={1}>保留 1 天後自動釋放</option>
+                      <option value={3}>保留 3 天後自動釋放</option>
+                      <option value={7}>保留 7 天後自動釋放</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+            </WbSection>
+          </div>
+        </div>
+
+        {/* 預覽與發布確認（同頁面板，關閉後表單內容不變） */}
+        <Dialog.Root open={previewOpen} onOpenChange={(o) => { if (busy !== 'publish') setPreviewOpen(o) }}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-ink-900/40 animate-fade-in" />
+            <Dialog.Content
+              aria-describedby={undefined}
+              className="fixed right-0 top-0 z-50 flex h-dvh w-full max-w-full flex-col bg-white shadow-pop outline-none sm:w-[min(92vw,44rem)] sm:rounded-l-3xl"
+            >
+              <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
+                <Dialog.Title className="text-lg font-bold text-brand-900">預覽與發布確認</Dialog.Title>
+                <Dialog.Close asChild>
+                  <button type="button" className="-mr-2 rounded-lg p-2 text-zinc-600 hover:bg-zinc-100" aria-label="關閉預覽">
+                    <X className="h-5 w-5" />
+                  </button>
+                </Dialog.Close>
+              </header>
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-5">
+                <section>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-bold">前台活動卡片</h3>
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">{published ? '已發布' : '未發布・前台看不到'}</span>
+                  </div>
+                  <div className="mx-auto max-w-sm">
+                    <ActivityCard card={card} onOpen={() => {}} />
+                  </div>
+                </section>
+                <section>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold">將占用的球場與時段</h3>
+                    {!lockSchedule && (
+                      <Button type="button" size="sm" variant="secondary" loading={busy === 'preview'} onClick={runPreview}>
+                        <Eye className="h-4 w-4" aria-hidden />
+                        重新檢查
+                      </Button>
+                    )}
+                  </div>
+                  {busy === 'preview' && !preview && <p className="text-sm text-muted">檢查場地與時段中…</p>}
+                  {lockSchedule && !preview && <p className="text-sm text-muted">已發布的場次請在場次列表查看與修改。</p>}
+                  <div className="space-y-3">{previewBody}</div>
+                </section>
+                {serverError && (
+                  <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
+                    {serverError}
+                  </p>
+                )}
+              </div>
+              <footer className="flex gap-3 border-t border-zinc-200 px-5 pt-3 pb-safe">
+                <Dialog.Close asChild>
+                  <button type="button" className="h-11 flex-[2] rounded-xl border-2 border-brand-800 bg-white text-sm font-bold text-brand-900 hover:bg-brand-50">
+                    關閉，繼續編輯
+                  </button>
+                </Dialog.Close>
+                <button
+                    type="button"
+                    disabled={publishBlocked || busy !== null}
+                    onClick={() => save('publish')}
+                    className="inline-flex h-11 flex-[3] items-center justify-center gap-2 rounded-xl bg-brand-700 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-50"
+                    title={form.courtIds.length === 0 ? '請先選擇使用場地' : (capacityError ?? (!previewFresh ? '請先完成場地檢查' : unresolved.length > 0 ? '請先處理衝突日期' : undefined))}
+                  >
+                    {busy === 'publish' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                    {published ? `建立新增的場次（${preview?.counts.new ?? 0} 場）` : `確認發布（${preview?.counts.new ?? 0} 場）`}
+                  </button>
+              </footer>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 pb-24">
+      {/* 區段導覽 */}
+      <nav aria-label="編輯區段" className="no-scrollbar -mx-4 overflow-x-auto px-4">
+        <ul className="flex min-w-max gap-1 rounded-xl bg-zinc-100 p-1 text-xs">
+          {SECTIONS.map(([id, label]) => (
+            <li key={id}>
+              <a href={`#sec-${id}`} className="block rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-white hover:text-[rgb(var(--fg))]">
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* 1 基本資料 */}
+      <Card id="sec-basic">
+        <CardContent className="space-y-4">
+          <h2 className="text-sm font-semibold">1 基本資料</h2>
+          {basicFields}
+        </CardContent>
+      </Card>
+
+      {/* 2 場次與場地 */}
+      <Card id="sec-schedule">
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">2 場次與場地（Asia/Taipei）</h2>
+            {lockSchedule ? (
+              <span className="text-xs text-muted">已發布：可延長系列或加入排除日期；個別場次的時間、場地請用上方場次列表「修改」或「新增場次」</span>
+            ) : (
+              <span className="text-xs text-muted">每個日期都是獨立場次（獨立 ID、名額與訂單）；報名的是單一場次</span>
+            )}
+          </div>
+          {scheduleFields}
+        </CardContent>
+      </Card>
+
+      {/* 3 費用與名額 */}
+      <Card id="sec-pricing">
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">3 費用與名額</h2>
+            {lockSchedule && <span className="text-xs text-muted">已發布：價格與名額請在場次列表「修改」並選擇套用範圍</span>}
+          </div>
+          {pricingFields}
+        </CardContent>
+      </Card>
+
+      {/* 4 圖片與主持人 */}
+      <Card id="sec-media">
+        <CardContent className="space-y-4">
+          <h2 className="text-sm font-semibold">4 圖片與主持人</h2>
+          <div>
+            <p className="mb-2 text-sm font-medium">封面圖片（建議 16:9，可拖曳焦點；未上傳時使用品牌預設圖）</p>
+            <CoverUploader
+              assetId={form.coverAssetId}
+              focusX={form.coverFocusX}
+              focusY={form.coverFocusY}
+              typeLabel={form.type === 'OTHER' && form.customTypeLabel ? form.customTypeLabel : ACTIVITY_TYPE_LABEL[form.type]}
+              onChange={(v) => setForm((f) => ({ ...f, coverAssetId: v.assetId, coverFocusX: v.focusX, coverFocusY: v.focusY }))}
+            />
+          </div>
+          <HostPicker value={form.hostId} onChange={(id) => set('hostId', id)} />
+        </CardContent>
+      </Card>
+
+      {/* 5 公開方式 */}
+      <Card id="sec-visibility">
+        <CardContent className="space-y-3">
+          <h2 className="text-sm font-semibold">5 公開方式</h2>
+          {visibilityFields}
+        </CardContent>
+      </Card>
+
+      {/* 6 預覽與發布 */}
+      <Card id="sec-preview">
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">6 預覽與發布</h2>
+              <p className="text-xs text-muted">
+                {activityTimeLabel(form.startMinute, form.endMinute)}・{form.courtIds.length} 面場地・發布前必須先預覽；衝突日期要明確排除才能發布，排除後會列出實際建立清單
+              </p>
+            </div>
+            <Button type="button" size="sm" variant="secondary" loading={busy === 'preview'} onClick={runPreview}>
+              <Eye className="h-4 w-4" aria-hidden />
+              {preview ? '重新預覽' : '預覽場次'}
+            </Button>
+          </div>
+
+          {previewBody}
         </CardContent>
       </Card>
 
@@ -698,6 +1196,49 @@ export function ActivityEditor({
         </div>
       </div>
     </div>
+  )
+}
+
+/* ─────────────────────────── B 版工作台區塊 ─────────────────────────── */
+
+/** 可收合區塊：手機與平板可展開收合（內容保持掛載，輸入不會遺失）；電腦版一律展開 */
+function WbSection({
+  id,
+  title,
+  open,
+  onToggle,
+  hasError,
+  note,
+  children,
+}: {
+  id: string
+  title: string
+  open: boolean
+  onToggle: () => void
+  hasError?: boolean
+  note?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section id={`wb-${id}`} className={cn('overflow-hidden rounded-2xl border bg-white', hasError ? 'border-red-300' : 'border-[rgb(var(--border))]')}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`wb-${id}-body`}
+        className="flex w-full items-center justify-between gap-2 bg-brand-50 px-4 py-3 text-left lg:cursor-default"
+      >
+        <span className="flex items-center gap-2 text-base font-bold text-brand-900">
+          {title}
+          {hasError && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">需修正</span>}
+        </span>
+        <ChevronDown className={cn('h-5 w-5 text-brand-800 transition-transform lg:hidden', open && 'rotate-180')} aria-hidden />
+      </button>
+      <div id={`wb-${id}-body`} className={cn('space-y-4 p-4', open ? 'block' : 'hidden', 'lg:block')}>
+        {note && <p className="text-xs text-muted">{note}</p>}
+        {children}
+      </div>
+    </section>
   )
 }
 

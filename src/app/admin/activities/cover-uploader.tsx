@@ -13,7 +13,7 @@ import { DefaultCover } from '@/components/activities/activity-cover'
 const MAX_BYTES = 3.5 * 1024 * 1024
 const MAX_EDGE = 2400
 
-async function downscale(file: File): Promise<Blob> {
+export async function downscale(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
   if (scale === 1 && file.size <= MAX_BYTES) return file
@@ -26,6 +26,28 @@ async function downscale(file: File): Promise<Blob> {
   )
 }
 
+type MediaResponse = { success?: boolean; data: { id: string; warning: string | null }; error?: { message?: string } | string }
+
+/** 以 XHR 上傳，才能回報實際進度（fetch 無上傳進度） */
+function postMedia(form: FormData, onProgress: (pct: number) => void): Promise<{ status: number; json: MediaResponse | null }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/admin/media')
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+    }
+    xhr.onload = () => {
+      let json: MediaResponse | null = null
+      try {
+        json = JSON.parse(xhr.responseText)
+      } catch {}
+      resolve({ status: xhr.status, json })
+    }
+    xhr.onerror = () => reject(new Error('network'))
+    xhr.send(form)
+  })
+}
+
 export function CoverUploader({
   assetId,
   focusX,
@@ -34,6 +56,7 @@ export function CoverUploader({
   onChange,
   disabled,
   emptyLabel = '尚未上傳，前台會顯示紫色品牌預設封面',
+  variant = 'full',
 }: {
   assetId: string | null
   focusX: number
@@ -42,11 +65,16 @@ export function CoverUploader({
   onChange: (v: { assetId: string | null; focusX: number; focusY: number }) => void
   disabled?: boolean
   emptyLabel?: string
+  /** compact：單一 16:9 預覽（點圖設定焦點）＋「上傳封面／替換照片」按鈕，用於窄欄 */
+  variant?: 'full' | 'compact'
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [warning, setWarning] = React.useState<string | null>(null)
+  const [progress, setProgress] = React.useState<number | null>(null)
+  const [localPreview, setLocalPreview] = React.useState<string | null>(null)
+  React.useEffect(() => () => { if (localPreview) URL.revokeObjectURL(localPreview) }, [localPreview])
 
   const upload = async (file: File) => {
     setError(null)
@@ -60,22 +88,27 @@ export function CoverUploader({
       return
     }
     setUploading(true)
+    setProgress(0)
+    // 選好就先顯示本機預覽；失敗時退回原本的圖，不動其他欄位
+    setLocalPreview(URL.createObjectURL(file))
     try {
       const blob = await downscale(file)
       const form = new FormData()
       form.append('file', new File([blob], file.name.replace(/\.\w+$/, '') + (blob.type === 'image/jpeg' ? '.jpg' : ''), { type: blob.type || file.type }))
-      const res = await fetch('/api/admin/media', { method: 'POST', body: form })
-      const json = await res.json().catch(() => null)
-      if (!res.ok || !json?.success) {
-        setError(json?.error?.message ?? json?.error ?? '上傳失敗，請稍後再試')
+      const { status, json } = await postMedia(form, setProgress)
+      if (status < 200 || status >= 300 || !json?.success) {
+        setLocalPreview(null)
+        setError(status === 401 ? '登入逾時或沒有上傳權限，請重新登入' : ((typeof json?.error === 'string' ? json.error : json?.error?.message) ?? '上傳失敗，請稍後再試'))
         return
       }
       setWarning(json.data.warning)
       onChange({ assetId: json.data.id, focusX: 50, focusY: 50 })
     } catch {
-      setError('上傳失敗，請檢查網路後再試')
+      setLocalPreview(null)
+      setError('上傳失敗，請檢查網路後再試；原本的封面已保留')
     } finally {
       setUploading(false)
+      setProgress(null)
       if (inputRef.current) inputRef.current.value = ''
     }
   }
@@ -86,6 +119,71 @@ export function CoverUploader({
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
     onChange({ assetId, focusX: Math.max(0, Math.min(100, x)), focusY: Math.max(0, Math.min(100, y)) })
+  }
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0]
+        if (f) void upload(f)
+      }}
+    />
+  )
+
+  if (variant === 'compact') {
+    const shown = localPreview ?? (assetId ? `/media/${assetId}` : null)
+    return (
+      <div className="space-y-3">
+        <div className="relative aspect-video overflow-hidden rounded-xl bg-zinc-100">
+          {shown ? (
+            <button type="button" onClick={setFocus} disabled={disabled || uploading || !assetId} className="block h-full w-full" aria-label="點擊設定裁切焦點">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={shown} alt="活動封面預覽" className="h-full w-full object-cover" style={{ objectPosition: `${focusX}% ${focusY}%` }} />
+              {assetId && !uploading && (
+                <span
+                  className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-brand-600 shadow"
+                  style={{ left: `${focusX}%`, top: `${focusY}%` }}
+                />
+              )}
+            </button>
+          ) : (
+            <DefaultCover typeLabel={typeLabel} />
+          )}
+          {uploading && (
+            <div className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-2 text-xs text-white">
+              <div className="mb-1 flex justify-between">
+                <span>上傳中…</span>
+                <span className="tabular-nums">{progress ?? 0}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/30">
+                <div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progress ?? 0}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+        {fileInput}
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" className="flex-1" disabled={disabled || uploading} onClick={() => inputRef.current?.click()}>
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ImagePlus className="h-4 w-4" aria-hidden />}
+            {assetId ? '替換照片' : '上傳封面'}
+          </Button>
+          {assetId && (
+            <Button type="button" variant="ghost" disabled={disabled || uploading} onClick={() => onChange({ assetId: null, focusX: 50, focusY: 50 })} aria-label="移除封面">
+              <Trash2 className="h-4 w-4" aria-hidden />
+            </Button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted">
+          {assetId ? '點圖片可調整裁切焦點；前台卡片與活動詳情都用這張圖。' : emptyLabel}JPG／PNG／WebP，原圖 25 MB 內，會自動壓縮。
+        </p>
+        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+        {warning && <p className="text-xs text-amber-700">{warning}</p>}
+      </div>
+    )
   }
 
   return (

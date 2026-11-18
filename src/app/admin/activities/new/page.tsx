@@ -4,8 +4,8 @@ import { ChevronLeft } from 'lucide-react'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden } from '@/components/admin/page-bits'
 import { prisma } from '@/lib/db'
-import { addDays, taipeiDateString } from '@/lib/time'
-import { ActivityEditor, type EditorForm } from '../activity-editor'
+import { ActivityEditor } from '../activity-editor'
+import { newEditorForm } from '../editor-initial'
 
 export const metadata: Metadata = { title: '新增活動' }
 export const dynamic = 'force-dynamic'
@@ -21,47 +21,7 @@ export default async function NewActivityPage({ searchParams }: { searchParams: 
   })
   if (!venue) return <p className="text-sm text-muted">尚未設定場館</p>
 
-  const start = addDays(taipeiDateString(), 7)
-  const startMinute = Math.min(Math.max(venue.openMinute, 19 * 60), venue.closeMinute - 2 * venue.slotMinutes)
-  const initial: EditorForm = {
-    title: '',
-    type: 'OPEN_PLAY',
-    customTypeLabel: '',
-    summary: '',
-    description: '',
-    levelLabel: '',
-    requirements: '',
-    includes: '',
-    refundNote: '',
-    coverAssetId: null,
-    coverFocusX: 50,
-    coverFocusY: 50,
-    hostId: null,
-    visibility: 'PUBLIC',
-    locationNote: '',
-    price: 0,
-    priceUnit: 'PER_PERSON',
-    capacity: 8,
-    reservedCapacity: 0,
-    maxPerOrder: 4,
-    repeatKind: weekly ? 'WEEKLY' : 'ONCE',
-    weekdays: weekly ? [new Date(`${start}T00:00:00+08:00`).getUTCDay()] : [],
-    intervalWeeks: 1,
-    startMinute,
-    endMinute: startMinute + 2 * venue.slotMinutes,
-    bufferBeforeMinutes: 0,
-    bufferAfterMinutes: 0,
-    seriesStartDate: start,
-    endMode: 'COUNT',
-    seriesEndDate: addDays(start, 56),
-    occurrenceCount: 8,
-    skipDates: [],
-    // 使用場地為必填：不預設指派，由管理者明確選擇
-    courtIds: [],
-    openDaysBefore: 7,
-    openMinute: null,
-    closeMinutesBefore: 60,
-  }
+  const initial = newEditorForm(venue, weekly)
 
   return (
     <div className="space-y-4">

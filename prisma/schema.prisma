@@ -172,6 +172,13 @@ enum AccessStatus {
   NOT_USED // 憑證未使用
 }
 
+enum HomePageTheme {
+  PURPLE // 原站紫（預設）
+  GREEN // 森林綠
+  BLUE // 深海藍
+  BERRY // 莓果紫
+}
+
 enum DoorAccessCommandType {
   PROVISION_CREDENTIAL // 設定憑證
   REVOKE_CREDENTIAL // 撤銷憑證
@@ -2919,4 +2926,58 @@ model DuprApiLog {
   @@index([userId, requestAt])
   @@index([statusCode])
   @@index([requestAt]) // 用於按時間戳查詢日誌
+}
+
+/// 官網首頁配置（主題、內容編輯、發布）
+model HomePageConfig {
+  id         String    @id @default(cuid())
+
+  /// 當前草稿設定（JSON）
+  /// 包含：theme, heroTitle, heroSubtitle, heroDescription, heroImageId, heroButtonText, heroButtonLink,
+  ///      selectedActivityIds[], visibility: { plans, coaching, story, visit, invite }
+  draftConfig    String    // JSON
+
+  /// 已發布的設定（JSON）
+  publishedConfig String?   // JSON（null 表示尚未發布）
+
+  /// 當前主題
+  theme          HomePageTheme @default(PURPLE)
+
+  /// 編輯者資訊
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  draftUpdatedAt DateTime   @updatedAt
+  publishedAt    DateTime?  // 最後發布時間
+  publishedBy    String?    // 發布者帳號
+
+  /// 草稿和已發布版本的歷史記錄
+  versions       HomePageVersion[]
+}
+
+/// 官網首頁版本歷史
+model HomePageVersion {
+  id         String    @id @default(cuid())
+
+  homePageConfigId String
+  homePageConfig   HomePageConfig @relation(fields: [homePageConfigId], references: [id], onDelete: Cascade)
+
+  /// 版本內容（JSON 快照）
+  config     String    // JSON
+
+  /// 該版本的主題
+  theme      HomePageTheme
+
+  /// 版本類型：DRAFT（草稿快照）或 PUBLISHED（發布快照）
+  versionType String    // 'DRAFT' | 'PUBLISHED'
+
+  /// 操作者
+  operatedBy String    // 帳號
+
+  /// 操作時間
+  createdAt  DateTime   @default(now())
+
+  /// 變更摘要（用於版本管理頁面展示）
+  changeNote String?
+
+  @@index([homePageConfigId, createdAt])
 }

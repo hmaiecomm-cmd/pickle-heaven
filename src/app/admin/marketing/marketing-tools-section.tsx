@@ -1,21 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, Mail, Bell, Clock, Send, Settings as SettingsIcon } from 'lucide-react'
+import { MessageCircle, Bell, Clock, Send, ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-
-interface LINESettings {
-  isConnected: boolean
-  enableBookingConfirmation: boolean
-  enableActivityReminder: boolean
-  enablePromotionNotification: boolean
-}
+import type { LineAccountStatus } from '@/lib/line'
 
 interface MarketingToolsSectionProps {
-  lineSettings?: LINESettings
+  lineStatus: LineAccountStatus
 }
 
-export function MarketingToolsSection({ lineSettings }: MarketingToolsSectionProps) {
+const fmt = (n: number | null) => (n === null ? '—' : n.toLocaleString('zh-TW'))
+
+export function MarketingToolsSection({ lineStatus }: MarketingToolsSectionProps) {
+  const managerUrl = lineStatus.basicId
+    ? `https://manager.line.biz/account/${encodeURIComponent(lineStatus.basicId)}`
+    : 'https://manager.line.biz/'
   const [activeTab, setActiveTab] = useState<'line' | 'campaigns'>('line')
   const [campaignType, setCampaignType] = useState<'immediate' | 'scheduled'>('immediate')
 
@@ -54,109 +53,63 @@ export function MarketingToolsSection({ lineSettings }: MarketingToolsSectionPro
       {/* LINE 設定 */}
       {activeTab === 'line' && (
         <div className="space-y-4">
-          {/* 連接狀態卡片 */}
           <Card>
             <CardContent className="py-6">
-              <div className="flex items-start gap-4">
-                <div
-                  className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-                    lineSettings?.isConnected
-                      ? 'bg-emerald-50'
-                      : 'bg-zinc-100'
-                  }`}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="flex flex-1 items-start gap-4">
+                  {lineStatus.pictureUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={lineStatus.pictureUrl} alt="" className="h-12 w-12 flex-shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${lineStatus.connected ? 'bg-emerald-50' : 'bg-zinc-100'}`}>
+                      <MessageCircle className={`h-6 w-6 ${lineStatus.connected ? 'text-emerald-600' : 'text-zinc-400'}`} aria-hidden />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-zinc-900">
+                      {lineStatus.connected ? lineStatus.displayName : 'LINE 官方帳號'}
+                      {lineStatus.basicId && <span className="ml-2 text-sm font-normal text-muted">{lineStatus.basicId}</span>}
+                    </h3>
+                    <p className="mt-1 text-sm">
+                      {lineStatus.connected ? (
+                        <span className="font-medium text-emerald-700">✓ 已連接，訂場確認、開打提醒、取消通知會由此帳號發送</span>
+                      ) : lineStatus.configured ? (
+                        <span className="font-medium text-red-700">⚠ 推播金鑰無效或已過期，請到 LINE Developers 重新發行後更新 Vercel 環境變數</span>
+                      ) : (
+                        <span className="font-medium text-amber-700">⚠ 尚未設定推播金鑰（LINE_MESSAGING_CHANNEL_ACCESS_TOKEN）</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={managerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#06C755] px-4 text-sm font-medium text-white hover:bg-[#05b34c]"
                 >
-                  <MessageCircle
-                    className={`h-6 w-6 ${
-                      lineSettings?.isConnected
-                        ? 'text-emerald-600'
-                        : 'text-zinc-400'
-                    }`}
-                    aria-hidden
-                  />
-                </div>
-
-                <div className="flex-1">
-                  <h3 className="font-semibold text-zinc-900">LINE 官方帳號連接</h3>
-                  <p className="text-sm text-zinc-600 mt-1">
-                    {lineSettings?.isConnected ? (
-                      <span className="text-emerald-700 font-medium">✓ 已連接 - 可以發送通知</span>
-                    ) : (
-                      <span className="text-amber-700 font-medium">⚠ 尚未連接 - 無法發送通知</span>
-                    )}
-                  </p>
-                </div>
-
-                {lineSettings?.isConnected ? (
-                  <button className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">
-                    重新設定
-                  </button>
-                ) : (
-                  <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                    立即連接
-                  </button>
-                )}
+                  開啟 LINE 官方帳號管理後台
+                  <ExternalLink className="h-4 w-4" aria-hidden />
+                </a>
               </div>
+
+              {lineStatus.connected && (
+                <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-zinc-200 pt-4 sm:grid-cols-4">
+                  {[
+                    { label: '好友數', value: fmt(lineStatus.followers), icon: Bell },
+                    { label: '封鎖數', value: fmt(lineStatus.blocks), icon: Bell },
+                    { label: '本月已發送', value: fmt(lineStatus.usedThisMonth), icon: Send },
+                    { label: '每月額度', value: lineStatus.quota === null ? '無上限' : fmt(lineStatus.quota), icon: Clock },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-lg bg-zinc-50 px-3 py-2">
+                      <dt className="text-xs text-muted">{s.label}</dt>
+                      <dd className="mt-0.5 text-lg font-semibold text-zinc-900">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <p className="mt-3 text-xs text-muted">好友數為前一天的統計；圖文選單、自動回應、群發訊息請到 LINE 官方帳號管理後台操作。</p>
             </CardContent>
           </Card>
-
-          {/* 通知設定 */}
-          {lineSettings?.isConnected && (
-            <Card>
-              <div className="border-b border-zinc-200 p-4">
-                <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
-                  <SettingsIcon className="h-5 w-5 text-brand-600" aria-hidden />
-                  通知類型設定
-                </h3>
-              </div>
-              <CardContent className="space-y-4 py-4">
-                {[
-                  {
-                    id: 'booking',
-                    label: '訂場確認通知',
-                    desc: '當用戶成功預約時發送確認',
-                    icon: Bell,
-                  },
-                  {
-                    id: 'reminder',
-                    label: '活動提醒通知',
-                    desc: '活動開始前 24 小時提醒',
-                    icon: Clock,
-                  },
-                  {
-                    id: 'promotion',
-                    label: '優惠推播通知',
-                    desc: '發送優惠與行銷訊息',
-                    icon: Send,
-                  },
-                ].map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <label key={item.id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-zinc-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-zinc-300 mt-0.5"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-zinc-900">{item.label}</p>
-                        <p className="text-xs text-muted mt-1">{item.desc}</p>
-                      </div>
-                      <Icon className="h-5 w-5 text-zinc-400 flex-shrink-0 mt-0.5" aria-hidden />
-                    </label>
-                  )
-                })}
-
-                <div className="border-t border-zinc-200 pt-4 mt-4 flex gap-3">
-                  <button className="flex-1 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-                    取消
-                  </button>
-                  <button className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                    保存設定
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
 
