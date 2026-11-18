@@ -1,36 +1,35 @@
 import { pagePermission } from '@/lib/admin-auth'
 import { PageTitle } from '@/components/admin/page-bits'
 import type { Metadata } from 'next'
-import { FinanceTabNav } from './tab-nav'
-import { BookingsTab } from './tabs/bookings-tab'
-import { PointsTab } from './tabs/points-tab'
-import { ProductsTab } from './tabs/products-tab'
+import { periodOf, todayPeriod } from '@/app/admin/reports/report-data'
+import { financeTotals, revenueByCourt, dailySeries } from '@/server/finance-metrics'
+import { FinanceReportClient } from './finance-report-client'
 
-export const metadata: Metadata = { title: '訂單記錄' }
+export const metadata: Metadata = { title: '財務報表' }
 export const dynamic = 'force-dynamic'
-
-const TABS = [
-  { id: 'all', label: '全部記錄', permission: 'bookings' },
-  { id: 'bookings', label: '場地與活動', permission: 'bookings' },
-  { id: 'products', label: '商品訂單', permission: 'marketing', notOpen: true },
-  { id: 'points', label: '點數與票券', permission: 'members' },
-]
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await pagePermission('finance')
   const sp = await searchParams
-  const tab = sp.tab ?? 'all'
-  const activeTab = TABS.some(t => t.id === tab) ? tab : 'all'
+  const days = sp.days === '30' || sp.days === '90' ? Number(sp.days) : 7
+  const period = periodOf(String(days))
+
+  const [totals, courts, dailyData] = await Promise.all([
+    financeTotals(period),
+    revenueByCourt(period),
+    dailySeries(period.from, period.to, period),
+  ])
 
   return (
-    <div className="space-y-4">
-      <PageTitle title="訂單記錄" desc="查看顧客的場地、活動、商品與點數交易記錄；付款、退款與發票狀態在單筆明細中查看。" />
-      <FinanceTabNav activeTab={activeTab} tabs={TABS} />
-      <div>
-        {(activeTab === 'all' || activeTab === 'bookings') && <BookingsTab searchParams={sp} />}
-        {activeTab === 'products' && <ProductsTab searchParams={sp} />}
-        {activeTab === 'points' && <PointsTab searchParams={sp} />}
-      </div>
+    <div className="space-y-6">
+      <PageTitle title="財務報表" desc="場館收入與營運財務分析" />
+      <FinanceReportClient
+        totals={totals}
+        courts={courts}
+        dailyData={dailyData}
+        period={period}
+        selectedDays={days}
+      />
     </div>
   )
 }
