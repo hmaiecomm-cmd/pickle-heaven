@@ -35,8 +35,13 @@ export function DoorMonitorCard({ camera, canMonitor, compact = false }: DoorMon
         href="/admin/monitor"
         className="group relative block w-full overflow-hidden rounded-lg sm:rounded-xl border border-[#e6eadf] bg-white/95 shadow-[0_1px_3px_rgba(31,77,52,0.06)] transition-all hover:shadow-[0_4px_12px_rgba(31,77,52,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342]"
       >
+        {/* 標題列 */}
+        <div className="px-2 sm:px-3 pt-2 sm:pt-3 pb-1 sm:pb-2">
+          <h3 className="text-sm sm:text-base font-bold tracking-tight text-[#1f2a22]">即時監控 → 01 QR 密碼鎖</h3>
+        </div>
+
         {/* 監視器影像容器 - 16:9 */}
-        <div className="relative w-full overflow-hidden bg-zinc-900" style={{ aspectRatio: '16 / 9', maxHeight: '240px' }}>
+        <div className="relative w-full overflow-hidden bg-zinc-900 mx-2 sm:mx-3 mb-2 sm:mb-3 rounded" style={{ aspectRatio: '16 / 9', maxHeight: '240px' }}>
           {/* 背景影像 */}
           <div
             className="absolute inset-0 object-contain"

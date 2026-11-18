@@ -114,70 +114,94 @@ export function AccessQuickCard({ doorState, canRemote, compact = false }: Acces
   if (compact) {
     return (
       <>
-        <div className="flex flex-col gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border border-[#e6eadf] bg-white/95 p-2 sm:p-3 shadow-[0_1px_3px_rgba(31,77,52,0.06)]">
-          {/* 控制栏：按钮 + 开关 */}
-          <div className="flex gap-1.5 sm:gap-2 items-stretch">
-            {/* 開門按鈕 */}
-            <Button
-              onClick={askOpen}
-              disabled={!!blocked || openDoorBusy}
-              title={blocked ?? undefined}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-xs sm:text-sm py-2 sm:py-2.5 h-auto min-h-10 sm:min-h-11"
-            >
-              {openDoorBusy ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" aria-hidden /> : <DoorOpen className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden />}
-              <span className="hidden sm:inline ml-1">開門</span>
-            </Button>
+        <div className="flex flex-col gap-2 sm:gap-2.5 md:gap-3">
+          {/* 第一列：標題「大門機制控制」*/}
+          <h3 className="text-sm sm:text-base font-bold text-[#1f2a22]">大門機制控制</h3>
 
-            {/* 常開模式開關 */}
-            <div
-              className={cn(
-                'relative h-10 sm:h-11 w-14 sm:w-16 cursor-pointer rounded-full border-2 transition-all duration-200',
-                'flex items-center px-1',
-                alwaysOpen ? 'border-green-500 bg-green-500' : 'border-zinc-300 bg-white',
-                !canRemote || toggleBusy ? 'cursor-not-allowed opacity-60' : 'active:shadow-md hover:shadow-sm'
-              )}
-              role="switch"
-              aria-checked={alwaysOpen}
-              aria-label={alwaysOpen ? '常開模式已開啟' : '常開模式已關閉'}
-              tabIndex={canRemote && !toggleBusy ? 0 : -1}
-              onClick={handleToggleAlwaysOpen}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleToggleAlwaysOpen()
-                }
-              }}
-              title={!canRemote ? '無權限切換常開模式' : undefined}
-            >
+          {/* 第二列：紅色圓角按鈕「一鍵開門」*/}
+          <Button
+            onClick={askOpen}
+            disabled={!!blocked || openDoorBusy}
+            title={blocked ?? undefined}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl text-sm sm:text-base font-bold text-white py-3 sm:py-3.5 h-auto min-h-12 sm:min-h-14 flex items-center justify-center gap-2 transition-all"
+          >
+            {openDoorBusy ? (
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" aria-hidden />
+            ) : (
+              <DoorOpen className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
+            )}
+            <span>一鍵開門</span>
+          </Button>
+
+          {/* 第三列：「大門常開模式」+ 開關 + 狀態標籤 */}
+          <div className="flex items-center justify-between w-full gap-2 sm:gap-3">
+            <span className="text-sm sm:text-base font-semibold text-[#1f2a22]">大門常開模式</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* 開關按鈕 */}
               <div
                 className={cn(
-                  'absolute h-7 sm:h-8 w-7 sm:w-8 rounded-full bg-white shadow-md transition-transform duration-150',
-                  alwaysOpen ? 'translate-x-6 sm:translate-x-7' : 'translate-x-0'
+                  'relative h-10 sm:h-11 w-14 sm:w-16 cursor-pointer rounded-full border-2 transition-all duration-200',
+                  'flex items-center px-1',
+                  alwaysOpen ? 'border-green-500 bg-green-500' : 'border-zinc-300 bg-white',
+                  !canRemote || toggleBusy ? 'cursor-not-allowed opacity-60' : 'hover:shadow-sm'
                 )}
-              />
-              {toggleBusy && <Loader2 className="absolute left-1/2 h-2.5 w-2.5 sm:h-3 sm:w-3 -translate-x-1/2 animate-spin text-brand-600" aria-hidden />}
+                role="switch"
+                aria-checked={alwaysOpen}
+                aria-label={alwaysOpen ? '常開模式已開啟' : '常開模式已關閉'}
+                tabIndex={canRemote && !toggleBusy ? 0 : -1}
+                onClick={handleToggleAlwaysOpen}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleToggleAlwaysOpen()
+                  }
+                }}
+                title={!canRemote ? '無權限切換常開模式' : undefined}
+              >
+                {/* 滑塊 */}
+                <div
+                  className={cn(
+                    'absolute h-7 sm:h-8 w-7 sm:w-8 rounded-full bg-white shadow-md transition-transform duration-150',
+                    alwaysOpen ? 'translate-x-6 sm:translate-x-7' : 'translate-x-0'
+                  )}
+                />
+                {toggleBusy && (
+                  <Loader2 className="absolute left-1/2 h-2.5 w-2.5 sm:h-3 sm:w-3 -translate-x-1/2 animate-spin text-brand-600" aria-hidden />
+                )}
+              </div>
+              {/* 狀態標籤 */}
+              <span className={cn('text-xs sm:text-sm font-semibold min-w-fit', alwaysOpen ? 'text-emerald-700' : 'text-zinc-600')}>
+                {alwaysOpen ? '已開啟' : '已關閉'}
+              </span>
             </div>
           </div>
 
-          {/* 狀態指示 */}
-          <div className="flex flex-wrap gap-1 items-center justify-between text-xs">
-            <div className="flex items-center gap-1">
-              <div className={cn('h-1.5 w-1.5 rounded-full', connectionInfo.color === 'text-emerald-600' ? 'bg-emerald-600' : connectionInfo.color === 'text-red-600' ? 'bg-red-600' : 'bg-zinc-400')} />
-              <span className={cn('text-xs', connectionInfo.color)}>{connectionInfo.label}</span>
-            </div>
-            <span className={cn('text-xs font-medium', alwaysOpen ? 'text-emerald-700' : 'text-zinc-600')}>
-              {alwaysOpen ? '常開' : '關閉'}
-            </span>
-          </div>
+          {/* 設備狀態與操作結果 */}
+          {(connectionInfo || doorMessage) && (
+            <div className="flex flex-col gap-1 text-xs sm:text-sm">
+              {/* 連線狀態 */}
+              <div className="flex items-center gap-1">
+                <div
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full shrink-0',
+                    connectionInfo.color === 'text-emerald-600'
+                      ? 'bg-emerald-600'
+                      : connectionInfo.color === 'text-red-600'
+                        ? 'bg-red-600'
+                        : 'bg-zinc-400'
+                  )}
+                />
+                <span className={connectionInfo.color}>{connectionInfo.label}</span>
+              </div>
 
-          {/* 操作結果 */}
-          {doorMessage && (
-            <div className={cn('rounded px-1.5 py-1 text-xs', success ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800')}>
-              {doorMessage}
+              {/* 操作結果訊息 */}
+              {doorMessage && (
+                <div className={success ? 'text-emerald-700' : 'text-red-700'}>{doorMessage}</div>
+              )}
             </div>
           )}
 
-          {blocked && <p className="text-xs text-[#dc2626]">{blocked}</p>}
+          {blocked && <p className="text-xs text-red-600">{blocked}</p>}
         </div>
 
         {/* 開門確認彈窗 */}

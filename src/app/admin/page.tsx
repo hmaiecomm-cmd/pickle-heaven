@@ -56,18 +56,24 @@ export default async function AdminDashboard() {
           ))}
         </nav>
 
-        {/* 區塊 2：門禁控制 + 監視器 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2 md:gap-3 lg:gap-4">
-          {/* 左側：開門按鈕 + 常開開關 */}
-          {doorState && hasAccessPermission && (
-            <AccessQuickCard doorState={doorState} canRemote={canRemote} compact={true} />
-          )}
+        {/* 區塊 2：門禁控制 + 監視器（左右配置） */}
+        {(doorState && hasAccessPermission) || (doorCamera && canMonitor) ? (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4 items-start">
+            {/* 左側：門禁控制（約 40%）*/}
+            {doorState && hasAccessPermission && (
+              <div className="md:col-span-2">
+                <AccessQuickCard doorState={doorState} canRemote={canRemote} compact={true} />
+              </div>
+            )}
 
-          {/* 右側：監視器 */}
-          {doorCamera && canMonitor && (
-            <DoorMonitorCard camera={doorCamera} canMonitor={true} compact={true} />
-          )}
-        </div>
+            {/* 右側：監視器（約 60%）*/}
+            {doorCamera && canMonitor && (
+              <div className="md:col-span-3">
+                <DoorMonitorCard camera={doorCamera} canMonitor={true} compact={true} />
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   )
