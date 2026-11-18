@@ -39,13 +39,14 @@ export interface Point {
 const fmt = (n: number) => n.toLocaleString()
 
 /** 圖表外框：標題、副標、右上角附加內容。 */
-export function ChartCard({ title, subtitle, aside, children }: { title: string; subtitle?: string; aside?: ReactNode; children: ReactNode }) {
+export function ChartCard({ title, subtitle, aside, description, children }: { title: string; subtitle?: string; aside?: ReactNode; description?: string; children: ReactNode }) {
   return (
     <section className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg))] p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+        <div className="flex-1">
           <h3 className="text-sm font-semibold">{title}</h3>
           {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+          {description && <p className="mt-1 text-[11px] text-zinc-500">{description}</p>}
         </div>
         {aside}
       </div>
@@ -287,6 +288,7 @@ export function StatCard({
   trend,
   icon,
   color = 'green',
+  description,
 }: {
   label: string
   value: string | number
@@ -294,6 +296,7 @@ export function StatCard({
   trend?: { value: number; label: string; up: boolean }
   icon?: ReactNode
   color?: 'green' | 'orange' | 'blue' | 'red'
+  description?: string
 }) {
   const bgColor = {
     green: 'bg-gradient-to-br from-[#eef7e6] to-[#dcefcf]',
@@ -322,6 +325,9 @@ export function StatCard({
             <p className={`mt-1.5 text-xs font-medium ${trend.up ? 'text-green-600' : 'text-red-600'}`}>
               {trend.up ? '↑' : '↓'} {trend.value} {trend.label}
             </p>
+          )}
+          {description && (
+            <p className="mt-2.5 text-[11px] text-zinc-500 leading-relaxed">{description}</p>
           )}
         </div>
         {icon && <div className={`rounded-full p-3 ${bgColor[color]}`}>{icon}</div>}

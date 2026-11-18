@@ -10,6 +10,7 @@ import { useAiFilters } from '@/components/admin/ai-context'
 import type { OrderListResult } from '@/server/admin-orders'
 import { searchOrdersAction } from '@/server/admin-ops-actions'
 import { OrderDrawer } from './order-drawer'
+import { ActivityCards } from './activity-cards'
 import type { PointsLedger, Voucher, User } from '@prisma/client'
 
 export const PAYMENT = { PENDING: ['待付款', 'amber'], PAID: ['已付款', 'green'], FAILED: ['付款失敗', 'red'], UNPAID: ['未付款', 'gray'] } as const
@@ -159,7 +160,7 @@ export function TransactionsClient({
 
   return (
     <div className="space-y-4">
-      {(tab === 'venue' || tab === 'activity') && (
+      {tab === 'venue' && (
         <>
           <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
             <div className="flex flex-wrap gap-2">
@@ -328,6 +329,112 @@ export function TransactionsClient({
               <ChevronLeft className="h-4 w-4" aria-hidden />
             </button>
             <button type="button" disabled={data.query.page >= data.pages || loading} onClick={() => run({ ...data.query, page: data.query.page + 1 })} className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-300 disabled:opacity-40" aria-label="下一頁">
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        </>
+      )}
+
+      {tab === 'activity' && (
+        <>
+          <form onSubmit={search} className="space-y-2 rounded-2xl border border-[#e3e8dc] bg-white p-4">
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[14rem] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+                <input
+                  value={draft.q}
+                  onChange={(e) => setDraft({ ...draft, q: e.target.value })}
+                  placeholder="輸入活動名稱、姓名或訂單編號"
+                  className="h-10 w-full rounded-lg border border-[#e3e8dc] pl-9 pr-3 text-sm"
+                  aria-label="搜尋活動訂單"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      search()
+                    }
+                  }}
+                />
+              </div>
+              <button type="submit" className="h-10 rounded-lg bg-[#7cb342] px-4 text-sm font-semibold text-white disabled:opacity-40" disabled={loading}>
+                搜尋
+              </button>
+              <button type="button" onClick={clear} className="h-10 rounded-lg border border-[#e3e8dc] px-3 text-sm hover:bg-[#fafcf7]">
+                清除條件
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandAdvanced(!expandAdvanced)}
+                className="h-10 rounded-lg border border-[#e3e8dc] px-3 text-sm hover:bg-[#fafcf7]"
+              >
+                更多條件
+              </button>
+            </div>
+
+            {expandAdvanced && (
+              <div className="space-y-2 border-t border-[#e3e8dc] pt-3">
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">日期類型</label>
+                    <select className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm" value={draft.dateType} onChange={(e) => setDraft({ ...draft, dateType: e.target.value as Query['dateType'] })} aria-label="日期類型">
+                      <option value="play">活動日期</option>
+                      <option value="created">報名日期</option>
+                      <option value="paid">付款日期</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">起始日期</label>
+                    <input type="date" className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm w-full" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label="起日" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">結束日期</label>
+                    <input type="date" className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm w-full" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label="迄日" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">付款狀態</label>
+                    <select className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm" value={draft.payment} onChange={(e) => setDraft({ ...draft, payment: e.target.value as Query['payment'] })} aria-label="付款狀態">
+                      <option value="">全部狀態</option>
+                      <option value="PAID">已付款</option>
+                      <option value="PENDING">待付款</option>
+                      <option value="FAILED">付款失敗</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">訂單狀態</label>
+                    <select className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm" value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value as Query['order'] })} aria-label="訂單狀態">
+                      <option value="">全部狀態</option>
+                      <option value="ACTIVE">有效</option>
+                      <option value="COMPLETED">已完成</option>
+                      <option value="CANCELLED">已取消</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">退款狀態</label>
+                    <select className="h-10 rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm" value={draft.refund} onChange={(e) => setDraft({ ...draft, refund: e.target.value as Query['refund'] })} aria-label="退款狀態">
+                      <option value="">全部狀態</option>
+                      <option value="NONE">無退款</option>
+                      <option value="PROCESSING">處理中</option>
+                      <option value="PARTIAL">部分退款</option>
+                      <option value="FULL">全額退款</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+          </form>
+
+          <ActivityCards
+            orders={data.rows}
+            loading={loading}
+            onViewDetails={(orderId) => setOrderId(orderId)}
+            amountsHidden={data.amountsHidden}
+          />
+
+          <div className="flex items-center justify-end gap-2 text-sm">
+            <span className="text-muted">第 {data.query.page}／{data.pages} 頁</span>
+            <button type="button" disabled={data.query.page <= 1 || loading} onClick={() => run({ ...data.query, page: data.query.page - 1 })} className="grid h-9 w-9 place-items-center rounded-lg border border-[#e3e8dc] disabled:opacity-40" aria-label="上一頁">
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </button>
+            <button type="button" disabled={data.query.page >= data.pages || loading} onClick={() => run({ ...data.query, page: data.query.page + 1 })} className="grid h-9 w-9 place-items-center rounded-lg border border-[#e3e8dc] disabled:opacity-40" aria-label="下一頁">
               <ChevronRight className="h-4 w-4" aria-hidden />
             </button>
           </div>
