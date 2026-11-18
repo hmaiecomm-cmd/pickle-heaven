@@ -4,7 +4,9 @@ import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
 import { listOrders, maskOrderListAmounts } from '@/server/admin-orders'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { activityOrderStats, listActivityOrders, parseActivityFilters } from '@/server/activity-orders-admin'
 import { TransactionsClient } from './transactions-client'
+import { ActivityOrders } from './activity-orders'
 
 export const metadata: Metadata = { title: '訂單記錄' }
 export const dynamic = 'force-dynamic'
@@ -14,7 +16,19 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   if (ctx === 'forbidden') return <Forbidden />
   const sp = await searchParams
   const tab = sp.tab === 'activity' || sp.tab === 'products' || sp.tab === 'points' ? sp.tab : 'venue'
-  const orderType = tab === 'activity' ? 'activity' : tab === 'venue' ? 'court' : 'all'
+
+  if (tab === 'activity') {
+    const filters = parseActivityFilters(sp)
+    const [stats, list] = await Promise.all([activityOrderStats(can(ctx.role, 'finance')), listActivityOrders(filters)])
+    return (
+      <div>
+        <PageTitle title="活動訂單" desc="查看活動報名與付款狀態" />
+        <ActivityOrders stats={stats} rows={list.rows} total={list.total} pages={list.pages} filters={filters} range={{ from: list.from, to: list.to }} canDetail={can(ctx.role, 'activities.view')} />
+      </div>
+    )
+  }
+
+  const orderType = tab === 'venue' ? 'court' : 'all'
   const unmasked = await listOrders({
     q: sp.q ?? '',
     dateType: sp.dateType ?? 'play',
@@ -60,6 +74,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
     <div>
       <PageTitle title={title} desc={desc} />
       <TransactionsClient
+        key={tab}
         initial={initial}
         courts={courts}
         pointsLedger={pointsLedger}
