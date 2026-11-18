@@ -229,21 +229,31 @@ function SidebarNav({ user }: { user: ShellUser }) {
                 </button>
                 {isOpen(g.key) && (
                   <ul className="mb-1 ml-5 mt-1 space-y-0.5 border-l border-white/15 pl-3">
-                    {g.items!.map((i) => (
-                      <li key={i.href}>
-                        <Link
-                          href={i.href}
-                          aria-current={current === i.href ? 'page' : undefined}
-                          className={cn(
-                            'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors',
-                            current === i.href ? 'bg-[#7cb342] font-semibold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
-                          )}
-                        >
-                          <span>{i.label}</span>
-                          {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
-                        </Link>
-                      </li>
-                    ))}
+                    {(() => {
+                      const items = g.items!
+                      const groups = g.key === 'settings' ? [...new Set(items.map((i) => i.group))] : [undefined]
+                      return groups.flatMap((group) => {
+                        const groupItems = g.key === 'settings' ? items.filter((i) => i.group === group) : items
+                        return [
+                          ...(group && g.key === 'settings' ? [<div key={`group-${group}`} className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{group}</div>] : []),
+                          ...groupItems.map((i) => (
+                            <li key={i.href}>
+                              <Link
+                                href={i.href}
+                                aria-current={current === i.href ? 'page' : undefined}
+                                className={cn(
+                                  'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors',
+                                  current === i.href ? 'bg-[#7cb342] font-semibold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
+                                )}
+                              >
+                                <span>{i.label}</span>
+                                {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
+                              </Link>
+                            </li>
+                          )),
+                        ]
+                      })
+                    })()}
                   </ul>
                 )}
               </li>

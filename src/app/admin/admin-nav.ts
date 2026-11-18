@@ -13,6 +13,8 @@ export interface AdminNavItem {
   exact?: boolean
   /** 未開放／未串接 */
   notOpen?: boolean
+  /** 導航分組（用於視覺分組） */
+  group?: string
 }
 
 export type AdminNavIcon = 'home' | 'courts' | 'monitor' | 'devices' | 'access' | 'orders' | 'members' | 'reports' | 'settings'
@@ -93,10 +95,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     icon: 'reports',
     items: [
       { label: '營運總覽', href: '/admin/reports', permission: 'finance', exact: true },
-      { label: '收入與退款分析', href: '/admin/finance', permission: 'finance', exact: true },
-      { label: '場地使用率', href: '/admin/reports/utilization', permission: 'reports' },
-      { label: '活動參與', href: '/admin/reports/activities', permission: 'reports' },
-      { label: '會員分析', href: '/admin/reports/members', permission: 'reports' },
+      { label: '財務報表', href: '/admin/finance', permission: 'finance', exact: true },
+      { label: '活動與行銷設計', href: '/admin/marketing', permission: 'activities', notOpen: true },
+      { label: '商品與商城', href: '/admin/marketing/products', permission: 'marketing', notOpen: true },
+      { label: '價格與會員方案', href: '/admin/pricing', permission: 'settings' },
     ],
   },
   {
@@ -104,14 +106,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '系統設定',
     icon: 'settings',
     items: [
-      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
-      { label: '定價與會員折扣', href: '/admin/pricing', permission: 'settings' },
-      { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true },
-      { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings' },
-      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
-      { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
-      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
-      { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
+      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true, group: '場館與品牌設定' },
+      { label: '官網頁面管理', href: '/admin/settings/site', permission: 'settings', notOpen: true, group: '場館與品牌設定' },
+      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff', group: '主管與權限設定' },
+      { label: '操作紀錄', href: '/admin/audit', permission: 'audit', group: '主管與權限設定' },
+      { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings', group: '通知與串接設定' },
+      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings', group: '通知與串接設定' },
+      { label: '設備串接', href: '/admin/settings/devices', permission: 'settings', group: '通知與串接設定' },
+      { label: '定價與會員折扣', href: '/admin/pricing', permission: 'settings', group: '價格與會員方案' },
     ],
   },
 ]
