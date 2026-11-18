@@ -40,7 +40,8 @@
     "verify:mock-access": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-mock-payment-access.ts",
     "verify:door": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-door-grants.ts",
     "verify:finance": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-finance-metrics.ts",
-    "verify:camera": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-camera-monitor.ts"
+    "verify:camera": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env scripts/test-camera-monitor.ts",
+    "verify:slot-passwords": "tsx -r ./scripts/stub-server-only.cjs --env-file=.env --env-file=.env.local scripts/test-slot-passwords.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

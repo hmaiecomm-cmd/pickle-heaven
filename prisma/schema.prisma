@@ -303,6 +303,11 @@ model Venue {
   credentialAlerts    CredentialAlert[]
   slotPasswordRules   SlotPasswordRule[]
   slotPasswords       SlotPassword[]
+  marketingBanners    MarketingBanner[]
+  promotionCards      PromotionCard[]
+  announcements       Announcement[]
+  pageConfigurations  PageConfiguration[]
+  marketingCampaigns  MarketingCampaign[]
 }
 
 /// 場地（球場）
@@ -812,10 +817,16 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  venues           Venue[]
-  sessionTemplates SessionTemplate[]
-  sessions         Session[]
-  activities       Activity[]
+  venues                    Venue[]
+  sessionTemplates          SessionTemplate[]
+  sessions                  Session[]
+  activities                Activity[]
+  marketingBanners          MarketingBanner[]
+  promotionCards            PromotionCard[]
+  announcements             Announcement[]
+  pageConfigurations        PageConfiguration[]
+  marketingCampaigns        MarketingCampaign[]
+  lineNotificationSettings  LINENotificationSetting?
 
   @@index([active])
 }
@@ -1203,6 +1214,274 @@ model MediaAsset {
   activities Activity[] @relation("ActivityCover")
   hosts      Host[]     @relation("HostPhoto")
   sessions   Session[]  @relation("SessionCover")
+  banners    MarketingBanner[] @relation("BannerImage")
+  promotionCards PromotionCard[] @relation("CardImage")
+  announcements Announcement[] @relation("AnnouncementImage")
+}
+
+/**
+ * ─────────────────────────── 前台行銷設計 ───────────────────────────
+ */
+
+/// 首頁行銷橫幅
+model MarketingBanner {
+  id              String   @id @default(cuid())
+  organizationId  String
+  venueId         String
+
+  /// 橫幅標題
+  title           String
+  /// 橫幅副標題
+  subtitle        String?
+  /// 橫幅描述
+  description     String?
+
+  /// 背景圖片
+  imageAssetId    String?
+
+  /// 行動按鈕文字
+  buttonText      String?
+  /// 行動按鈕連結
+  buttonUrl       String?
+
+  /// 顯示頁面：HOMEPAGE / ALL / BOOKING / MEMBERS
+  displayPages    String   @default("HOMEPAGE")
+
+  /// 排序順序
+  sortOrder       Int      @default(0)
+
+  /// 顯示時間設定
+  startAt         DateTime?
+  endAt           DateTime?
+
+  /// 是否啟用
+  active          Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue           Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  image           MediaAsset?  @relation("BannerImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, active, startAt, endAt])
+  @@index([displayPages])
+}
+
+/// 行銷宣傳卡片
+model PromotionCard {
+  id              String   @id @default(cuid())
+  organizationId  String
+  venueId         String
+
+  /// 卡片標題
+  title           String
+  /// 卡片簡述
+  description     String?
+
+  /// 卡片圖片
+  imageAssetId    String?
+
+  /// 按鈕文字
+  buttonText      String?
+  /// 按鈕連結
+  buttonUrl       String?
+
+  /// 顯示頁面：HOMEPAGE / ACTIVITIES / MEMBERS / BOOKING / ALL
+  displayPages    String   @default("HOMEPAGE")
+
+  /// 排序順序
+  sortOrder       Int      @default(0)
+
+  /// 顯示時間設定
+  startAt         DateTime?
+  endAt           DateTime?
+
+  /// 是否啟用
+  active          Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue           Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  image           MediaAsset?  @relation("CardImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, active, startAt, endAt])
+  @@index([displayPages])
+}
+
+/// 網站公告
+model Announcement {
+  id              String   @id @default(cuid())
+  organizationId  String
+  venueId         String
+
+  /// 公告標題
+  title           String
+  /// 公告內容
+  content         String
+
+  /// 公告縮圖
+  imageAssetId    String?
+
+  /// 公告類型：GENERAL / ACTIVITY / PROMOTION / SYSTEM / URGENT
+  type            String   @default("GENERAL")
+
+  /// 公告顏色：BLUE / GREEN / AMBER / RED
+  color           String   @default("BLUE")
+
+  /// 顯示頁面：HOMEPAGE / ACTIVITIES / BOOKING / ALL
+  displayPages    String   @default("HOMEPAGE")
+
+  /// 顯示時間設定
+  startAt         DateTime?
+  endAt           DateTime?
+
+  /// 是否啟用
+  active          Boolean  @default(true)
+
+  /// 是否置頂
+  pinned          Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue           Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  image           MediaAsset?  @relation("AnnouncementImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, active, startAt, endAt])
+  @@index([pinned, type])
+}
+
+/// 前台頁面配置
+model PageConfiguration {
+  id              String   @id @default(cuid())
+  organizationId  String
+  venueId         String
+
+  /// 頁面類型：HOMEPAGE / ACTIVITIES / MEMBERS / BOOKING
+  pageType        String   @unique
+
+  /// 首頁顯示的活動數量
+  activitiesCount Int      @default(6)
+
+  /// 活動排序方式：LATEST / POPULAR / FEATURED
+  activitiesSortBy String  @default("LATEST")
+
+  /// 是否顯示熱門活動
+  showPopularActivities Boolean @default(true)
+
+  /// 是否顯示最新活動
+  showLatestActivities  Boolean @default(true)
+
+  /// 是否顯示 VIP 活動
+  showVIPActivities     Boolean @default(true)
+
+  /// 是否顯示商城入口
+  showShopEntrance      Boolean @default(true)
+
+  /// 是否顯示預約入口
+  showBookingEntrance   Boolean @default(true)
+
+  /// 是否顯示會員專區
+  showMembersArea       Boolean @default(true)
+
+  /// 首頁主視覺主題顏色
+  themePrimaryColor     String  @default("#2f7d3b")
+
+  /// 首頁行銷文案
+  heroHeading           String? @default("歡迎來到我們的球館")
+  heroSubheading        String? @default("享受最佳的羽毛球體驗")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue           Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+}
+
+/// 行銷推播任務
+model MarketingCampaign {
+  id              String   @id @default(cuid())
+  organizationId  String
+  venueId         String
+
+  /// 活動標題
+  title           String
+  /// 推播內容
+  content         String
+
+  /// 推播類型：BOOKING_SUCCESS / ACTIVITY_REMINDER / PROMOTION / ANNOUNCEMENT / CUSTOM
+  type            String   @default("CUSTOM")
+
+  /// 目標受眾：ALL / MEMBERS / VIP / CUSTOM_SEGMENT
+  targetAudience  String   @default("ALL")
+
+  /// 推播渠道：LINE / EMAIL / IN_APP / SMS
+  channels        String   @default("LINE")
+
+  /// 推播狀態：DRAFT / SCHEDULED / SENT / FAILED
+  status          String   @default("DRAFT")
+
+  /// 排程發送時間（null = 立即發送）
+  scheduledAt     DateTime?
+
+  /// 實際發送時間
+  sentAt          DateTime?
+
+  /// 發送人數統計
+  recipientCount  Int      @default(0)
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venue           Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, status])
+  @@index([scheduledAt])
+}
+
+/// LINE 通知設定
+model LINENotificationSetting {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+
+  /// LINE Channel ID
+  channelId       String?
+  /// LINE Channel Secret（加密存儲）
+  channelSecret   String?
+
+  /// LINE 連接狀態
+  isConnected     Boolean  @default(false)
+
+  /// 是否啟用訂場確認通知
+  enableBookingConfirmation Boolean @default(true)
+
+  /// 是否啟用活動提醒通知
+  enableActivityReminder    Boolean @default(true)
+
+  /// 是否啟用優惠推播
+  enablePromotionNotification Boolean @default(true)
+
+  /// 最後驗證時間
+  lastVerifiedAt  DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([isConnected])
 }
 
 /**

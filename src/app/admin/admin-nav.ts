@@ -96,7 +96,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '營運總覽', href: '/admin/reports', permission: 'finance', exact: true },
       { label: '財務報表', href: '/admin/finance', permission: 'finance', exact: true },
-      { label: '活動與行銷設計', href: '/admin/marketing', permission: 'activities', notOpen: true },
+      { label: '活動與行銷設計', href: '/admin/marketing', permission: 'activities' },
       { label: '商品與商城', href: '/admin/marketing/products', permission: 'marketing', notOpen: true },
       { label: '價格與會員方案', href: '/admin/pricing', permission: 'settings' },
     ],

@@ -146,7 +146,9 @@ export async function syncSlotPasswordsForBookingSafe(bookingId: string): Promis
  * 冪等：同一場館＋日期＋時段只有一組密碼（資料庫唯一鍵），重複執行不會產生第二組；
  * 未付款、取消、退款的訂單不會加入。
  */
-export async function generateUpcomingSlotPasswords(opts: SyncOptions & { limit?: number } = {}): Promise<{ checked: number; added: number }> {
+export async function generateUpcomingSlotPasswords(
+  opts: SyncOptions & { limit?: number; venueId?: string } = {},
+): Promise<{ checked: number; added: number }> {
   const at = opts.at ?? now()
   const rules = await prisma.slotPasswordRule.findMany({ select: { venueId: true, generateAheadDays: true } })
   const aheadByVenue = new Map(rules.map((r) => [r.venueId, Math.min(AHEAD_DAYS_MAX, Math.max(AHEAD_DAYS_MIN, r.generateAheadDays))]))
@@ -155,6 +157,7 @@ export async function generateUpcomingSlotPasswords(opts: SyncOptions & { limit?
 
   const bookings = await prisma.booking.findMany({
     where: {
+      ...(opts.venueId ? { venueId: opts.venueId } : {}),
       status: { in: [...VALID_BOOKING_STATUSES] },
       slotPasswords: { none: {} },
       OR: [

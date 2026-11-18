@@ -1,0 +1,199 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
+import { pagePermission, getAdminContext } from '@/lib/admin-auth'
+import { Forbidden, PageTitle, SourceNote } from '@/components/admin/page-bits'
+import { prisma } from '@/lib/db'
+import { ACTIVITY_TYPE_LABEL, type ActivityTypeKey } from '@/lib/activity-shared'
+import { MarketingOverviewCards } from './marketing-overview-cards'
+import { ActivityManagementSection } from './activity-management-section'
+import { MarketingBannersSection } from './marketing-banners-section'
+import { PromotionCardsSection } from './promotion-cards-section'
+import { AnnouncementsSection } from './announcements-section'
+import { PageManagementSection } from './page-management-section'
+import { MarketingToolsSection } from './marketing-tools-section'
+
+export const metadata: Metadata = { title: '活動與行銷設計' }
+export const dynamic = 'force-dynamic'
+
+export default async function MarketingPage() {
+  if ((await pagePermission('activities')) === 'forbidden') return <Forbidden />
+  const ctx = await getAdminContext()
+  if (!ctx) return null
+
+  // 获取活动统计数据、行销内容、页面配置和 LINE 设置
+  const [activities, totalRegistrations, banners, promotionCards, announcements, pageConfigs, lineSettings] = await Promise.all([
+    prisma.activity.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+        coverAssetId: true,
+        price: true,
+        priceUnit: true,
+        capacity: true,
+        seriesStartDate: true,
+        seriesEndDate: true,
+        sessions: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.sessionRegistration.aggregate({
+      _count: true,
+      where: { cancelledAt: null },
+    }),
+    prisma.marketingBanner.findMany({
+      where: { deletedAt: null, venueId: ctx.venueId ?? undefined },
+      select: {
+        id: true,
+        title: true,
+        subtitle: true,
+        imageAssetId: true,
+        displayPages: true,
+        sortOrder: true,
+        active: true,
+        startAt: true,
+        endAt: true,
+      },
+      orderBy: [{ startAt: 'desc' }, { sortOrder: 'asc' }],
+    }),
+    prisma.promotionCard.findMany({
+      where: { deletedAt: null, venueId: ctx.venueId ?? undefined },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        imageAssetId: true,
+        displayPages: true,
+        active: true,
+        startAt: true,
+        endAt: true,
+      },
+      orderBy: { sortOrder: 'asc' },
+    }),
+    prisma.announcement.findMany({
+      where: { deletedAt: null, venueId: ctx.venueId ?? undefined },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        type: true,
+        color: true,
+        displayPages: true,
+        active: true,
+        pinned: true,
+        startAt: true,
+        endAt: true,
+      },
+      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+    }),
+    // 页面配置查询将在重新生成 Prisma Client 后可用
+    Promise.resolve([] as any[]),
+    // LINE 设置查询将在重新生成 Prisma Client 后可用
+    Promise.resolve(null),
+  ])
+
+  // 整理活动统计
+  const activityStats = {
+    draft: activities.filter((a: { status: string }) => a.status === 'DRAFT').length,
+    published: activities.filter((a: { status: string }) => a.status === 'PUBLISHED').length,
+    ended: activities.filter((a: { status: string }) => a.status === 'ARCHIVED').length,
+    total: activities.length,
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageTitle
+        title="活動與行銷設計"
+        desc="管理前台活動與行銷內容"
+        right={
+          <Link
+            href="/admin/marketing/activities/new"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            新增活動
+          </Link>
+        }
+      />
+
+      {/* 行銷總覽 */}
+      <section>
+        <h2 className="mb-4 text-sm font-semibold text-zinc-700">行銷總覽</h2>
+        <MarketingOverviewCards stats={activityStats} totalRegistrations={totalRegistrations._count} />
+      </section>
+
+      {/* 活動管理 */}
+      <section>
+        <h2 className="mb-4 text-sm font-semibold text-zinc-700">活動管理</h2>
+        <ActivityManagementSection activities={activities} />
+        <SourceNote source="活動資料表" basis="已發布與草稿活動" updatedAt={new Date()} className="mt-3" />
+      </section>
+
+      {/* 前台行銷設計 - 首頁橫幅 */}
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">首頁行銷橫幅</h2>
+            <p className="mt-1 text-xs text-muted">設定首頁主視覺和行動按鈕</p>
+          </div>
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
+            <Plus className="h-4 w-4" aria-hidden />
+            新增橫幕
+          </button>
+        </div>
+        <MarketingBannersSection banners={banners} />
+      </section>
+
+      {/* 前台行銷設計 - 宣傳卡片 */}
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">行銷宣傳卡片</h2>
+            <p className="mt-1 text-xs text-muted">展示優惠、推廣與特殊內容</p>
+          </div>
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
+            <Plus className="h-4 w-4" aria-hidden />
+            新增卡片
+          </button>
+        </div>
+        <PromotionCardsSection cards={promotionCards} />
+      </section>
+
+      {/* 前台行銷設計 - 網站公告 */}
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-700">網站公告</h2>
+            <p className="mt-1 text-xs text-muted">發佈重要資訊與通知</p>
+          </div>
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
+            <Plus className="h-4 w-4" aria-hidden />
+            新增公告
+          </button>
+        </div>
+        <AnnouncementsSection announcements={announcements} />
+      </section>
+
+      {/* 前台頁面管理 */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold text-zinc-700">前台頁面方向設定</h2>
+          <p className="mt-1 text-xs text-muted">管理首頁、活動頁、會員專區等前台內容</p>
+        </div>
+        <PageManagementSection pages={pageConfigs} />
+      </section>
+
+      {/* 行銷工具 */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold text-zinc-700">行銷工具</h2>
+          <p className="mt-1 text-xs text-muted">LINE 通知設定與推播行銷活動管理</p>
+        </div>
+        <MarketingToolsSection lineSettings={lineSettings ?? undefined} />
+      </section>
+    </div>
+  )
+}

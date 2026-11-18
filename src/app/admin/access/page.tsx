@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { DoorClosed, History, KeyRound, ListChecks, ShieldAlert } from 'lucide-react'
@@ -19,6 +20,8 @@ import {
 import { ManualGrantForm, RevokeButton } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { PasswordSettings } from './password-settings'
+import { SlotPasswordRecords, type SlotRecord, type SlotStats } from './slot-password-records'
+import { SLOT_TYPE_LABEL, effectiveMode, expireOffsetMinutes, getOrCreateRule, openOffsetMinutes } from '@/server/slot-password-service'
 import { AlwaysOpenToggle } from './always-open-toggle'
 import { getDoorRemoteState } from '@/server/door-remote'
 import { WatchdogClient } from './watchdog-client'
@@ -101,17 +104,100 @@ function Empty({ title, desc }: { title: string; desc: string }) {
   )
 }
 
+const MODE_TEXT: Record<string, string> = { SPLIT_DAY: '上午一組、下午一組', DAILY: '每天一組', HOURLY: '每小時一組', PER_ORDER: '每筆預訂單獨立' }
+
+type SlotPageData =
+  | { ready: false }
+  | { ready: true; settings: React.ComponentProps<typeof PasswordSettings>['settings']; stats: SlotStats; records: SlotRecord[] }
+
+/** 預約密碼設定與「密碼時段記錄」的資料（只顯示遮罩密碼）。資料表尚未建立時回傳 ready=false，頁面其他區塊照常顯示 */
+async function loadSlotPasswordData(venue: { id: string; bookAheadDays: number; passwordBookAheadDaysOverride: number | null }, at: Date): Promise<SlotPageData> {
+  try {
+    const rule = await getOrCreateRule(venue.id)
+    const [futureSlots, logCounts, slots] = await Promise.all([
+      prisma.slotPassword.count({ where: { venueId: venue.id, expireAt: { gt: at }, status: { in: ['SCHEDULED', 'ACTIVE'] } } }),
+      prisma.slotPasswordLog.groupBy({ by: ['sendStatus'], where: { slotPassword: { venueId: venue.id } }, _count: { _all: true } }),
+      prisma.slotPassword.findMany({
+        where: { venueId: venue.id, expireAt: { gt: new Date(at.getTime() - 86_400_000) } },
+        orderBy: { slotStartAt: 'asc' },
+        take: 60,
+        include: {
+          bookingSlots: { include: { booking: { select: { id: true, code: true, status: true, user: { select: { displayName: true } } } } } },
+          passwordLogs: true,
+        },
+      }),
+    ])
+    const sendCount = (k: string) => logCounts.find((c) => c.sendStatus === k)?._count._all ?? 0
+    const open = openOffsetMinutes(rule)
+    const expire = expireOffsetMinutes(rule)
+    const mode = effectiveMode(rule)
+    const stats: SlotStats = {
+      modeLabel: MODE_TEXT[mode] ?? rule.generationMode,
+      openLabel: `預約開始前 ${open} 分鐘`,
+      expireLabel: expire === 0 ? '預約結束立即失效' : `預約結束後 ${expire} 分鐘`,
+      generateAheadDays: rule.generateAheadDays,
+      bookAheadDays: venue.passwordBookAheadDaysOverride ?? venue.bookAheadDays,
+      shared: mode !== 'PER_ORDER',
+      futureSlots,
+      lineSent: sendCount('SENT'),
+      lineFailed: sendCount('FAILED'),
+    }
+    const records: SlotRecord[] = slots.map((s) => ({
+      id: s.id,
+      date: s.slotDate,
+      slotLabel: SLOT_TYPE_LABEL(s.slotType),
+      maskedCode: s.maskedCode,
+      openAt: formatDateTime(s.openAt),
+      expireAt: formatDateTime(s.expireAt),
+      activeOrderCount: s.activeOrderCount,
+      status: s.status,
+      bookings: s.bookingSlots.map((l) => {
+        const log = s.passwordLogs.find((x) => x.bookingId === l.bookingId)
+        return {
+          bookingId: l.bookingId,
+          code: l.booking.code,
+          holder: l.booking.user.displayName,
+          valid: l.booking.status === 'PAID' || l.booking.status === 'COMPLETED',
+          sendStatus: log?.sendStatus ?? null,
+          failureReason: log?.failureReason ?? null,
+          retryCount: log?.retryCount ?? 0,
+          sentAt: log?.sentAt ? formatDateTime(log.sentAt) : null,
+        }
+      }),
+    }))
+    return {
+      ready: true,
+      settings: {
+        generationMode: rule.generationMode,
+        generateAheadDays: rule.generateAheadDays,
+        passwordOpenTime: rule.passwordOpenTime,
+        passwordOpenCustomMinutes: rule.passwordOpenCustomMinutes,
+        passwordExpireTime: rule.passwordExpireTime === 'CUSTOM' ? '30_MIN_AFTER' : rule.passwordExpireTime,
+        lockWhenNoOrders: rule.lockWhenNoOrders,
+        allowSharedPassword: rule.allowSharedPassword,
+        passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
+      },
+      stats,
+      records,
+    }
+  } catch (err) {
+    console.error('[access] 讀取時段密碼資料失敗（可能尚未套用資料表）', err)
+    return { ready: false }
+  }
+}
+
 async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
   const at = now()
   const [doorState, grants, members, venue] = await Promise.all([
     getDoorRemoteState(),
     listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
-    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordGenerationMode: true, passwordBookAheadDaysOverride: true, passwordOpenTime: true } }),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordBookAheadDaysOverride: true } }),
   ])
   const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
   const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
   const counts = grants.reduce<Record<GrantPhase, number>>((acc, g) => ((acc[grantPhase(g, at)] += 1), acc), { ACTIVE: 0, UPCOMING: 0, EXPIRED: 0, REVOKED: 0 })
+  const slotData = venue && canGrant ? await loadSlotPasswordData(venue, at) : null
 
   return (
     <div className="space-y-5">
@@ -125,20 +211,17 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
       />
 
       {/* 預約密碼設定 */}
-      {venue && canGrant && (
-        <PasswordSettings
-          settings={{
-            generationMode: (venue.passwordGenerationMode as any) ?? 'DAILY',
-            generateAheadDays: 7,
-            passwordOpenTime: (venue.passwordOpenTime as any) ?? '10_MIN_BEFORE',
-            passwordOpenCustomMinutes: null,
-            passwordExpireTime: '30_MIN_AFTER',
-            lockWhenNoOrders: true,
-            allowSharedPassword: true,
-            passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
-          }}
-          defaultBookAheadDays={venue.bookAheadDays}
-        />
+      {slotData && !slotData.ready && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <h2 className="font-semibold">預約密碼設定</h2>
+          <p className="mt-1 text-xs">此資料庫尚未建立時段密碼資料表（prisma/migrations-manual/2026-11-17b_slot_passwords.sql），套用後即可設定與查看密碼時段。</p>
+        </section>
+      )}
+      {venue && slotData?.ready && (
+        <>
+          <PasswordSettings settings={slotData.settings} defaultBookAheadDays={venue.bookAheadDays} />
+          <SlotPasswordRecords stats={slotData.stats} records={slotData.records} />
+        </>
       )}
 
       {/* 手動授權 */}
