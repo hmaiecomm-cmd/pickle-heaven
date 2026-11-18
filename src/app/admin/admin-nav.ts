@@ -89,7 +89,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'reports',
-    label: '營運總覽',
+    label: '營運與行銷',
     icon: 'reports',
     items: [
       { label: '營運總覽', href: '/admin/reports', permission: 'finance', exact: true },

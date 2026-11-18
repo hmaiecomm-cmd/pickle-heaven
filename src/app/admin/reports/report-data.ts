@@ -5,10 +5,54 @@ import { financeTotals } from '@/server/finance-metrics'
 
 /** 報表共用：期間（以台北日期計）與基本資料 */
 export function periodOf(days: string | undefined) {
-  const n = [7, 30, 90].includes(Number(days)) ? Number(days) : 30
+  const n = [12, 30, 90].includes(Number(days)) ? Number(days) : 12
   const to = taipeiDateString()
   const from = addDays(to, -(n - 1))
   return { days: n, from, to, fromUtc: taipeiToUtc(from, 0), toUtc: taipeiToUtc(addDays(to, 1), 0) }
+}
+
+/** 營運總覽的圖形化資料：只讀現有預約、付款、儲值與異常紀錄，不產生展示假資料。 */
+export async function operationsDashboard(p: Period, courtId?: string) {
+  const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, include: { courts: { where: { active: true }, orderBy: { sortOrder: 'asc' } } } })
+  if (!venue) return null
+  const slots = slotStarts(venue.openMinute, venue.closeMinute, venue.slotMinutes)
+  const courtIds = courtId && venue.courts.some((c) => c.id === courtId) ? [courtId] : venue.courts.map((c) => c.id)
+  const [reservations, bookings, topUps] = await Promise.all([
+    prisma.reservation.findMany({ where: { courtId: { in: courtIds }, startsAt: { gte: p.fromUtc, lt: p.toUtc }, status: { in: ['BOOKED', 'EVENT'] } }, select: { courtId: true, startsAt: true, status: true } }),
+    prisma.booking.findMany({ where: { paidAt: { gte: p.fromUtc, lt: p.toUtc }, payments: { some: { status: { in: ['SUCCESS', 'REFUNDED'] } } } }, include: { items: { select: { price: true } }, activityItems: { select: { amount: true } }, payments: { where: { status: { in: ['SUCCESS', 'REFUNDED'] } }, select: { amount: true } } } }),
+    prisma.topUpOrder.aggregate({ where: { status: { in: ['PAID', 'CREDITED', 'CREDIT_FAILED'] }, paidAt: { gte: p.fromUtc, lt: p.toUtc } }, _sum: { amount: true } }),
+  ])
+  const days: string[] = []
+  for (let d = p.from; d <= p.to; d = addDays(d, 1)) days.push(d)
+  const dayIndex = new Map(days.map((d, i) => [d, i]))
+  const hourSlots = slots.map((m) => Math.floor(m / 60))
+  const cellMap = new Map<string, number>()
+  const dayUse = days.map(() => 0)
+  const courtUse = new Map(courtIds.map((id) => [id, 0]))
+  for (const r of reservations) {
+    const date = taipeiDateString(r.startsAt)
+    const di = dayIndex.get(date)
+    if (di === undefined) continue
+    const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: '2-digit', hour12: false }).format(r.startsAt))
+    const si = hourSlots.findIndex((h) => h === hour)
+    if (si < 0) continue
+    const key = `${di}:${si}`
+    cellMap.set(key, (cellMap.get(key) ?? 0) + 1)
+    dayUse[di] += 1
+    courtUse.set(r.courtId, (courtUse.get(r.courtId) ?? 0) + 1)
+  }
+  const capacity = Math.max(1, courtIds.length * slots.length)
+  const heatmap = days.flatMap((_, di) => hourSlots.map((_, si) => ({ dayIndex: di, slotIndex: si, rate: Math.round(((cellMap.get(`${di}:${si}`) ?? 0) / Math.max(1, courtIds.length)) * 100) })))
+  const usage = days.map((d, i) => ({ label: d.slice(5).replace('-', '/'), value: Math.round((dayUse[i] / capacity) * 100) }))
+  const peak = hourSlots.map((h, i) => ({ label: `${String(h).padStart(2, '0')}:00`, value: Math.round(((days.length ? [...cellMap.entries()].filter(([k]) => Number(k.split(':')[1]) === i).reduce((s, [, v]) => s + v, 0) / days.length : 0) / Math.max(1, courtIds.length)) * 100) }))
+  const revenue = { court: 0, event: 0 }
+  for (const b of bookings) {
+    const total = b.payments.reduce((s, x) => s + x.amount, 0)
+    const base = b.items.reduce((s, x) => s + x.price, 0) + b.activityItems.reduce((s, x) => s + x.amount, 0)
+    if (base <= 0) revenue.court += total
+    else { revenue.court += Math.round(total * b.items.reduce((s, x) => s + x.price, 0) / base); revenue.event += total - Math.round(total * b.items.reduce((s, x) => s + x.price, 0) / base) }
+  }
+  return { venue, slots, days, heatmap, usage, peak, courts: venue.courts.filter((c) => courtIds.includes(c.id)).map((c) => ({ name: c.name, rate: Math.round(((courtUse.get(c.id) ?? 0) / Math.max(1, slots.length * days.length)) * 100) })).sort((a, b) => b.rate - a.rate), revenue: { ...revenue, topup: topUps._sum.amount ?? 0 }, productDataAvailable: false }
 }
 
 export type Period = ReturnType<typeof periodOf>
