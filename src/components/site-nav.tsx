@@ -4,7 +4,7 @@ import * as React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, CircleUserRound, GraduationCap, LogOut, Menu, Package, ShoppingCart, Users, X } from 'lucide-react'
+import { Calendar, CalendarDays, CircleUserRound, GraduationCap, LogOut, Menu, Package, ShoppingCart, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brand, images } from '@/config/site'
 import { useCartCount } from '@/store/cart'
@@ -17,6 +17,7 @@ const MENU = [
   { href: '/booking', label: '場地預約', icon: CalendarDays },
   { href: '/sessions', label: '活動', icon: Users },
   { href: '/shop', label: '商城', icon: Package },
+  { href: '/court-packages', label: '場地包期', icon: Calendar },
   { href: '/coaches', label: '教練課堂', icon: GraduationCap },
   { href: '/account', label: '我的帳戶', icon: CircleUserRound },
 ] as const
