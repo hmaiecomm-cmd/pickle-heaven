@@ -33,15 +33,40 @@ const STATUS_LABEL: Record<string, string> = {
 export function ProductDetailDialog({ product, open, onOpenChange }: ProductDetailDialogProps) {
   const { toast } = useToast()
   const [quantity, setQuantity] = React.useState(1)
+  const [isLoading, setIsLoading] = React.useState(false)
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (quantity > product.availableQuantity) {
       toast(`最多只能購買 ${product.availableQuantity} 件`, 'error')
       return
     }
-    toast(`已將 ${quantity} 件「${product.name}」加入購物車`, 'success')
-    setQuantity(1)
-    onOpenChange(false)
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/cart-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast(error.error || '加入購物車失敗', 'error')
+        return
+      }
+
+      toast(`已將 ${quantity} 件「${product.name}」加入購物車`, 'success')
+      setQuantity(1)
+      onOpenChange(false)
+    } catch (error) {
+      console.error('[Dialog] Add to cart error:', error)
+      toast('加入購物車失敗', 'error')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const isOutOfStock = product.status === 'SOLD_OUT' || product.status === 'INACTIVE'
@@ -152,10 +177,10 @@ export function ProductDetailDialog({ product, open, onOpenChange }: ProductDeta
 
                   <Button
                     onClick={handleAddToCart}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || isLoading}
                     className={styles.addButton}
                   >
-                    加入購物車
+                    {isLoading ? '加入中...' : '加入購物車'}
                   </Button>
                 </div>
               </div>

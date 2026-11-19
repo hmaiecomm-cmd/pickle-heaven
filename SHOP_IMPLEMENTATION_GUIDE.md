@@ -21,12 +21,12 @@
 - [x] DEMO 資料集（清楚標記，可隨時移除）
 
 ### ⏳ 下一步（待實裝）
-- [ ] 購物車系統整合
-- [ ] 支付流程（LINE Pay/信用卡）
+- [x] 購物車系統整合（API 已實裝）
+- [x] 支付流程框架（API 已實裝，待 LINE Pay/信用卡整合）
+- [x] 訂單確認通知（API 已實裝，待郵件/LINE 整合）
 - [ ] 訂單退款流程
 - [ ] 商品編輯表單（詳細編輯頁面）
 - [ ] 庫存低庫存提醒系統
-- [ ] 訂單確認郵件/LINE 通知
 - [ ] 物流追蹤整合
 - [ ] 商品評論與評分
 
@@ -342,6 +342,157 @@
 - ✓ 增加 availableQuantity
 - ✓ 記錄 InventoryTransaction（INBOUND）
 - ✓ 自動更新商品狀態（若達到低庫存閾值以上）
+
+---
+
+#### POST `/api/cart-product`
+**加入商品到購物車**
+
+需登入會員
+
+請求：
+```typescript
+{
+  productId: string
+  quantity: number
+}
+```
+
+響應：
+```typescript
+{
+  success: boolean
+  item: {
+    id: string
+    productId: string
+    productName: string
+    productSku: string
+    imageUrl: string | null
+    quantity: number
+    unitPrice: number
+    subtotal: number
+  }
+}
+```
+
+功能：
+- ✓ 驗證庫存
+- ✓ 返回購物車項目信息
+
+---
+
+#### DELETE `/api/cart-product?id=:itemId`
+**從購物車移除商品**
+
+需登入會員
+
+---
+
+#### PATCH `/api/cart-product?id=:itemId`
+**更新購物車中商品的數量**
+
+需登入會員
+
+請求：
+```typescript
+{
+  quantity: number
+}
+```
+
+---
+
+#### POST `/api/payments/initiate`
+**初始化支付流程**
+
+需登入會員
+
+請求：
+```typescript
+{
+  bookingId?: string // 場地租借訂單
+  productOrderId?: string // 商品訂單
+  paymentMethod: 'LINE_PAY' | 'CREDIT_CARD'
+  amount: number
+}
+```
+
+響應（LINE Pay）：
+```typescript
+{
+  transactionId: string
+  paymentMethod: 'LINE_PAY'
+  amount: number
+  redirectUrl: string // 重定向到 LINE Pay 付款頁面
+}
+```
+
+功能：
+- ✓ 驗證訂單存在性和權限
+- ✓ 驗證訂單狀態（必須為 PENDING）
+- ✓ 生成唯一交易編號
+- ✓ 返回支付方法特定資訊
+
+---
+
+#### POST `/api/payments/confirm`
+**確認支付完成**
+
+需登入會員
+
+請求：
+```typescript
+{
+  transactionId: string
+  bookingId?: string
+  productOrderId?: string
+  paymentMethod: 'LINE_PAY' | 'CREDIT_CARD'
+  amount: number
+}
+```
+
+功能：
+- ✓ 驗證訂單和權限
+- ✓ 更新訂單狀態（PAID）
+- ✓ 建立付款記錄
+- ✓ 返回更新後的訂單信息
+
+---
+
+#### POST `/api/orders/send-confirmation`
+**發送訂單確認郵件和 LINE 通知**
+
+需登入會員
+
+請求：
+```typescript
+{
+  bookingId?: string
+  productOrderId?: string
+  notificationType?: 'email' | 'line' | 'all' // 預設 'all'
+}
+```
+
+響應：
+```typescript
+{
+  success: boolean
+  notifications: [{
+    type: 'EMAIL' | 'LINE'
+    status: 'PENDING' | 'SENT'
+    recipient?: string // 郵件地址
+    userId?: string // LINE 用戶 ID
+    message: string
+  }]
+  message: string
+}
+```
+
+功能：
+- ✓ 生成訂單確認郵件內容
+- ✓ 生成 LINE 通知內容
+- ✓ 標記為待發送
+- ✓ 支持場地租借和商品訂單
 
 ---
 

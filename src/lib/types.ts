@@ -131,9 +131,21 @@ export interface CartActivityItemDTO {
   invalid: string | null
 }
 
+export interface CartProductItemDTO {
+  id: string
+  productId: string
+  productName: string
+  productSku: string
+  imageUrl: string | null
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
+
 export interface CartDTO {
   items: CartItemDTO[]
   activityItems: CartActivityItemDTO[]
+  productItems?: CartProductItemDTO[]
   subtotal: number
   /** 最早到期的暫扣時間，前端倒數用 */
   expiresAt: string | null
