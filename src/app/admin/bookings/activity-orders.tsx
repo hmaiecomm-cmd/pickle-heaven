@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, ChevronDown, CircleDollarSign, Clock, Crown, Hourglass, ImageOff, Search, Sparkles, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Pill } from '@/components/admin/page-bits'
@@ -59,8 +60,16 @@ export function ActivityOrders({
   range: { from: string; to: string }
   canDetail: boolean
 }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [filterOpen, setFilterOpen] = React.useState(false)
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== 'page' && v)
+
+  const openSessionDetail = (sessionId: string) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('session', sessionId)
+    router.push(`/admin/bookings?${params.toString()}`)
+  }
 
   const qs = (page: number) => {
     const u = new URLSearchParams({ tab: 'activity' })
@@ -358,9 +367,12 @@ export function ActivityOrders({
 
                   <div className="mt-auto pt-1">
                     {canDetail ? (
-                      <Link href={`/admin/sessions/${r.id}`} className="flex h-10 w-full items-center justify-center rounded-lg bg-[#1f4d34] text-sm font-semibold text-white hover:bg-[#163a27]">
+                      <button
+                        onClick={() => openSessionDetail(r.id)}
+                        className="flex h-10 w-full items-center justify-center rounded-lg bg-[#1f4d34] text-sm font-semibold text-white hover:bg-[#163a27]"
+                      >
                         查看詳情
-                      </Link>
+                      </button>
                     ) : (
                       <span className="flex h-10 w-full items-center justify-center rounded-lg bg-zinc-100 text-xs text-muted">需活動檢視權限才能查看名單</span>
                     )}

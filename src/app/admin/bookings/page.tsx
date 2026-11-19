@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { pagePermission } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
@@ -6,7 +7,8 @@ import { listOrders, maskOrderListAmounts } from '@/server/admin-orders'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { activityOrderStats, listActivityOrders, parseActivityFilters } from '@/server/activity-orders-admin'
 import { TransactionsClient } from './transactions-client'
-import { ActivityOrders } from './activity-orders'
+import { ActivityOrdersContainer } from './activity-orders-container'
+import { SessionDetailPanel } from './session-detail-panel'
 
 export const metadata: Metadata = { title: '訂單記錄' }
 export const dynamic = 'force-dynamic'
@@ -20,10 +22,27 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   if (tab === 'activity') {
     const filters = parseActivityFilters(sp)
     const [stats, list] = await Promise.all([activityOrderStats(can(ctx.role, 'finance')), listActivityOrders(filters)])
+    const selectedSessionId = sp.session
+
     return (
       <div>
         <PageTitle title="活動訂單" desc="查看活動報名與付款狀態" />
-        <ActivityOrders stats={stats} rows={list.rows} total={list.total} pages={list.pages} filters={filters} range={{ from: list.from, to: list.to }} canDetail={can(ctx.role, 'activities.view')} />
+        <ActivityOrdersContainer
+          stats={stats}
+          rows={list.rows}
+          total={list.total}
+          pages={list.pages}
+          filters={filters}
+          range={{ from: list.from, to: list.to }}
+          canDetail={can(ctx.role, 'activities.view')}
+          sessionDetail={
+            selectedSessionId ? (
+              <Suspense fallback={<div className="py-8 text-center text-sm text-muted">載入中...</div>}>
+                <SessionDetailPanel sessionId={selectedSessionId} />
+              </Suspense>
+            ) : undefined
+          }
+        />
       </div>
     )
   }
