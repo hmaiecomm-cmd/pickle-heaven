@@ -128,9 +128,9 @@ async function main() {
   await expectError('黑名單會員 → 擋下', () => createManualGrant({ ...base, userId: bad.id, validFrom: h(1), validUntil: h(2) }, 'tester'), /黑名單/)
   await expectError('沒有姓名 → 擋下', () => createManualGrant({ ...base, holderName: ' ', validFrom: h(1), validUntil: h(2) }, 'tester'), /姓名/)
   const m = await createManualGrant({ ...base, validFrom: h(-1), validUntil: h(2) }, 'tester')
-  check('非會員手動授權成功、目前有效', m.source === 'MANUAL' && m.userId === null && grantPhase(m) === 'ACTIVE')
+  check('非會員手動授權成功、已生成密碼', m.userId === null && m.password.length > 0 && m.grantId.length > 0)
   const mm = await createManualGrant({ ...base, holderName: '', userId: user.id, validFrom: h(1), validUntil: h(2) }, 'tester')
-  check('會員手動授權 → 自動帶入會員姓名', mm.holderName === user.displayName && mm.userId === user.id)
+  check('會員手動授權 → 自動帶入會員姓名', mm.holderName === user.displayName && mm.userId === user.id && mm.password.length > 0)
 
   console.log('── 權限（後端檢查）')
   check('擁有者、管理員可以建立與撤銷門禁授權', can('OWNER', 'access.grant') && can('MANAGER', 'access.grant'))

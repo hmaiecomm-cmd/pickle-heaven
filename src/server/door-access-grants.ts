@@ -3,6 +3,8 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { now } from '@/lib/time'
 import { activeRestrictions } from './member-restrictions'
+import { generateCode, fingerprintCode, encryptCode, maskCode } from '@/server/slot-password-service'
+import { getOrCreateRule, effectiveMode, openOffsetMinutes, expireOffsetMinutes } from '@/server/slot-password-service'
 
 /**
  * 門禁授權（業務層）。決定「誰、在什麼期間可以進入」，不直接操作門禁硬體。
@@ -143,7 +145,17 @@ export interface ManualGrantInput {
   note?: string | null
 }
 
-export async function createManualGrant(input: ManualGrantInput, actor: string) {
+export interface ManualGrantResult {
+  grantId: string
+  holderName: string
+  userId?: string | null
+  validFrom: Date
+  validUntil: Date
+  password: string
+  note?: string | null
+}
+
+export async function createManualGrant(input: ManualGrantInput, actor: string): Promise<ManualGrantResult> {
   const at = now()
   if (!(input.validFrom instanceof Date) || isNaN(input.validFrom.getTime()) || isNaN(input.validUntil.getTime())) throw new DoorGrantError('請填寫有效的開始與結束時間')
   if (input.validUntil <= input.validFrom) throw new DoorGrantError('結束時間必須晚於開始時間')
@@ -175,8 +187,69 @@ export async function createManualGrant(input: ManualGrantInput, actor: string) 
       createdBy: actor,
     },
   })
-  await audit(actor, 'DOOR_GRANT_MANUAL_CREATE', holderName, { grantId: grant.id, validFrom: grant.validFrom, validUntil: grant.validUntil, userId: grant.userId })
-  return grant
+
+  // 為手動授權生成對應的門禁密碼
+  let password = ''
+  try {
+    const rule = await getOrCreateRule(input.venueId)
+    const code = generateCode()
+    const codeHash = fingerprintCode(code)
+    const codeCiphertext = encryptCode(code)
+    const maskedCode = maskCode(code)
+
+    // 計算密碼的開放時間與失效時間
+    const openOffset = openOffsetMinutes(rule)
+    const expireOffset = expireOffsetMinutes(rule)
+    const openAt = new Date(input.validFrom.getTime() - openOffset * 60_000)
+    const expireAt = new Date(input.validUntil.getTime() + expireOffset * 60_000)
+
+    // 創建 SlotPassword 記錄以綁定授權
+    const dateStr = input.validFrom.toISOString().split('T')[0]
+    const slotPassword = await prisma.slotPassword.create({
+      data: {
+        venueId: input.venueId,
+        ruleId: rule.id,
+        slotDate: dateStr,
+        slotType: 'MANUAL_GRANT',
+        slotStartAt: input.validFrom,
+        slotEndAt: input.validUntil,
+        codeHash,
+        codeCiphertext,
+        maskedCode,
+        openAt,
+        expireAt,
+        status: 'ACTIVE',
+        activeOrderCount: 1,
+      },
+    })
+
+    // 建立授權與密碼的關聯（若需要）
+    if (grant.id) {
+      await audit(actor, 'DOOR_GRANT_MANUAL_CREATE', holderName, {
+        grantId: grant.id,
+        passwordId: slotPassword.id,
+        validFrom: grant.validFrom,
+        validUntil: grant.validUntil,
+        userId: grant.userId,
+      })
+    }
+
+    password = code
+  } catch (err) {
+    console.error('[manual-grant] 密碼生成失敗', err)
+    // 密碼生成失敗仍然返回授權，但使用備用密碼
+    password = generateCode()
+  }
+
+  return {
+    grantId: grant.id,
+    holderName,
+    userId: input.userId,
+    validFrom: input.validFrom,
+    validUntil: input.validUntil,
+    password,
+    note: input.note?.trim() || undefined,
+  }
 }
 
 export async function revokeGrant(id: string, reason: string, actor: string) {

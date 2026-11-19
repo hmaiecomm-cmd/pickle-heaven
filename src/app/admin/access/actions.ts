@@ -42,26 +42,54 @@ function parseLocal(v: unknown): Date {
   return taipeiToUtc(m[1], Number(m[2]) * 60 + Number(m[3]))
 }
 
-export async function createManualGrantAction(_: R | null, form: FormData): Promise<R> {
+export async function createManualGrantAction(_: any, form: FormData): Promise<any> {
   const ctx = await guard()
-  if (!ctx) return NO_PERMISSION
+  if (!ctx) return { ok: false, error: '需要登入' }
   try {
     const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
     if (!venue) return { ok: false, error: '尚未建立場館' }
+
+    const userId = String(form.get('userId') ?? '') || null
+    const holderName = String(form.get('holderName') ?? '')
+    const holderPhone = String(form.get('holderPhone') ?? '')
+    const validFromStr = form.get('validFrom')
+    const validUntilStr = form.get('validUntil')
+    const note = String(form.get('note') ?? '')
+
+    if (!holderName.trim()) return { ok: false, error: '請填寫授權對象姓名' }
+
+    const validFrom = parseLocal(validFromStr)
+    const validUntil = parseLocal(validUntilStr)
+
+    if (isNaN(validFrom.getTime()) || isNaN(validUntil.getTime())) {
+      return { ok: false, error: '請填寫有效的開始與結束時間' }
+    }
+
     const grant = await createManualGrant(
       {
         venueId: venue.id,
-        userId: String(form.get('userId') ?? '') || null,
-        holderName: String(form.get('holderName') ?? ''),
-        holderPhone: String(form.get('holderPhone') ?? ''),
-        validFrom: parseLocal(form.get('validFrom')),
-        validUntil: parseLocal(form.get('validUntil')),
-        note: String(form.get('note') ?? ''),
+        userId,
+        holderName,
+        holderPhone,
+        validFrom,
+        validUntil,
+        note,
       },
       ctx.username,
     )
+
     revalidatePath('/admin/access')
-    return { ok: true, message: `已授權給 ${grant.holderName}` }
+    return {
+      ok: true,
+      message: `已授權給 ${grant.holderName}`,
+      grantId: grant.grantId,
+      holderName: grant.holderName,
+      userId: grant.userId,
+      validFrom: grant.validFrom.toISOString(),
+      validUntil: grant.validUntil.toISOString(),
+      password: grant.password,
+      note: grant.note,
+    }
   } catch (err) {
     return fail(err)
   }

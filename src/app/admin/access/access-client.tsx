@@ -2,18 +2,103 @@
 
 import * as React from 'react'
 import { useActionState } from 'react'
+import { Copy, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { createManualGrantAction } from './actions'
+import { formatDateTime } from '@/lib/time'
 
-type R = { ok: true; message: string } | { ok: false; error: string }
+type GrantResult = {
+  ok: true
+  message: string
+  grantId: string
+  holderName: string
+  userId?: string
+  validFrom: string
+  validUntil: string
+  password: string
+  note?: string
+} | { ok: false; error: string }
 
-function Notice({ r }: { r: R | null }) {
-  if (!r) return null
+function GrantResultBlock({ r }: { r: GrantResult | null }) {
+  const [showPassword, setShowPassword] = React.useState(true)
+  const [copied, setCopied] = React.useState(false)
+
+  if (!r || !r.ok) {
+    return r && !r.ok ? (
+      <p role="alert" className="text-sm text-red-700">
+        ❌ {r.error}
+      </p>
+    ) : null
+  }
+
+  const copyToClipboard = async () => {
+    const text = `使用人：${r.holderName}\n門禁密碼：${r.password}\n有效時間：${formatDateTime(new Date(r.validFrom))} 至 ${formatDateTime(new Date(r.validUntil))}\n請於有效時間內使用此密碼開啟門禁。`
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('複製失敗，請手動複製')
+    }
+  }
+
   return (
-    <p role="status" className={r.ok ? 'text-sm text-emerald-700' : 'text-sm text-red-700'}>
-      {r.ok ? r.message : r.error}
-    </p>
+    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+      <p className="text-sm font-semibold text-emerald-900">✓ 授權建立成功</p>
+
+      <div className="mt-3 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-zinc-600">使用人：</span>
+          <span className="font-medium">{r.holderName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-zinc-600">有效時間：</span>
+          <span className="font-medium">
+            {formatDateTime(new Date(r.validFrom))} 至 {formatDateTime(new Date(r.validUntil))}
+          </span>
+        </div>
+        {r.note && (
+          <div className="flex justify-between">
+            <span className="text-zinc-600">備註：</span>
+            <span className="text-zinc-700">{r.note}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-zinc-300 bg-white p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-semibold text-zinc-700">門禁密碼</span>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="text-zinc-600 hover:text-zinc-900"
+            aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+          >
+            {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 font-mono text-lg font-semibold tracking-wider">
+            {showPassword ? r.password : '•'.repeat(r.password.length)}
+          </code>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={copyToClipboard}
+            className="shrink-0"
+          >
+            <Copy className="h-4 w-4" />
+            {copied ? '已複製' : '複製'}
+          </Button>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs text-emerald-800">
+        ⓘ 請於有效時間內將此密碼提供給使用人，逾時後密碼將自動失效。
+      </p>
+    </div>
   )
 }
 
@@ -24,7 +109,7 @@ function localValue(offsetMinutes: number) {
 }
 
 export function ManualGrantForm({ members }: { members: { id: string; label: string }[] }) {
-  const [state, action, pending] = useActionState<R | null, FormData>(createManualGrantAction, null)
+  const [state, action, pending] = useActionState<GrantResult | null, FormData>(createManualGrantAction, null)
   const [mode, setMode] = React.useState<'member' | 'guest'>('member')
   const formRef = React.useRef<HTMLFormElement>(null)
   React.useEffect(() => {
@@ -91,9 +176,11 @@ export function ManualGrantForm({ members }: { members: { id: string; label: str
           <Button type="submit" loading={pending}>
             建立授權
           </Button>
-          <Notice r={state} />
+          {state && !state.ok && <p className="text-sm text-red-700">❌ {state.error}</p>}
         </div>
       </form>
+
+      {state?.ok && <GrantResultBlock r={state} />}
     </section>
   )
 }

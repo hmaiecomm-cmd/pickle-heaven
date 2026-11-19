@@ -204,6 +204,32 @@ enum VoucherType {
   PERCENT // 折扣百分比（90 = 9 折）
 }
 
+enum ProductCategory {
+  RACKET // 球拍
+  APPAREL // 服飾
+  BALLS // 球類
+  ACCESSORIES // 配件
+}
+
+enum ProductOrderStatus {
+  PENDING // 待付款
+  PAID // 已付款
+  PROCESSING // 處理中
+  SHIPPED // 已出貨
+  DELIVERED // 已送達
+  CANCELLED // 已取消
+  REFUND_PENDING // 待退款
+  REFUNDED // 已退款
+}
+
+enum InventoryTransactionType {
+  INBOUND // 進貨
+  OUTBOUND // 出貨
+  ADJUSTMENT // 調整
+  RESERVATION // 保留
+  UNRESERVATION // 取消保留
+}
+
 /// 會員（以 LINE userId 為主要識別）
 model User {
   id               String          @id @default(cuid())
@@ -2989,4 +3015,190 @@ model HomePageVersion {
   changeNote String?
 
   @@index([homePageConfigId, createdAt])
+}
+
+/**
+ * ─────────────────────────── 商城系統 ───────────────────────────
+ */
+
+/// 商品
+model Product {
+  id              String          @id @default(cuid())
+  venueId         String
+  sku             String          @unique
+  name            String
+  category        ProductCategory
+  description     String?
+  imageUrl        String?
+  price           Int             // 新台幣整數元
+  /// 商品上架狀態
+  published       Boolean         @default(false)
+  /// 商品狀態：ACTIVE（上架中）、INACTIVE（下架中）、LOW_STOCK（庫存不足）、SOLD_OUT（已售完）
+  status          String          @default("INACTIVE") // ACTIVE, INACTIVE, LOW_STOCK, SOLD_OUT
+  /// 低庫存警告閾值
+  lowStockThreshold Int           @default(10)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  venue           Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  inventory       ProductInventory?
+  orderItems      ProductOrderItem[]
+
+  @@index([venueId])
+  @@index([category])
+  @@index([published])
+  @@index([status])
+}
+
+/// 商品庫存
+model ProductInventory {
+  id                String    @id @default(cuid())
+  productId         String    @unique
+  /// 目前庫存
+  currentQuantity   Int       @default(0)
+  /// 保留庫存（待付款訂單）
+  reservedQuantity  Int       @default(0)
+  /// 可用庫存 = currentQuantity - reservedQuantity
+  availableQuantity Int       @default(0)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  transactions      InventoryTransaction[]
+
+  @@index([productId])
+}
+
+/// 庫存異動紀錄
+model InventoryTransaction {
+  id              String    @id @default(cuid())
+  inventoryId     String
+  type            InventoryTransactionType
+  quantity        Int       // 異動數量（負數表示減少）
+  /// 異動後的庫存量
+  balanceAfter    Int
+  /// 相關的訂單編號（出貨時）
+  orderReference  String?
+  /// 供應商（進貨時）
+  vendor          String?
+  /// 備註
+  note            String?
+
+  createdAt       DateTime  @default(now())
+
+  inventory       ProductInventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId, createdAt])
+  @@index([type])
+  @@index([orderReference])
+}
+
+/// 商品訂單
+model ProductOrder {
+  id              String          @id @default(cuid())
+  code            String          @unique // PO-20261119-001 格式
+  userId          String
+  venueId         String
+
+  status          ProductOrderStatus @default(PENDING)
+  paymentStatus   PaymentStatus   @default(PENDING)
+  /// 出貨狀態：PENDING（待出貨）、PROCESSING（處理中）、SHIPPED（已出貨）、DELIVERED（已完成）、CANCELLED（取消）
+  shippingStatus  String          @default("PENDING") // PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+
+  subtotal        Int
+  discount        Int             @default(0)
+  total           Int
+
+  /// 收件人資訊
+  recipientName   String
+  recipientPhone  String
+  recipientAddress String
+  shippingMethod  String?         // 物流方式
+  trackingNumber  String?         // 物流編號
+
+  paidAt          DateTime?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue           Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  items           ProductOrderItem[]
+  payments        ProductPayment[]
+  refunds         ProductRefund[]
+
+  @@index([userId, createdAt])
+  @@index([venueId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([shippingStatus])
+}
+
+/// 商品訂單明細
+model ProductOrderItem {
+  id              String    @id @default(cuid())
+  orderId         String
+  productId       String
+
+  productName     String    // 下單時的商品名稱快照
+  productSku      String    // 下單時的 SKU 快照
+  quantity        Int
+  unitPrice       Int       // 下單時的單價
+  subtotal        Int       // quantity × unitPrice
+
+  createdAt       DateTime  @default(now())
+
+  order           ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product   @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+/// 商品訂單付款紀錄
+model ProductPayment {
+  id              String    @id @default(cuid())
+  orderId         String
+
+  method          PaymentMethod
+  amount          Int
+  status          PaymentStatus  @default(PENDING)
+  /// 交易編號（付款服務商）
+  transactionId   String?
+
+  paidAt          DateTime?
+
+  createdAt       DateTime  @default(now())
+
+  order           ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([status])
+}
+
+/// 商品訂單退款紀錄
+model ProductRefund {
+  id              String    @id @default(cuid())
+  orderId         String
+
+  reason          String
+  amount          Int
+  status          String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  /// 退款交易編號
+  transactionId   String?
+
+  requestedAt     DateTime  @default(now())
+  completedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+
+  order           ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([status])
 }
