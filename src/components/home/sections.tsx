@@ -33,10 +33,11 @@ export function HeroSection({ data }: { data: HomeData }) {
       <div className="lg:grid lg:min-h-[min(100svh,60rem)] lg:grid-cols-12">
         <div className="relative h-[44svh] min-h-[17rem] overflow-hidden lg:col-span-8 lg:col-start-5 lg:row-start-1 lg:h-auto">
           <Image
-            src={images.hero.src}
+            src={heroPhoto || images.hero.src}
             alt={images.hero.alt}
             fill
             priority
+            unoptimized={Boolean(heroPhoto)}
             sizes="(min-width: 1024px) 67vw, 100vw"
             className="origin-[50%_22%] scale-[1.16] object-cover object-[50%_30%]"
           />

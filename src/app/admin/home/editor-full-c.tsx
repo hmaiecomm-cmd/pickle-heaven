@@ -132,6 +132,17 @@ export function EditorFullC({ username }: { username: string }) {
     setIsSaving(true)
     setMessage(null)
     try {
+      const draftRes = await fetch('/api/admin/home/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      })
+      if (!draftRes.ok) {
+        const errorData = await draftRes.json().catch(() => ({}))
+        throw new Error(`草稿儲存失敗（${errorData.error || `HTTP ${draftRes.status}`}）`)
+      }
+      setIsDirty(false)
+
       const response = await fetch('/api/admin/home/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -183,51 +194,62 @@ export function EditorFullC({ username }: { username: string }) {
     }
   }
 
-  const handlePhotoUpload = (section: keyof typeof photoRefs, file: File) => {
+  const handlePhotoUpload = async (section: keyof typeof photoRefs, file: File) => {
     if (!file.type.startsWith('image/')) {
       setMessage({ type: 'error', text: '請選擇圖片文件' })
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: 'error', text: '圖片大小不超過 5MB' })
+    if (file.size > 4 * 1024 * 1024) {
+      setMessage({ type: 'error', text: '圖片超過 4 MB，請先縮小再上傳' })
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const preview = e.target?.result as string
-
-      setState((prev) => {
-        if (section === 'hero') {
-          return { ...prev, hero: { ...prev.hero, photoId: preview } }
-        }
-        if (section.startsWith('story')) {
-          const photoNum = section.slice(-1) as '1' | '2' | '3'
-          return {
-            ...prev,
-            sections: {
-              ...prev.sections,
-              story: { ...prev.sections.story, [`photo${photoNum}Id`]: preview },
-            },
-          }
-        }
-        if (section === 'visit') {
-          return {
-            ...prev,
-            sections: { ...prev.sections, visit: { ...prev.sections.visit, photoId: preview } },
-          }
-        }
-        if (section === 'invite') {
-          return {
-            ...prev,
-            sections: { ...prev.sections, invite: { ...prev.sections.invite, backgroundPhotoId: preview } },
-          }
-        }
-        return prev
-      })
-      setIsDirty(true)
+    setMessage({ type: 'success', text: '圖片上傳中...' })
+    let preview: string
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/admin/home/upload', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) throw new Error(data.error || `HTTP ${res.status}`)
+      preview = data.url
+      setMessage(data.warning ? { type: 'error', text: data.warning } : null)
+    } catch (err) {
+      setMessage({ type: 'error', text: `✗ 圖片上傳失敗：${err instanceof Error ? err.message : ''}` })
+      return
+    } finally {
+      if (photoRefs[section].current) photoRefs[section].current.value = ''
     }
-    reader.readAsDataURL(file)
+
+    setState((prev) => {
+      if (section === 'hero') {
+        return { ...prev, hero: { ...prev.hero, photoId: preview } }
+      }
+      if (section.startsWith('story')) {
+        const photoNum = section.slice(-1) as '1' | '2' | '3'
+        return {
+          ...prev,
+          sections: {
+            ...prev.sections,
+            story: { ...prev.sections.story, [`photo${photoNum}Id`]: preview },
+          },
+        }
+      }
+      if (section === 'visit') {
+        return {
+          ...prev,
+          sections: { ...prev.sections, visit: { ...prev.sections.visit, photoId: preview } },
+        }
+      }
+      if (section === 'invite') {
+        return {
+          ...prev,
+          sections: { ...prev.sections, invite: { ...prev.sections.invite, backgroundPhotoId: preview } },
+        }
+      }
+      return prev
+    })
+    setIsDirty(true)
   }
 
   const loadActivities = async () => {
@@ -428,9 +450,10 @@ export function EditorFullC({ username }: { username: string }) {
                   <div className="mt-2 relative">
                     <img src={state.hero.photoId} alt="主圖" className="w-full h-32 object-cover rounded border border-gray-200" />
                     <button
-                      onClick={() =>
+                      onClick={() => {
                         setState((prev) => ({ ...prev, hero: { ...prev.hero, photoId: undefined } }))
-                      }
+                        setIsDirty(true)
+                      }}
                       className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
                     >
                       <X className="h-3 w-3" />
@@ -589,6 +612,7 @@ export function EditorFullC({ username }: { username: string }) {
                               story: { ...p.sections.story, [`photo${idx + 1}Id`]: undefined },
                             },
                           }))
+                          setIsDirty(true)
                         }}
                         className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1"
                       >
@@ -640,7 +664,10 @@ export function EditorFullC({ username }: { username: string }) {
                   <div className="mt-2 relative">
                     <img src={state.sections.visit.photoId} alt="Visit" className="w-full h-32 object-cover rounded border" />
                     <button
-                      onClick={() => setState((p) => ({ ...p, sections: { ...p.sections, visit: { ...p.sections.visit, photoId: undefined } } }))}
+                      onClick={() => {
+                        setState((p) => ({ ...p, sections: { ...p.sections, visit: { ...p.sections.visit, photoId: undefined } } }))
+                        setIsDirty(true)
+                      }}
                       className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1"
                     >
                       <X className="h-3 w-3" />
@@ -690,7 +717,10 @@ export function EditorFullC({ username }: { username: string }) {
                   <div className="mt-2 relative">
                     <img src={state.sections.invite.backgroundPhotoId} alt="Invite" className="w-full h-32 object-cover rounded border" />
                     <button
-                      onClick={() => setState((p) => ({ ...p, sections: { ...p.sections, invite: { ...p.sections.invite, backgroundPhotoId: undefined } } }))}
+                      onClick={() => {
+                        setState((p) => ({ ...p, sections: { ...p.sections, invite: { ...p.sections.invite, backgroundPhotoId: undefined } } }))
+                        setIsDirty(true)
+                      }}
                       className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1"
                     >
                       <X className="h-3 w-3" />

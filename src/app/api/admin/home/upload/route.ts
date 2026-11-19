@@ -1,39 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
+import { MediaError, storeImage } from '@/server/media'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
+  const ctx = await getAdminContext()
+  if (!ctx || !can(ctx.role, 'settings')) {
+    return NextResponse.json({ error: '無權限' }, { status: 403 })
+  }
+
+  let form: FormData
   try {
-    const ctx = await getAdminContext()
-    if (!ctx || !can(ctx.role, 'settings')) {
-      return NextResponse.json({ error: '無權限' }, { status: 403 })
-    }
+    form = await request.formData()
+  } catch {
+    return NextResponse.json({ error: '上傳內容格式錯誤' }, { status: 400 })
+  }
+  const file = form.get('file')
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: '請選擇圖片' }, { status: 400 })
+  }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    const type = formData.get('type') as string
-
-    if (!file) {
-      return NextResponse.json({ error: '沒有上傳文件' }, { status: 400 })
-    }
-
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: '只支援圖片文件' }, { status: 400 })
-    }
-
-    const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-    return NextResponse.json({
-      success: true,
-      imageId,
-      filename: file.name,
-      type,
-    })
-  } catch (error) {
-    console.error('[home/upload] 錯誤:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '上傳失敗' },
-      { status: 500 }
-    )
+  try {
+    const asset = await storeImage(file, `admin:${ctx.username}`)
+    return NextResponse.json({ success: true, url: `/media/${asset.id}`, warning: asset.warning })
+  } catch (err) {
+    if (err instanceof MediaError) return NextResponse.json({ error: err.message }, { status: 400 })
+    console.error('[home/upload] 錯誤:', err)
+    return NextResponse.json({ error: '圖片處理失敗，請稍後再試' }, { status: 500 })
   }
 }
