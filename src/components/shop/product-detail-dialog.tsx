@@ -36,8 +36,13 @@ export function ProductDetailDialog({ product, open, onOpenChange }: ProductDeta
   const [isLoading, setIsLoading] = React.useState(false)
 
   const handleAddToCart = async () => {
+    if (product.availableQuantity <= 0) {
+      toast('此商品目前無庫存', 'error')
+      return
+    }
+
     if (quantity > product.availableQuantity) {
-      toast(`最多只能購買 ${product.availableQuantity} 件`, 'error')
+      toast(`庫存不足，可購買數量：${product.availableQuantity}`, 'error')
       return
     }
 
@@ -69,7 +74,7 @@ export function ProductDetailDialog({ product, open, onOpenChange }: ProductDeta
     }
   }
 
-  const isOutOfStock = product.status === 'SOLD_OUT' || product.status === 'INACTIVE'
+  const isOutOfStock = product.status === 'SOLD_OUT' || product.status === 'INACTIVE' || product.availableQuantity <= 0
 
   return (
     <>

@@ -3,18 +3,36 @@
 import * as React from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DEMO_PRODUCTS } from './demo-products'
 import { ProductCard } from '@/components/shop/product-card'
 import { CategoryFilter } from '@/components/shop/category-filter'
-import type { ProductCategory } from '@/lib/types'
+import type { ProductCategory, Product } from '@/lib/types'
 import styles from './shop.module.css'
 
 export function ShopClient() {
   const [selectedCategory, setSelectedCategory] = React.useState<ProductCategory | 'ALL'>('ALL')
+  const [products, setProducts] = React.useState<Product[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
-  // DEMO ONLY: removable product showcase
-  // 示範商品資料，之後可整段移除
-  const products = DEMO_PRODUCTS
+  // 載入商品
+  React.useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const res = await fetch('/api/products')
+        if (!res.ok) throw new Error('無法載入商品')
+        const data = await res.json()
+        setProducts(data)
+      } catch (err) {
+        console.error('[Shop] Load products error:', err)
+        setError('無法載入商品，請稍後再試')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadProducts()
+  }, [])
 
   const filteredProducts =
     selectedCategory === 'ALL' ? products : products.filter((p) => p.category === selectedCategory)
@@ -44,16 +62,21 @@ export function ShopClient() {
         onCategoryChange={setSelectedCategory}
       />
 
-      {/* DEMO ONLY: removable product showcase */}
-      {/* 示範商品展示區塊，之後可整段移除 */}
+      {/* 商品展示區塊 */}
       <section className={styles.shopDemoShowcase}>
-        <div className={styles.shopDemoLabel}>
-          <span className={styles.shopDemoBadge}>示範商品</span>
-        </div>
-
         {/* 商品網格 */}
         <div className={styles.shopProductsGrid}>
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className={styles.shopEmptyState}>
+              <ShoppingCart className="h-12 w-12 text-muted" aria-hidden />
+              <p className="text-muted">載入商品中...</p>
+            </div>
+          ) : error ? (
+            <div className={styles.shopEmptyState}>
+              <ShoppingCart className="h-12 w-12 text-red-400" aria-hidden />
+              <p className="text-red-600">{error}</p>
+            </div>
+          ) : filteredProducts.length > 0 ? (
             filteredProducts.map((product) => <ProductCard key={product.id} product={product} />)
           ) : (
             <div className={styles.shopEmptyState}>

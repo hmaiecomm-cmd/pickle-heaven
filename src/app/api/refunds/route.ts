@@ -166,8 +166,10 @@ export async function PATCH(request: NextRequest) {
       })
 
       for (const item of orderItems) {
+        if (!item.productId) continue
+        const productId = item.productId
         const inventory = await prisma.productInventory.findUnique({
-          where: { productId: item.productId },
+          where: { productId },
         })
 
         if (inventory) {

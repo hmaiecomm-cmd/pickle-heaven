@@ -11,7 +11,7 @@ import {
   taipeiMinuteOfDay,
   taipeiToUtc,
 } from './time'
-import type { AvailabilityDTO, CartActivityItemDTO, CartDTO, CartItemDTO, SlotState, TimeRowDTO } from './types'
+import type { AvailabilityDTO, CartActivityItemDTO, CartDTO, CartItemDTO, CartProductItemDTO, SlotState, TimeRowDTO } from './types'
 import { ACTIVITY_TYPE_LABEL, activityTimeLabel, PRICE_UNIT_LABEL, shortDateLabel } from './activity-shared'
 import type { ActivityTypeKey, PriceUnitKey } from './activity-shared'
 import { getSessionsForDate, notifySeatWatchers } from '@/server/activity-service'
