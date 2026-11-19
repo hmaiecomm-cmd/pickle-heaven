@@ -17,7 +17,6 @@ import {
   adminMarkAttendance,
   adminPromote,
   adminRemove,
-  adminUpdateSession,
   type AdminResult,
 } from '@/server/session-admin-actions'
 
@@ -67,7 +66,6 @@ export function RosterClient({
   const { toast } = useToast()
   const [pending, startTransition] = React.useTransition()
   const [newName, setNewName] = React.useState('')
-  const [form, setForm] = React.useState(settings)
 
   const run = (action: () => Promise<AdminResult>, onDone?: () => void) => {
     startTransition(async () => {
@@ -207,75 +205,6 @@ export function RosterClient({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="space-y-4">
-          <h2 className="text-sm font-semibold">場次設定</h2>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Field label="名稱" htmlFor="s-title">
-                <Input
-                  id="s-title"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                />
-              </Field>
-            </div>
-            <Field label="總容量" htmlFor="s-capacity">
-              <Input
-                id="s-capacity"
-                type="number"
-                min={1}
-                value={form.capacity}
-                onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
-              />
-            </Field>
-            <Field label="保留名額" htmlFor="s-reserved">
-              <Input
-                id="s-reserved"
-                type="number"
-                min={0}
-                value={form.reservedCapacity}
-                onChange={(e) => setForm({ ...form, reservedCapacity: Number(e.target.value) })}
-              />
-            </Field>
-            <div className="col-span-2">
-              <Field label="價格" htmlFor="s-price">
-                <Input
-                  id="s-price"
-                  type="number"
-                  min={0}
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Toggle
-              label="開放候補"
-              checked={form.waitlistEnabled}
-              onChange={(v) => setForm({ ...form, waitlistEnabled: v })}
-            />
-            <Toggle
-              label="自動遞補"
-              checked={form.autoPromote}
-              onChange={(v) => setForm({ ...form, autoPromote: v })}
-            />
-            <Toggle
-              label="鎖定後仍可遞補"
-              hint="有人逾時取消時，是否仍自動補人"
-              checked={form.allowPostLockReplacement}
-              onChange={(v) => setForm({ ...form, allowPostLockReplacement: v })}
-            />
-          </div>
-
-          <Button block loading={pending} onClick={() => run(() => adminUpdateSession(sessionId, form))}>
-            儲存設定
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="space-y-3">
@@ -342,29 +271,3 @@ function IconButton({
   )
 }
 
-function Toggle({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string
-  hint?: string
-  checked: boolean
-  onChange: (v: boolean) => void
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2.5">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-[rgb(var(--border))] accent-brand-600"
-      />
-      <span className="text-sm">
-        {label}
-        {hint ? <span className="block text-xs text-muted">{hint}</span> : null}
-      </span>
-    </label>
-  )
-}

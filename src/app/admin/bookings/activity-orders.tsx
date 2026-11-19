@@ -1,5 +1,8 @@
+'use client'
+
+import * as React from 'react'
 import Link from 'next/link'
-import { CalendarDays, CircleDollarSign, Clock, Crown, Hourglass, ImageOff, Search, Sparkles, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChevronDown, CircleDollarSign, Clock, Crown, Hourglass, ImageOff, Search, Sparkles, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Pill } from '@/components/admin/page-bits'
 import type { ActivityOrderFilters, ActivityOrderRow, ActivityOrderStats } from '@/server/activity-orders-admin'
@@ -14,7 +17,7 @@ const SESSION_STATUS: Record<string, [string, 'green' | 'amber' | 'red' | 'gray'
   CANCELLED: ['已取消', 'red'],
 }
 
-const field = 'h-10 w-full rounded-lg border border-[#e3e8dc] bg-white px-2 text-sm'
+const field = 'h-10 w-full rounded-lg border border-[#e3e8dc] bg-white px-3 text-sm'
 const nt = (n: number) => `NT$${n.toLocaleString()}`
 
 function fmtStart(iso: string) {
@@ -56,6 +59,9 @@ export function ActivityOrders({
   range: { from: string; to: string }
   canDetail: boolean
 }) {
+  const [filterOpen, setFilterOpen] = React.useState(false)
+  const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== 'page' && v)
+
   const qs = (page: number) => {
     const u = new URLSearchParams({ tab: 'activity' })
     for (const [k, v] of Object.entries(filters)) if (k !== 'page' && v) u.set(k, String(v))
@@ -73,52 +79,220 @@ export function ActivityOrders({
         <StatCard icon={CircleDollarSign} label="本月活動收入" value={stats.monthRevenue === null ? '—' : nt(stats.monthRevenue)} tone="brand" />
       </section>
 
-      <form method="get" action="/admin/bookings" className="rounded-2xl border border-[#e3e8dc] bg-white p-3 sm:p-4">
-        <input type="hidden" name="tab" value="activity" />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="relative sm:col-span-2">
-            <span className="sr-only">活動名稱</span>
+      <div className="rounded-2xl border border-[#e3e8dc] bg-white p-3 sm:p-4">
+        {/* 搜尋列 */}
+        <form method="get" action="/admin/bookings" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <input type="hidden" name="tab" value="activity" />
+
+          <label className="relative flex-1">
+            <span className="sr-only">活動名稱搜尋</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input name="q" defaultValue={filters.q} placeholder="活動名稱" className={cn(field, 'pl-9')} />
+            <input name="q" defaultValue={filters.q} placeholder="活動名稱、訂單編號、姓名或電話" className={cn(field, 'pl-9')} />
           </label>
-          <label>
-            <span className="sr-only">起始日期</span>
-            <input type="date" name="from" defaultValue={filters.from} aria-label="活動日期起" className={field} />
-          </label>
-          <label>
-            <span className="sr-only">結束日期</span>
-            <input type="date" name="to" defaultValue={filters.to} aria-label="活動日期迄" className={field} />
-          </label>
-          <select name="reg" defaultValue={filters.reg} aria-label="報名狀態" className={field}>
-            <option value="">報名狀態：全部</option>
-            <option value="CONFIRMED">正取</option>
-            <option value="WAITLISTED">候補</option>
-            <option value="CANCELLED">已取消</option>
-          </select>
-          <select name="pay" defaultValue={filters.pay} aria-label="付款狀態" className={field}>
-            <option value="">付款狀態：全部</option>
-            <option value="PAID">已付款</option>
-            <option value="PENDING">待付款</option>
-            <option value="FAILED">付款失敗／取消</option>
-          </select>
-          <select name="attend" defaultValue={filters.attend} aria-label="出席狀態" className={field}>
-            <option value="">出席狀態：全部</option>
-            <option value="CHECKED_IN">已出席</option>
-            <option value="NO_SHOW">未到</option>
-            <option value="NOT_YET">尚未報到</option>
-          </select>
-          <select name="member" defaultValue={filters.member} aria-label="會員類型" className={field}>
-            <option value="">會員：全部</option>
-            <option value="VIP">VIP</option>
-            <option value="BASIC">一般會員</option>
-          </select>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="submit" className="h-10 rounded-lg bg-[#7cb342] px-5 text-sm font-semibold text-white hover:bg-[#6fa036]">搜尋</button>
-          <Link href="/admin/bookings?tab=activity" className="inline-flex h-10 items-center rounded-lg border border-[#e3e8dc] px-4 text-sm hover:bg-[#fafcf7]">清除條件</Link>
-          <span className="ml-auto text-xs text-muted">{range.from} ～ {range.to}・{total} 場</span>
-        </div>
-      </form>
+
+          <button
+            type="button"
+            onClick={() => setFilterOpen(!filterOpen)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#e3e8dc] bg-white px-4 text-sm font-medium transition-colors hover:bg-[#fafcf7]"
+            aria-expanded={filterOpen}
+          >
+            篩選
+            <ChevronDown className={cn('h-4 w-4 transition-transform', filterOpen && 'rotate-180')} aria-hidden />
+          </button>
+
+          <div className="text-xs text-muted whitespace-nowrap">共 {total} 場</div>
+        </form>
+
+        {/* 篩選面板 */}
+        {filterOpen && (
+          <form method="get" action="/admin/bookings" className="mt-4 border-t border-[#e3e8dc] pt-4">
+            <input type="hidden" name="tab" value="activity" />
+            <fieldset className="space-y-3">
+              <legend className="sr-only">進階篩選</legend>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label htmlFor="filter-from" className="block text-xs font-medium text-muted mb-1">
+                    活動日期起
+                  </label>
+                  <input
+                    id="filter-from"
+                    type="date"
+                    name="from"
+                    defaultValue={filters.from}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="filter-to" className="block text-xs font-medium text-muted mb-1">
+                    活動日期迄
+                  </label>
+                  <input
+                    id="filter-to"
+                    type="date"
+                    name="to"
+                    defaultValue={filters.to}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="filter-reg" className="block text-xs font-medium text-muted mb-1">
+                    報名狀態
+                  </label>
+                  <select id="filter-reg" name="reg" defaultValue={filters.reg} className={field}>
+                    <option value="">全部</option>
+                    <option value="CONFIRMED">正取</option>
+                    <option value="WAITLISTED">候補</option>
+                    <option value="CANCELLED">已取消</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="filter-pay" className="block text-xs font-medium text-muted mb-1">
+                    付款狀態
+                  </label>
+                  <select id="filter-pay" name="pay" defaultValue={filters.pay} className={field}>
+                    <option value="">全部</option>
+                    <option value="PAID">已付款</option>
+                    <option value="PENDING">待付款</option>
+                    <option value="FAILED">付款失敗／取消</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="filter-attend" className="block text-xs font-medium text-muted mb-1">
+                    出席狀態
+                  </label>
+                  <select id="filter-attend" name="attend" defaultValue={filters.attend} className={field}>
+                    <option value="">全部</option>
+                    <option value="CHECKED_IN">已出席</option>
+                    <option value="NO_SHOW">未到</option>
+                    <option value="NOT_YET">尚未報到</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="filter-member" className="block text-xs font-medium text-muted mb-1">
+                    會員類型
+                  </label>
+                  <select id="filter-member" name="member" defaultValue={filters.member} className={field}>
+                    <option value="">全部</option>
+                    <option value="VIP">VIP</option>
+                    <option value="BASIC">一般會員</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 已啟用的篩選條件顯示 */}
+              {hasActiveFilters && (
+                <div className="pt-2 border-t border-[#e3e8dc]">
+                  <p className="text-xs font-medium text-muted mb-2">已啟用的篩選：</p>
+                  <div className="flex flex-wrap gap-2">
+                    {filters.q && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        搜尋：{filters.q}
+                      </span>
+                    )}
+                    {filters.from && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        起 {filters.from}
+                      </span>
+                    )}
+                    {filters.to && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        迄 {filters.to}
+                      </span>
+                    )}
+                    {filters.reg && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        {filters.reg === 'CONFIRMED' ? '正取' : filters.reg === 'WAITLISTED' ? '候補' : '已取消'}
+                      </span>
+                    )}
+                    {filters.pay && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        {filters.pay === 'PAID' ? '已付款' : filters.pay === 'PENDING' ? '待付款' : '付款失敗'}
+                      </span>
+                    )}
+                    {filters.attend && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        {filters.attend === 'CHECKED_IN' ? '已出席' : filters.attend === 'NO_SHOW' ? '未到' : '尚未報到'}
+                      </span>
+                    )}
+                    {filters.member && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                        {filters.member}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </fieldset>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center rounded-lg bg-[#7cb342] px-5 text-sm font-semibold text-white hover:bg-[#6fa036]"
+              >
+                套用篩選
+              </button>
+              <Link
+                href="/admin/bookings?tab=activity"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#e3e8dc] bg-white px-4 text-sm text-[#1f2a22] hover:bg-[#fafcf7]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+                清除條件
+              </Link>
+            </div>
+          </form>
+        )}
+
+        {/* 篩選摘要列 */}
+        {hasActiveFilters && !filterOpen && (
+          <div className="mt-3 pt-3 border-t border-[#e3e8dc]">
+            <p className="text-xs text-muted mb-2">已啟用的篩選：</p>
+            <div className="flex flex-wrap gap-2 items-center">
+              {filters.q && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  搜尋：{filters.q}
+                </span>
+              )}
+              {filters.from && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  起 {filters.from}
+                </span>
+              )}
+              {filters.to && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  迄 {filters.to}
+                </span>
+              )}
+              {filters.reg && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  {filters.reg === 'CONFIRMED' ? '正取' : filters.reg === 'WAITLISTED' ? '候補' : '已取消'}
+                </span>
+              )}
+              {filters.pay && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  {filters.pay === 'PAID' ? '已付款' : filters.pay === 'PENDING' ? '待付款' : '付款失敗'}
+                </span>
+              )}
+              {filters.attend && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  {filters.attend === 'CHECKED_IN' ? '已出席' : filters.attend === 'NO_SHOW' ? '未到' : '尚未報到'}
+                </span>
+              )}
+              {filters.member && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef7e6] px-2.5 py-1 text-xs text-[#2f7d3b]">
+                  {filters.member}
+                </span>
+              )}
+              <Link
+                href="/admin/bookings?tab=activity"
+                className="text-xs text-[#2f7d3b] hover:underline"
+              >
+                清除
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#d7dfcf] bg-white px-6 py-14 text-center">
