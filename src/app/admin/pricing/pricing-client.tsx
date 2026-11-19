@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { PageHeader } from '@/components/layout'
-import { Button } from '@/components/ui/button'
 import { CourtPricingTab } from './court-pricing'
 import { MembershipPlansTab } from './membership-plans'
 import { SeasonPassTab } from './season-pass'
@@ -25,14 +24,17 @@ export function PricingClient() {
       {/* 分頁導覽 */}
       <div className="flex gap-2 border-b border-[rgb(var(--border))]">
         {tabs.map((tab) => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeTab === tab.id ? 'default' : 'ghost'}
-            className={`rounded-none border-b-2 ${activeTab === tab.id ? 'border-brand-500 text-brand-600' : 'border-transparent'}`}
             onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-2 text-sm font-medium rounded-none border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-muted hover:text-foreground'
+            }`}
           >
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 
