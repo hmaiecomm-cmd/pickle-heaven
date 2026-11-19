@@ -11,13 +11,9 @@ import { DemoModeBanner, Forbidden, PageTitle, Pill } from '@/components/admin/p
 import {
   ACCESS_BUFFER_AFTER_MINUTES,
   ACCESS_BUFFER_BEFORE_MINUTES,
-  PHASE_LABEL,
-  grantPhase,
   listDoorAudit,
-  listGrants,
-  type GrantPhase,
 } from '@/server/door-access-grants'
-import { ManualGrantForm, RevokeButton } from './access-client'
+import { ManualGrantForm } from './access-client'
 import { DoorRemoteCard } from './door-remote-card'
 import { PasswordSettings } from './password-settings'
 import { SlotPasswordRecords, type SlotRecord, type SlotStats } from './slot-password-records'
@@ -42,8 +38,6 @@ type TabKey = (typeof TABS)[number]['key']
 const DOOR_DEVICES = [
   { name: '大門門禁', location: '出入口（建築右側）', controller: '待確認', unlockMethod: '待確認', power: '迴路 12「大門監控與門鎖供電」（24 小時供電）' },
 ]
-
-const PHASE_TONE: Record<GrantPhase, 'green' | 'blue' | 'gray' | 'red'> = { ACTIVE: 'green', UPCOMING: 'blue', EXPIRED: 'gray', REVOKED: 'red' }
 
 const AUDIT_LABEL: Record<string, string> = {
   DOOR_GRANT_AUTO_CREATE: '預約付款，自動建立授權',
@@ -188,15 +182,11 @@ async function loadSlotPasswordData(venue: { id: string; bookAheadDays: number; 
 
 async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
   const at = now()
-  const [doorState, grants, members, venue] = await Promise.all([
+  const [doorState, members, venue] = await Promise.all([
     getDoorRemoteState(),
-    listGrants(),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
     prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordBookAheadDaysOverride: true } }),
   ])
-  const bookingIds = grants.map((g) => g.bookingId).filter((x): x is string => Boolean(x))
-  const codes = new Map((await prisma.booking.findMany({ where: { id: { in: bookingIds } }, select: { id: true, code: true } })).map((b) => [b.id, b.code]))
-  const counts = grants.reduce<Record<GrantPhase, number>>((acc, g) => ((acc[grantPhase(g, at)] += 1), acc), { ACTIVE: 0, UPCOMING: 0, EXPIRED: 0, REVOKED: 0 })
   const slotData = venue && canGrant ? await loadSlotPasswordData(venue, at) : null
 
   return (
@@ -302,50 +292,6 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
       {canGrant && (
         <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
       )}
-
-      {/* 授權列表 */}
-      <section className="rounded-2xl border border-zinc-200 bg-white">
-        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-4 py-3">
-          <h2 className="mr-auto text-sm font-semibold">授權列表</h2>
-          {(['ACTIVE', 'UPCOMING', 'EXPIRED', 'REVOKED'] as GrantPhase[]).map((p) => (
-            <Pill key={p} tone={PHASE_TONE[p]}>
-              {PHASE_LABEL[p]} {counts[p]}
-            </Pill>
-          ))}
-        </div>
-        {grants.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-muted">目前沒有任何門禁授權。</p>
-        ) : (
-          <ul className="divide-y divide-zinc-100">
-            {grants.map((g) => {
-              const phase = grantPhase(g, at)
-              return (
-                <li key={g.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{g.holderName}</p>
-                    <p className="text-[11px] text-muted">
-                      {g.source === 'BOOKING' ? `預約授權・訂單 ${g.bookingId ? (codes.get(g.bookingId) ?? '—') : '—'}` : `手動授權・${g.userId ? '會員' : '非會員'}`}
-                    </p>
-                  </div>
-                  <p className="text-xs text-zinc-700">
-                    {formatDateTime(g.validFrom)} → {formatDateTime(g.validUntil)}
-                  </p>
-                  <div className="text-xs">
-                    <Pill tone={PHASE_TONE[phase]}>{PHASE_LABEL[phase]}</Pill>
-                    {phase === 'REVOKED' && (
-                      <p className="mt-1 text-[11px] text-muted">
-                        {g.revokedBy === 'system' ? '系統' : g.revokedBy}：{g.revokeReason}
-                      </p>
-                    )}
-                    {g.note && <p className="mt-1 text-[11px] text-muted">備註：{g.note}</p>}
-                  </div>
-                  <div className="md:justify-self-end">{canGrant && (phase === 'ACTIVE' || phase === 'UPCOMING') && <RevokeButton id={g.id} name={g.holderName} />}</div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
     </div>
   )
 }

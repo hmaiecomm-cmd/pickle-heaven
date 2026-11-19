@@ -2,10 +2,9 @@
 
 import * as React from 'react'
 import { useActionState } from 'react'
-import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
-import { createManualGrantAction, reconcileAction, revokeGrantAction } from './actions'
+import { createManualGrantAction } from './actions'
 
 type R = { ok: true; message: string } | { ok: false; error: string }
 
@@ -99,55 +98,3 @@ export function ManualGrantForm({ members }: { members: { id: string; label: str
   )
 }
 
-export function RevokeButton({ id, name }: { id: string; name: string }) {
-  const [open, setOpen] = React.useState(false)
-  const [reason, setReason] = React.useState('')
-  const [result, setResult] = React.useState<R | null>(null)
-  const [pending, start] = React.useTransition()
-
-  if (!open) {
-    return (
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        撤銷
-      </Button>
-    )
-  }
-  return (
-    <div className="flex flex-col gap-2 rounded-lg bg-red-50 p-2 sm:min-w-64">
-      <label className="text-xs text-red-800" htmlFor={`revoke-${id}`}>
-        撤銷「{name}」的授權，原因（必填）
-      </label>
-      <Input id={`revoke-${id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} autoFocus />
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="danger"
-          size="sm"
-          loading={pending}
-          disabled={!reason.trim()}
-          onClick={() => start(async () => setResult(await revokeGrantAction(id, reason)))}
-        >
-          確認撤銷
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
-          取消
-        </Button>
-      </div>
-      <Notice r={result} />
-    </div>
-  )
-}
-
-export function ReconcileButton() {
-  const [result, setResult] = React.useState<R | null>(null)
-  const [pending, start] = React.useTransition()
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button type="button" variant="secondary" size="sm" loading={pending} onClick={() => start(async () => setResult(await reconcileAction()))}>
-        <RefreshCw className="h-4 w-4" aria-hidden />
-        重新比對預約授權
-      </Button>
-      <Notice r={result} />
-    </div>
-  )
-}
