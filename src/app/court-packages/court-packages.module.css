@@ -1,0 +1,593 @@
+﻿/**
+ * 場地包期頁面樣式
+ * 
+ * 色系：
+ * - 背景：深紫黑 (#1a1024)
+ * - 卡片：深紫 (#2b1a3b)
+ * - 重點：漸層紫 (#7d4fc7 ~ #9b6ee0)
+ * 
+ * 響應式斷點：
+ * - 手機：< 768px
+ * - 平板：768px ~ 1199px
+ * - 桌機：≥ 1200px
+ */
+
+.page {
+  --cp-bg: #1a1024;
+  --cp-panel: #241532;
+  --cp-card: #2b1a3b;
+  --cp-line: rgb(var(--hp-purple) / 0.45);
+  --cp-accent: #9b6ee0;
+  --cp-accent-strong: #7d4fc7;
+  --cp-text-dim: rgb(255 255 255 / 0.72);
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--cp-bg);
+  color: #fff;
+}
+
+/* ============= 主視覺區塊 ============= */
+.hero {
+  position: relative;
+  display: flex;
+  min-height: 180px;
+  align-items: flex-end;
+  padding: 1.5rem 1.25rem;
+  background-size: cover;
+  background-position: center 60%;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(20 10 30 / 0.92) 0%, rgb(30 15 45 / 0.65) 55%, rgb(40 20 60 / 0.35) 100%),
+    linear-gradient(0deg, var(--cp-bg) 0%, transparent 45%);
+}
+
+.heroInner {
+  position: relative;
+}
+
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+}
+
+.slash {
+  display: inline-block;
+  width: 0.35em;
+  height: 1em;
+  flex-shrink: 0;
+  transform: skewX(-18deg);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #b48af0, var(--cp-accent-strong));
+}
+
+.heroSub {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 0.2rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cp-text-dim);
+}
+
+.heroSub::after {
+  content: '';
+  width: 3rem;
+  height: 1px;
+  background: var(--cp-accent);
+}
+
+/* ============= 主內容區塊 ============= */
+.body {
+  padding: 1.5rem 1rem 2rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  font-weight: 800;
+  margin-bottom: 1.25rem;
+}
+
+/* ============= 使用需求下拉選單 ============= */
+.selectorGroup {
+  margin-bottom: 1.5rem;
+}
+
+.selectorLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--cp-text-dim);
+}
+
+.selectorControl {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.selectorButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px solid var(--cp-line);
+  border-radius: 999px;
+  background: var(--cp-card);
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selectorButton:hover {
+  border-color: var(--cp-accent);
+  background: rgb(var(--hp-purple) / 0.25);
+}
+
+.selectorButton.active {
+  border-color: var(--cp-accent);
+  background: linear-gradient(135deg, var(--cp-accent-strong), var(--cp-accent));
+  color: #fff;
+}
+
+.selectorButton:focus-visible {
+  outline: 3px solid #e7dbff;
+  outline-offset: 3px;
+}
+
+/* ============= 推薦方案區塊 ============= */
+.plansContainer {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.planCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cp-line);
+  border-radius: 1.25rem;
+  background: var(--cp-card);
+  padding: 1.5rem 1.25rem;
+  transition: all 0.2s;
+}
+
+.planCard:hover {
+  border-color: var(--cp-accent);
+  background: rgb(var(--hp-purple) / 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(155 110 224 / 0.15);
+}
+
+.planCardFeatured {
+  border: 2px solid var(--cp-accent);
+  background: linear-gradient(135deg, rgb(var(--hp-purple) / 0.25) 0%, rgb(var(--hp-purple) / 0.08) 100%);
+  box-shadow: 0 0 0 1px var(--cp-line) inset, 0 8px 32px rgb(155 110 224 / 0.2);
+}
+
+.planCardFeatured::before {
+  content: 'FEATURED';
+  position: absolute;
+  top: -1px;
+  right: 1rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cp-accent-strong), var(--cp-accent));
+  padding: 0.3rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  transform: translateY(-50%);
+}
+
+.planHeader {
+  margin-bottom: 1rem;
+}
+
+.planName {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.planDescription {
+  margin-top: 0.4rem;
+  font-size: 0.95rem;
+  color: var(--cp-text-dim);
+}
+
+.planValidity {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.planValidityLabel {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--cp-line);
+  border-radius: 0.5rem;
+  background: rgb(var(--hp-purple) / 0.25);
+  padding: 0.2rem 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.planUsage {
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--cp-text-dim);
+}
+
+.planAdvantages {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.planAdvantageItem {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.planAdvantageIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: rgb(var(--hp-purple) / 0.35);
+  color: var(--cp-accent);
+  font-size: 0.6rem;
+  font-weight: 900;
+}
+
+.planSuitableFor {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  font-size: 0.85rem;
+  color: var(--cp-text-dim);
+  line-height: 1.6;
+}
+
+.planSuitableForLabel {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ============= 比較表 ============= */
+.comparisonSection {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--cp-line);
+}
+
+.comparisonTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  font-weight: 800;
+  margin-bottom: 1.25rem;
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--cp-line);
+  border-radius: 1rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+.comparisonTable th,
+.comparisonTable td {
+  padding: 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.comparisonTable th {
+  background: var(--cp-panel);
+  font-weight: 800;
+  color: #fff;
+  border-bottom: 2px solid var(--cp-line);
+}
+
+.comparisonTable tr:last-child td {
+  border-bottom: none;
+}
+
+.comparisonTable tbody tr:hover {
+  background: rgb(var(--hp-purple) / 0.08);
+}
+
+.comparisonFeature {
+  font-weight: 700;
+  min-width: 140px;
+  color: #fff;
+}
+
+.comparisonValue {
+  color: var(--cp-text-dim);
+}
+
+/* ============= LINE 聯絡區塊 ============= */
+.contactSection {
+  margin-top: 2rem;
+  padding: 1.5rem 1.25rem;
+  border: 1px solid var(--cp-line);
+  border-radius: 1.25rem;
+  background: rgb(var(--hp-purple) / 0.12);
+}
+
+.contactTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contactDescription {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--cp-text-dim);
+  margin-bottom: 1rem;
+}
+
+.lineBtn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cp-accent-strong), #9563dc);
+  padding: 0.6rem 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  text-decoration: none;
+  transition: filter 0.15s, transform 0.15s;
+  cursor: pointer;
+  border: none;
+}
+
+.lineBtn:hover {
+  filter: brightness(1.12);
+}
+
+.lineBtn:active {
+  transform: scale(0.98);
+}
+
+.lineBtn:focus-visible {
+  outline: 3px solid #e7dbff;
+  outline-offset: 3px;
+}
+
+.lineBtnDisabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.3);
+}
+
+.lineBtnDisabled:hover {
+  filter: grayscale(0.3);
+}
+
+.lineIcon {
+  display: inline-grid;
+  height: 1.6rem;
+  width: 1.6rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.45rem;
+  background: #06c755;
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.divider {
+  width: 1px;
+  height: 1.25rem;
+  background: rgb(255 255 255 / 0.5);
+}
+
+.lineSub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.lineNote {
+  margin-top: 0.4rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgb(255 255 255 / 0.6);
+}
+
+/* ============= 通知區塊 ============= */
+.notice {
+  margin-top: 1.75rem;
+  border: 1px dashed var(--cp-line);
+  border-radius: 1rem;
+  background: rgb(var(--hp-purple) / 0.12);
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--cp-text-dim);
+}
+
+.notice strong {
+  color: #fff;
+}
+
+/* ============= 展開詳細資訊 ============= */
+.detailsToggle {
+  margin-top: 1rem;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--cp-accent);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  transition: color 0.15s;
+}
+
+.detailsToggle:hover {
+  color: #9b6ee0;
+}
+
+.detailsToggle:focus-visible {
+  outline: 2px solid #e7dbff;
+  outline-offset: 2px;
+}
+
+.detailsToggleIcon {
+  display: inline-block;
+  width: 1.2rem;
+  height: 1.2rem;
+  transition: transform 0.2s;
+}
+
+.detailsToggle[aria-expanded="true"] .detailsToggleIcon {
+  transform: rotate(180deg);
+}
+
+.detailsContent {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--cp-text-dim);
+}
+
+/* ============= 響應式設計 ============= */
+
+/* 平板橫式 768–1199px */
+@media (min-width: 768px) {
+  .page {
+    border-radius: 1.5rem;
+  }
+
+  .hero {
+    min-height: 240px;
+    padding: 2rem 2rem 1.75rem;
+  }
+
+  .body {
+    padding: 2rem 2rem 2.5rem;
+  }
+
+  .plansContainer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .comparisonTable {
+    font-size: 0.95rem;
+  }
+
+  .comparisonTable th,
+  .comparisonTable td {
+    padding: 1rem 0.9rem;
+  }
+
+  .contactSection {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .lineBtn {
+    width: auto;
+  }
+}
+
+/* 桌機 ≥1200px */
+@media (min-width: 1200px) {
+  .hero {
+    min-height: 320px;
+    padding: 2.5rem 3.5rem 2.25rem;
+  }
+
+  .body {
+    padding: 2.5rem 3.5rem 3rem;
+  }
+
+  .plansContainer {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  .planCard {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .comparisonTable {
+    font-size: 1rem;
+  }
+
+  .comparisonTable th,
+  .comparisonTable td {
+    padding: 1.1rem 1rem;
+  }
+
+  .contactSection {
+    max-width: 70%;
+    padding: 2rem 2rem;
+  }
+}
+
+/* ============= 動作偏好設定 ============= */
+@media (prefers-reduced-motion: reduce) {
+  .planCard,
+  .lineBtn,
+  .selectorButton,
+  .detailsToggle,
+  .detailsToggleIcon {
+    transition: none;
+  }
+}
