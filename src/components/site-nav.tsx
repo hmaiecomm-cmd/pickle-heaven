@@ -4,7 +4,7 @@ import * as React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, CircleUserRound, LogOut, Menu, ShoppingCart, Users, X } from 'lucide-react'
+import { CalendarDays, CircleUserRound, GraduationCap, LogOut, Menu, ShoppingCart, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brand, images } from '@/config/site'
 import { useCartCount } from '@/store/cart'
@@ -12,10 +12,11 @@ import { currentPath, useAuth } from '@/components/auth-provider'
 import { LoginButtons } from '@/components/login-buttons'
 import type { SessionUser } from '@/lib/types'
 
-/** 右側選單的項目順序固定：場地預約、活動、我的帳戶 */
+/** 右側選單的項目順序固定：場地預約、活動、教練課堂、我的帳戶 */
 const MENU = [
   { href: '/booking', label: '場地預約', icon: CalendarDays },
   { href: '/sessions', label: '活動', icon: Users },
+  { href: '/coaches', label: '教練課堂', icon: GraduationCap },
   { href: '/account', label: '我的帳戶', icon: CircleUserRound },
 ] as const
 

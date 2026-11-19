@@ -1,0 +1,411 @@
+.page {
+  --cc-bg: #1a1024;
+  --cc-panel: #241532;
+  --cc-card: #2b1a3b;
+  --cc-line: rgb(var(--hp-purple) / 0.45);
+  --cc-accent: #9b6ee0;
+  --cc-accent-strong: #7d4fc7;
+  --cc-text-dim: rgb(255 255 255 / 0.72);
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--cc-bg);
+  color: #fff;
+}
+
+/* 主視覺 */
+.hero {
+  position: relative;
+  display: flex;
+  min-height: 180px;
+  align-items: flex-end;
+  padding: 1.5rem 1.25rem;
+  background-size: cover;
+  background-position: center 60%;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(20 10 30 / 0.92) 0%, rgb(30 15 45 / 0.65) 55%, rgb(40 20 60 / 0.35) 100%),
+    linear-gradient(0deg, var(--cc-bg) 0%, transparent 45%);
+}
+.heroInner {
+  position: relative;
+}
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+}
+.slash {
+  display: inline-block;
+  width: 0.35em;
+  height: 1em;
+  flex-shrink: 0;
+  transform: skewX(-18deg);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #b48af0, var(--cc-accent-strong));
+}
+.heroSub {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 0.2rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cc-text-dim);
+}
+.heroSub::after {
+  content: '';
+  width: 3rem;
+  height: 1px;
+  background: var(--cc-accent);
+}
+
+.body {
+  padding: 1.5rem 1rem 2rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  font-weight: 800;
+}
+
+/* 大型介紹區 */
+.featured {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  scroll-margin-top: 5.5rem;
+  border: 1px solid var(--cc-line);
+  border-radius: 1.25rem;
+  background: var(--cc-panel);
+  padding: 1rem;
+}
+.featuredPhoto {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+}
+.featuredName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--cc-accent);
+  border-radius: 999px;
+  background: rgb(var(--hp-purple) / 0.35);
+  padding: 0.2rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e7dbff;
+  white-space: nowrap;
+}
+.facts {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  padding-bottom: 0.5rem;
+}
+.factLabel {
+  border: 1px solid var(--cc-line);
+  border-radius: 0.5rem;
+  background: rgb(var(--hp-purple) / 0.25);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.factValue {
+  padding-top: 0.15rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.intro {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--cc-text-dim);
+}
+
+/* 照片與 placeholder */
+.photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(160deg, #3a2156 0%, #1d1029 70%);
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(115deg, transparent 48%, rgb(155 110 224 / 0.35) 49%, transparent 50%),
+    linear-gradient(65deg, transparent 70%, rgb(155 110 224 / 0.2) 71%, transparent 72%),
+    radial-gradient(circle at 50% 35%, rgb(155 110 224 / 0.35), transparent 60%);
+  color: rgb(255 255 255 / 0.55);
+}
+.placeholderIcon {
+  width: 38%;
+  max-width: 6rem;
+  height: auto;
+}
+
+/* LINE 聯絡 */
+.lineBtn {
+  display: inline-flex;
+  min-height: 44px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cc-accent-strong), #9563dc);
+  padding: 0.6rem 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  transition: filter 0.15s, transform 0.15s;
+}
+.lineBtn:hover {
+  filter: brightness(1.12);
+}
+.lineBtn:active {
+  transform: scale(0.98);
+}
+.lineBtn:focus-visible,
+.card:focus-visible,
+.cardSelect:focus-visible {
+  outline: 3px solid #e7dbff;
+  outline-offset: 3px;
+}
+.lineBtnDisabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.3);
+}
+.lineBtnDisabled:hover {
+  filter: grayscale(0.3);
+}
+.divider {
+  width: 1px;
+  height: 1.25rem;
+  background: rgb(255 255 255 / 0.5);
+}
+.lineSub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+.lineIcon {
+  display: inline-grid;
+  height: 1.6rem;
+  width: 1.6rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.45rem;
+  background: #06c755;
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.lineNote {
+  margin-top: 0.4rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgb(255 255 255 / 0.6);
+}
+.featuredContact {
+  margin-top: 1.25rem;
+}
+
+/* 教練列表 */
+.list {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 1.1rem;
+  background: var(--cc-card);
+  padding: 0.85rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cardSelected {
+  border: 2px solid var(--cc-accent);
+  background: #36204d;
+  box-shadow: 0 0 0 4px rgb(155 110 224 / 0.15);
+}
+.cardSelect {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.85rem;
+  min-height: 44px;
+  width: 100%;
+  border-radius: 0.75rem;
+  text-align: left;
+  color: inherit;
+}
+.cardPhoto {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: 0.75rem;
+}
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+.cardName {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.cardText {
+  margin-top: 0.3rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--cc-text-dim);
+}
+.cardMeta {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.55);
+}
+
+.notice {
+  margin-top: 1.75rem;
+  border: 1px dashed var(--cc-line);
+  border-radius: 1rem;
+  background: rgb(var(--hp-purple) / 0.12);
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--cc-text-dim);
+}
+.notice strong {
+  color: #fff;
+}
+
+/* 平板橫式 768–1199px */
+@media (min-width: 768px) {
+  .hero {
+    min-height: 240px;
+    padding: 2rem 2rem 1.75rem;
+  }
+  .body {
+    padding: 2rem 2rem 2.5rem;
+  }
+  .featured {
+    grid-template-columns: minmax(0, 38fr) minmax(0, 62fr);
+    gap: 1.75rem;
+    padding: 1.25rem;
+  }
+  .featuredPhoto {
+    aspect-ratio: auto;
+    height: 100%;
+    min-height: 340px;
+  }
+  .lineBtn {
+    width: auto;
+  }
+  .featuredContact .lineNote {
+    text-align: left;
+  }
+  .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .cardSelect {
+    grid-template-columns: 1fr;
+  }
+  .cardPhoto {
+    aspect-ratio: 4 / 3;
+  }
+  .card .lineBtn {
+    width: 100%;
+    gap: 0.5rem;
+    padding-inline: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* 平板橫式較窄時三欄改兩欄，避免卡片擠壓 */
+@media (min-width: 768px) and (max-width: 899px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 桌機 ≥1200px */
+@media (min-width: 1200px) {
+  .hero {
+    min-height: 320px;
+    padding: 2.5rem 3.5rem 2.25rem;
+  }
+  .body {
+    padding: 2.5rem 3.5rem 3rem;
+  }
+  .featured {
+    grid-template-columns: minmax(0, 40fr) minmax(0, 60fr);
+    gap: 2.5rem;
+    padding: 1.5rem;
+  }
+  .featuredPhoto {
+    min-height: 420px;
+  }
+  .list {
+    gap: 1.5rem;
+  }
+  .cardSelect {
+    grid-template-columns: 7rem 1fr;
+  }
+  .cardPhoto {
+    aspect-ratio: 1 / 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineBtn,
+  .card {
+    transition: none;
+  }
+}
