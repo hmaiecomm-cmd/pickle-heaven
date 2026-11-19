@@ -205,9 +205,18 @@ export async function listOrders(raw: unknown) {
       ]
         .filter(Boolean)
         .join('；')
+      const base = taipeiToUtc(b.playDate, 0).getTime()
+      const slotLabel = courts
+        ? formatRange(
+            Math.round((Math.min(...b.items.map((i) => i.startsAt.getTime())) - base) / 60_000),
+            Math.round((Math.max(...b.items.map((i) => i.endsAt.getTime())) - base) / 60_000),
+          )
+        : ''
       return {
         id: b.id,
         code: b.code,
+        slotLabel,
+        courtNames: [...new Set(b.items.map((i) => i.courtName))].join('、'),
         customer: {
           name: b.contactName || b.user.displayName,
           lineName: b.user.displayName,

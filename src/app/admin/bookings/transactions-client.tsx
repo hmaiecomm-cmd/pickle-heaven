@@ -2,14 +2,14 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
 import { Pill } from '@/components/admin/page-bits'
 import { useAiFilters } from '@/components/admin/ai-context'
 import type { OrderListResult } from '@/server/admin-orders'
 import { searchOrdersAction } from '@/server/admin-ops-actions'
-import { OrderDrawer } from './order-drawer'
+import { OrderDetailPanel, orderStateOf } from './order-detail-panel'
 import type { PointsLedger, Voucher, User } from '@prisma/client'
 
 export const PAYMENT = { PENDING: ['待付款', 'amber'], PAID: ['已付款', 'green'], FAILED: ['付款失敗', 'red'], UNPAID: ['未付款', 'gray'] } as const
@@ -68,7 +68,7 @@ export function TransactionsClient({
   openOrderId: string | null
   openRefund: boolean
   openTab?: 'venue' | 'activity' | 'products' | 'points'
-  perms: { refund: boolean; invoice: boolean }
+  perms: { refund: boolean; invoice: boolean; access?: boolean; accessGrant?: boolean }
 }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -121,13 +121,19 @@ export function TransactionsClient({
     setDraft(empty)
     void run(empty)
   }
-  const sortBy = (key: 'created' | 'play' | 'total') => {
-    const next = data.query.sort === `${key}_desc` ? `${key}_asc` : `${key}_desc`
-    const q = { ...data.query, sort: next as Query['sort'], page: 1 }
-    setDraft(q)
-    void run(q)
+  // 選取訂單只改網址參數，不重新向伺服器取列表；重新整理後仍停在同一筆
+  const selectOrder = (id: string | null) => {
+    setOrderId(id)
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('order', id)
+    else url.searchParams.delete('order')
+    url.searchParams.delete('refund')
+    window.history.replaceState(null, '', url.toString())
   }
-  const sortMark = (key: string) => (data.query.sort === `${key}_desc` ? ' ↓' : data.query.sort === `${key}_asc` ? ' ↑' : '')
+  // 桌機與平板橫式左右並排：沒有指定訂單時預設選第一筆；手機維持先看列表
+  React.useEffect(() => {
+    if (tab === 'venue' && !openOrderId && initial.rows[0] && window.matchMedia('(min-width: 1024px)').matches) setOrderId(initial.rows[0].id)
+  }, [tab, openOrderId, initial.rows])
 
   const filteredLedger = pointsLedger.filter(p => {
     const search_text = pointsSearch.toLowerCase()
@@ -160,178 +166,180 @@ export function TransactionsClient({
   return (
     <div className="space-y-4">
       {tab === 'venue' && (
-        <>
-          <form onSubmit={search} className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-3">
-            <div className="flex flex-wrap gap-2">
-              <div className="relative min-w-[14rem] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
-                <input
-                  value={draft.q}
-                  onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-                  placeholder="輸入姓名、Email、電話或訂單編號"
-                  className="h-10 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm"
-                  aria-label="搜尋姓名、Email、電話或訂單編號"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      search()
-                    }
-                  }}
-                />
+        <div className="lg:grid lg:grid-cols-[minmax(0,41fr)_minmax(0,59fr)] lg:items-start lg:gap-4">
+          <div className={cn('space-y-3', orderId && 'hidden lg:block')}>
+            <form onSubmit={search} className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+                  <input
+                    value={draft.q}
+                    onChange={(e) => setDraft({ ...draft, q: e.target.value })}
+                    placeholder="輸入姓名、Email、電話或訂單編號"
+                    className="h-12 w-full rounded-xl border border-[#d7dfcf] bg-white pl-9 pr-3 text-sm"
+                    aria-label="搜尋姓名、Email、電話或訂單編號"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExpandAdvanced(!expandAdvanced)}
+                  aria-expanded={expandAdvanced}
+                  className={cn('flex h-12 shrink-0 items-center gap-1.5 rounded-xl border bg-white px-3 text-sm', expandAdvanced ? 'border-[#7cb342] text-[#1f4d34]' : 'border-[#d7dfcf]')}
+                >
+                  <Filter className="h-4 w-4" aria-hidden />
+                  篩選
+                  <ChevronDown className={cn('h-4 w-4 transition-transform', expandAdvanced && 'rotate-180')} aria-hidden />
+                </button>
               </div>
-              <button type="submit" className="h-10 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white disabled:opacity-40" disabled={loading}>
-                搜尋
-              </button>
-              <button type="button" onClick={clear} className="h-10 rounded-lg border border-zinc-300 px-3 text-sm hover:bg-zinc-50">
-                清除條件
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpandAdvanced(!expandAdvanced)}
-                className="h-10 rounded-lg border border-zinc-300 px-3 text-sm hover:bg-zinc-50"
-              >
-                更多條件
-              </button>
-            </div>
 
-            {expandAdvanced && (
-              <div className="space-y-2 border-t border-zinc-100 pt-3">
-                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">日期類型</label>
-                    <select className={sel} value={draft.dateType} onChange={(e) => setDraft({ ...draft, dateType: e.target.value as Query['dateType'] })} aria-label="日期類型">
-                      <option value="play">預約／活動日期</option>
-                      <option value="created">下單日期</option>
-                      <option value="paid">付款日期</option>
-                    </select>
+              {expandAdvanced && (
+                <div className="space-y-2 rounded-2xl border border-[#e3e8dc] bg-white p-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">日期類型</span>
+                      <select className={cn(sel, 'w-full')} value={draft.dateType} onChange={(e) => setDraft({ ...draft, dateType: e.target.value as Query['dateType'] })}>
+                        <option value="play">預約日期</option>
+                        <option value="created">下單日期</option>
+                        <option value="paid">付款日期</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">場地</span>
+                      <select className={cn(sel, 'w-full')} value={draft.courtId} onChange={(e) => setDraft({ ...draft, courtId: e.target.value })}>
+                        <option value="">全部場地</option>
+                        {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">起始日期</span>
+                      <input type="date" className={cn(sel, 'w-full')} value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">結束日期</span>
+                      <input type="date" className={cn(sel, 'w-full')} value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">付款狀態</span>
+                      <select className={cn(sel, 'w-full')} value={draft.payment} onChange={(e) => setDraft({ ...draft, payment: e.target.value as Query['payment'] })}>
+                        <option value="">全部狀態</option>
+                        {Object.entries(PAYMENT).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">訂單狀態</span>
+                      <select className={cn(sel, 'w-full')} value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value as Query['order'] })}>
+                        <option value="">全部狀態</option>
+                        {Object.entries(ORDER).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">退款狀態</span>
+                      <select className={cn(sel, 'w-full')} value={draft.refund} onChange={(e) => setDraft({ ...draft, refund: e.target.value as Query['refund'] })}>
+                        <option value="">全部狀態</option>
+                        {Object.entries(REFUND).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-muted">發票狀態</span>
+                      <select className={cn(sel, 'w-full')} value={draft.invoice} onChange={(e) => setDraft({ ...draft, invoice: e.target.value as Query['invoice'] })}>
+                        <option value="">全部狀態</option>
+                        <option value="NONE">未開立</option>
+                        <option value="HAS">已有發票紀錄</option>
+                      </select>
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-1 block text-xs font-medium text-muted">排序</span>
+                      <select className={cn(sel, 'w-full')} value={draft.sort} onChange={(e) => setDraft({ ...draft, sort: e.target.value as Query['sort'] })}>
+                        <option value="created_desc">下單日期（新到舊）</option>
+                        <option value="created_asc">下單日期（舊到新）</option>
+                        <option value="play_desc">預約日期（新到舊）</option>
+                        <option value="play_asc">預約日期（舊到新）</option>
+                        <option value="total_desc">金額（高到低）</option>
+                        <option value="total_asc">金額（低到高）</option>
+                      </select>
+                    </label>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">起始日期</label>
-                    <input type="date" className={sel} value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label="起日" />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">結束日期</label>
-                    <input type="date" className={sel} value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label="迄日" />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">場地</label>
-                    <select className={sel} value={draft.courtId} onChange={(e) => setDraft({ ...draft, courtId: e.target.value })} aria-label="場地">
-                      <option value="">全部場地</option>
-                      {courts.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">訂單類型</label>
-                    <select className={sel} value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as Query['type'] })} aria-label="訂單類型">
-                      <option value="all">全部類型</option>
-                      <option value="court">場地租借</option>
-                      <option value="activity">活動報名</option>
-                      <option value="mixed">場地＋活動</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">付款狀態</label>
-                    <select className={sel} value={draft.payment} onChange={(e) => setDraft({ ...draft, payment: e.target.value as Query['payment'] })} aria-label="付款狀態">
-                      <option value="">全部狀態</option>
-                      {Object.entries(PAYMENT).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">訂單狀態</label>
-                    <select className={sel} value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value as Query['order'] })} aria-label="訂單狀態">
-                      <option value="">全部狀態</option>
-                      {Object.entries(ORDER).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">退款狀態</label>
-                    <select className={sel} value={draft.refund} onChange={(e) => setDraft({ ...draft, refund: e.target.value as Query['refund'] })} aria-label="退款狀態">
-                      <option value="">全部狀態</option>
-                      {Object.entries(REFUND).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">發票狀態</label>
-                    <select className={sel} value={draft.invoice} onChange={(e) => setDraft({ ...draft, invoice: e.target.value as Query['invoice'] })} aria-label="發票">
-                      <option value="">全部狀態</option>
-                      <option value="NONE">未開立</option>
-                      <option value="HAS">已有發票紀錄</option>
-                    </select>
+                  <div className="flex gap-2 pt-1">
+                    <button type="submit" disabled={loading} className="h-11 flex-1 rounded-xl bg-[#1f4d34] text-sm font-semibold text-white disabled:opacity-40">套用篩選</button>
+                    <button type="button" onClick={clear} className="h-11 rounded-xl border border-zinc-300 px-4 text-sm">清除條件</button>
                   </div>
                 </div>
+              )}
+            </form>
+
+            <div className={cn('overflow-hidden rounded-2xl border border-[#e3e8dc] bg-white transition-opacity', loading && 'opacity-60')}>
+              <div className="hidden grid-cols-[minmax(0,1.15fr)_minmax(0,1.25fr)_auto_auto] gap-3 border-b border-[#eef1e9] bg-[#fafcf7] px-3 py-2.5 text-xs font-semibold text-[#3d4a40] sm:grid">
+                <span>訂單編號</span>
+                <span>訂場資訊</span>
+                <span className="text-right">訂單金額</span>
+                <span className="w-[4.5rem] text-center">訂單狀態</span>
+              </div>
+              {data.rows.length === 0 ? (
+                <p className="px-3 py-10 text-center text-sm text-muted">沒有符合條件的訂單</p>
+              ) : (
+                <ul className="divide-y divide-[#eef1e9]">
+                  {data.rows.map((r) => {
+                    const [stateLabel, stateTone] = orderStateOf(r.orderStatus === 'COMPLETED' ? 'COMPLETED' : r.paymentStatus === 'PAID' && r.orderStatus === 'ACTIVE' ? 'PAID' : r.orderStatus === 'ACTIVE' ? 'PENDING' : r.orderStatus, r.refundStatus)
+                    const selected = orderId === r.id
+                    return (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectOrder(r.id)}
+                          aria-current={selected ? 'true' : undefined}
+                          className={cn(
+                            'grid min-h-[4.5rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-2 px-3 py-2.5 text-left transition-colors sm:grid-cols-[minmax(0,1.15fr)_minmax(0,1.25fr)_auto_auto]',
+                            selected ? 'border-[#7cb342] bg-[#eef7e6]' : 'border-transparent hover:bg-[#fafcf7]',
+                          )}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-mono text-[13px] font-bold text-[#1f2a22]">{r.code}</span>
+                            <span className="block truncate text-xs text-muted">{r.customer.name}</span>
+                          </span>
+                          <span className="col-span-2 row-start-2 min-w-0 text-xs sm:col-span-1 sm:row-start-auto">
+                            <span className="block truncate text-[#1f2a22]">{r.playDate.replaceAll('-', '/')}（{'日一二三四五六'[new Date(`${r.playDate}T00:00:00Z`).getUTCDay()]}）</span>
+                            <span className="block truncate text-muted">{[r.slotLabel, r.courtNames ? `場地 ${r.courtNames}` : r.summary].filter(Boolean).join('・')}</span>
+                          </span>
+                          <span className="row-start-1 text-right text-sm font-bold tabular text-[#1f2a22] sm:row-start-auto">{data.amountsHidden ? '—' : `NT$${r.total.toLocaleString()}`}</span>
+                          <span className="col-start-2 row-start-2 flex justify-end sm:col-start-auto sm:row-start-auto sm:w-[4.5rem] sm:justify-center">
+                            <Pill tone={stateTone}>{stateLabel}</Pill>
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <span className="text-muted">第 {data.query.page}／{data.pages} 頁・共 {data.total} 筆</span>
+              <button type="button" disabled={data.query.page <= 1 || loading} onClick={() => run({ ...data.query, page: data.query.page - 1 })} className="grid h-11 w-11 place-items-center rounded-xl border border-[#d7dfcf] bg-white disabled:opacity-40" aria-label="上一頁">
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </button>
+              <button type="button" disabled={data.query.page >= data.pages || loading} onClick={() => run({ ...data.query, page: data.query.page + 1 })} className="grid h-11 w-11 place-items-center rounded-xl border border-[#d7dfcf] bg-white disabled:opacity-40" aria-label="下一頁">
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+
+          <div className={cn('lg:sticky lg:top-0 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-[#f6f7f2] lg:pr-1', !orderId && 'hidden lg:block')}>
+            {orderId ? (
+              <OrderDetailPanel
+                key={orderId}
+                orderId={orderId}
+                perms={{ ...perms, access: !!perms.access, accessGrant: !!perms.accessGrant }}
+                startWithRefund={openRefund && orderId === openOrderId}
+                onBack={() => selectOrder(null)}
+                onChanged={() => void run(data.query)}
+              />
+            ) : (
+              <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[#d7dfcf] bg-white p-8 text-center text-sm text-muted">
+                點選左側訂單以查看明細
               </div>
             )}
-          </form>
-
-          <div className={cn('overflow-x-auto rounded-2xl border border-zinc-200 bg-white transition-opacity', loading && 'opacity-60')}>
-            <table className="w-full min-w-[1080px] text-sm">
-              <thead className="bg-zinc-50 text-left text-xs text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-medium">訂單編號</th>
-                  <th className="px-3 py-2 font-medium">客戶</th>
-                  <th className="px-3 py-2 font-medium">項目</th>
-                  <th className="px-3 py-2 font-medium"><button type="button" onClick={() => sortBy('play')} className="font-medium hover:text-zinc-900">預約日期{sortMark('play')}</button></th>
-                  <th className="px-3 py-2 font-medium">付款</th>
-                  <th className="px-3 py-2 font-medium">訂單</th>
-                  <th className="px-3 py-2 font-medium">退款</th>
-                  {!data.amountsHidden && <th className="px-3 py-2 text-right font-medium"><button type="button" onClick={() => sortBy('total')} className="font-medium hover:text-zinc-900">實付{sortMark('total')}</button></th>}
-                  <th className="px-3 py-2 font-medium">發票</th>
-                  <th className="px-3 py-2 font-medium"><button type="button" onClick={() => sortBy('created')} className="font-medium hover:text-zinc-900">下單日期{sortMark('created')}</button></th>
-                  <th className="px-3 py-2 font-medium">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {data.rows.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="px-3 py-10 text-center text-muted">沒有符合條件的訂單</td>
-                  </tr>
-                )}
-                {data.rows.map((r) => (
-                  <tr key={r.id} className={cn(orderId === r.id && 'bg-violet-50')}>
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.code}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-medium">{r.customer.name}</span>
-                      <span className="block text-[11px] text-muted">
-                        {r.customer.phone}
-                        {r.customer.email && `・${r.customer.email}`}・會員 #{r.customer.memberRef}
-                      </span>
-                    </td>
-                    <td className="max-w-[16rem] px-3 py-2 text-xs">{r.summary}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{r.playDate}</td>
-                    <td className="px-3 py-2"><StatusPill map={PAYMENT} value={r.paymentStatus} />{r.simulatedPayment && <span className="ml-1 text-[10px] text-violet-700">模擬</span>}</td>
-                    <td className="px-3 py-2"><StatusPill map={ORDER} value={r.orderStatus} /></td>
-                    <td className="px-3 py-2"><StatusPill map={REFUND} value={r.refundStatus} /></td>
-                    {!data.amountsHidden && (
-                      <td className="whitespace-nowrap px-3 py-2 text-right tabular">
-                        NT${r.total.toLocaleString()}
-                        {r.refundedAmount > 0 && <span className="block text-[11px] text-muted">已退 NT${r.refundedAmount.toLocaleString()}</span>}
-                      </td>
-                    )}
-                    <td className="px-3 py-2"><StatusPill map={INVOICE} value={r.invoiceStatus} /></td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{new Date(r.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-3 py-2">
-                      <button type="button" onClick={() => setOrderId(r.id)} className="h-8 rounded-lg border border-zinc-300 px-3 text-xs font-semibold hover:bg-violet-50">
-                        明細
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-
-          <div className="flex items-center justify-end gap-2 text-sm">
-            <span className="text-muted">第 {data.query.page}／{data.pages} 頁</span>
-            <button type="button" disabled={data.query.page <= 1 || loading} onClick={() => run({ ...data.query, page: data.query.page - 1 })} className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-300 disabled:opacity-40" aria-label="上一頁">
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </button>
-            <button type="button" disabled={data.query.page >= data.pages || loading} onClick={() => run({ ...data.query, page: data.query.page + 1 })} className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-300 disabled:opacity-40" aria-label="下一頁">
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
-        </>
+        </div>
       )}
 
       {tab === 'products' && (
@@ -438,22 +446,6 @@ export function TransactionsClient({
         </div>
       )}
 
-      {orderId && (
-        <OrderDrawer
-          key={orderId}
-          orderId={orderId}
-          perms={perms}
-          startWithRefund={openRefund && orderId === openOrderId}
-          onClose={() => {
-            setOrderId(null)
-            const url = new URL(window.location.href)
-            url.searchParams.delete('order')
-            url.searchParams.delete('refund')
-            window.history.replaceState(null, '', url.toString())
-          }}
-          onChanged={() => void run(data.query)}
-        />
-      )}
     </div>
   )
 }

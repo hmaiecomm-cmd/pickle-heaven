@@ -82,7 +82,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
         openOrderId={sp.order ?? null}
         openRefund={sp.refund === '1'}
         openTab={tab}
-        perms={{ refund: can(ctx.role, 'refund'), invoice: can(ctx.role, 'invoice') }}
+        perms={{ refund: can(ctx.role, 'refund'), invoice: can(ctx.role, 'invoice'), access: can(ctx.role, 'access'), accessGrant: can(ctx.role, 'access.grant') }}
       />
     </div>
   )
