@@ -72,6 +72,8 @@ export async function PATCH(request: NextRequest) {
     // 標記出貨時，自動扣除庫存
     if (shippingStatus === 'SHIPPED') {
       for (const item of order.items) {
+        if (!item.productId) continue
+
         const inventory = await prisma.productInventory.findUnique({
           where: { productId: item.productId },
         })

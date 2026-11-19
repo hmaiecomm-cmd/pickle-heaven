@@ -29,6 +29,10 @@ export async function POST(request: NextRequest) {
 
     // 驗證庫存
     for (const item of items) {
+      if (!item.productId) {
+        return NextResponse.json({ error: '商品 ID 缺少' }, { status: 400 })
+      }
+
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
         include: { inventory: true },
