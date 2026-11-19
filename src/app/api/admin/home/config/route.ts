@@ -62,6 +62,7 @@ export async function GET() {
           visit: { title: '下一站，大新店森林匹克球。', description: '', visible: true },
           invite: { title: '下一場，約在森林裡。', description: '帶上想動一動的心情，來一場屬於你的匹克球時光。', visible: true },
         },
+        selectedActivityIds: [],
       }
     }
 

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { brand, contact, HOME_IMAGES_HAVE_CONCEPT, images, legal, SHOW_PENDING, social } from '@/config/site'
 import { ntd } from '@/lib/utils'
+import { THEME_COLORS } from '@/lib/home-themes'
 import type { HomeData } from '@/server/home-data'
 import { CourtLines, Eyebrow, Pending, Photo } from './parts'
 
@@ -17,6 +18,15 @@ export function HeroSection({ data }: { data: HomeData }) {
     data.venue && { k: '每個時段', v: `${data.venue.slotMinutes} 分鐘` },
     data.minPrice != null && { k: '場地費', v: `${ntd(data.minPrice)} 起` },
   ].filter(Boolean) as { k: string; v: string }[]
+
+  // 使用編輯器配置中的內容（如果有發布的配置）
+  const heroConfig = data.editor?.hero
+  const themeColors = data.editor ? THEME_COLORS[data.editor.theme] : THEME_COLORS.purple
+  const heroTitle = heroConfig?.title || '在森林裡，打出你的節奏。'
+  const heroDesc = heroConfig?.description || '來大新店森林匹克球，享受揮拍的暢快，也享受相聚的時光。'
+  const heroBtnText = heroConfig?.buttonText || '預約場地'
+  const heroBtnLink = heroConfig?.buttonLink || '/booking'
+  const heroPhoto = heroConfig?.photoId
 
   return (
     <section id="top" aria-labelledby="hero-title" className="hp-on-dark relative isolate overflow-hidden bg-hp-deep text-white">
@@ -41,16 +51,14 @@ export function HeroSection({ data }: { data: HomeData }) {
           <div className="relative max-w-[40rem]">
             <Eyebrow className="hp-reveal font-display text-white/85">{brand.englishName}</Eyebrow>
             <h1 id="hero-title" className="hp-display hp-reveal mt-5 [--hp-delay:60ms]">
-              在森林裡，
-              <br />
-              打出你的節奏。
+              {heroTitle}
             </h1>
             <p className="hp-lead hp-reveal mt-6 max-w-[34rem] text-white/85 [--hp-delay:120ms]">
-              來大新店森林匹克球，享受揮拍的暢快，也享受相聚的時光。
+              {heroDesc}
             </p>
             <div className="hp-reveal mt-9 flex flex-wrap gap-3 [--hp-delay:180ms]">
-              <Link href="/booking" className="hp-btn hp-btn-primary">
-                預約場地
+              <Link href={heroBtnLink} className="hp-btn hp-btn-primary">
+                {heroBtnText}
               </Link>
               <Link href="#coaching" className="hp-btn hp-btn-outline-light">
                 探索課程

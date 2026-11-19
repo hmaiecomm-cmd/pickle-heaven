@@ -53,4 +53,20 @@ export interface EditorState {
       backgroundPhotoId?: string
     }
   }
+  selectedActivityIds?: string[]
+}
+
+export interface VersionHistoryItem {
+  id: string
+  config: EditorState
+  versionType: 'DRAFT' | 'PUBLISHED'
+  operatedBy: string
+  createdAt: Date
+  changeNote?: string
+}
+
+export interface VersionHistoryResult {
+  success: boolean
+  data?: VersionHistoryItem[]
+  error?: string
 }

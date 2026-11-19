@@ -1,11 +1,11 @@
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { redirect } from 'next/navigation'
-import { EditorFullV5 } from './editor-full-v5'
+import { EditorFullC } from './editor-full-c'
 
 /**
- * 官網頁面管理頁面（Phase 2b+3：場館故事 & 訪問資訊 & 邀請區照片編輯）
- * 後台主題套版、內容編輯、發布管理
+ * 官網頁面管理頁面（C 版：主題套版）
+ * 四款主題、內容編輯、版本管理、發布管理
  */
 
 export const dynamic = 'force-dynamic'
@@ -19,5 +19,5 @@ export default async function HomeEditorPage() {
     redirect('/admin/login')
   }
 
-  return <EditorFullV5 username={ctx.username} />
+  return <EditorFullC username={ctx.username} />
 }
