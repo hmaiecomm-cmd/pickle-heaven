@@ -191,7 +191,7 @@ export async function getAvailability(
 
 /** 讀取目前購物車（尚未逾時的暫扣） */
 export async function getCart(cartToken: string | null): Promise<CartDTO> {
-  if (!cartToken) return { items: [], activityItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
+  if (!cartToken) return { items: [], activityItems: [], productItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
 
   await releaseExpiredHolds()
   const nowMs = now().getTime()
@@ -230,14 +230,15 @@ export async function getCart(cartToken: string | null): Promise<CartDTO> {
   })
 
   const activityItems = await getCartActivityItems(cartToken, nowMs)
+  const productItems = await getCartProductItems(cartToken)
 
-  const subtotal = items.reduce((sum, i) => sum + i.price, 0) + activityItems.reduce((sum, i) => sum + i.amount, 0)
+  const subtotal = items.reduce((sum, i) => sum + i.price, 0) + activityItems.reduce((sum, i) => sum + i.amount, 0) + productItems.reduce((sum, i) => sum + i.subtotal, 0)
   const all = [...items.map((i) => i.expiresAt), ...activityItems.map((i) => i.expiresAt)]
   const expiresAt = all.length > 0 ? all.sort()[0] : null
 
   const invalidCount = items.filter((i) => i.invalid).length + activityItems.filter((i) => i.invalid).length
 
-  return { items, activityItems, subtotal, expiresAt, invalidCount }
+  return { items, activityItems, productItems, subtotal, expiresAt, invalidCount }
 }
 
 /** 場地時段是否已不能結帳：已開始，或已超過預約截止時間 */
@@ -282,6 +283,26 @@ async function getCartActivityItems(cartToken: string, nowMs: number): Promise<C
       invalid: s.status === 'CANCELLED' ? '活動已取消' : s.startAt.getTime() <= nowMs ? '活動已開始' : null,
     }
   })
+}
+
+/** 購物車中的商品項目 */
+async function getCartProductItems(cartToken: string): Promise<CartProductItemDTO[]> {
+  const items = await prisma.cartProduct.findMany({
+    where: { cartToken },
+    include: { product: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  return items.map((item) => ({
+    id: item.id,
+    productId: item.product.id,
+    productName: item.product.name,
+    productSku: item.product.sku,
+    imageUrl: item.product.imageUrl,
+    quantity: item.quantity,
+    unitPrice: item.product.price,
+    subtotal: item.product.price * item.quantity,
+  }))
 }
 
 /**
