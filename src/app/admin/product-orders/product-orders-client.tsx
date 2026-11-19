@@ -232,7 +232,7 @@ export function ProductOrdersClient() {
 
                 {/* Action Buttons */}
                 <div className={styles.actionButtons}>
-                  <Button variant="default" className={styles.buttonPrimary}>
+                  <Button variant="primary" className={styles.buttonPrimary}>
                     <Truck className="h-4 w-4 mr-2" aria-hidden />
                     標記出貨
                   </Button>
