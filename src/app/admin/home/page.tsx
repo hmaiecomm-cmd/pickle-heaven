@@ -1,10 +1,10 @@
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { redirect } from 'next/navigation'
-import { EditorFullV4 } from './editor-full-v4'
+import { EditorFullV5 } from './editor-full-v5'
 
 /**
- * 官網頁面管理頁面（Phase 2b：場館故事三圖編輯）
+ * 官網頁面管理頁面（Phase 2b+3：場館故事 & 訪問資訊 & 邀請區照片編輯）
  * 後台主題套版、內容編輯、發布管理
  */
 
@@ -19,5 +19,5 @@ export default async function HomeEditorPage() {
     redirect('/admin/login')
   }
 
-  return <EditorFullV4 username={ctx.username} />
+  return <EditorFullV5 username={ctx.username} />
 }
