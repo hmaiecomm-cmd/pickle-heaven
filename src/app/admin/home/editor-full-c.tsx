@@ -110,12 +110,19 @@ export function EditorFullC({ username }: { username: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
       })
-      if (!response.ok) throw new Error('儲存失敗')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg = errorData.error || `HTTP ${response.status}`
+        console.error('[draft] 錯誤:', errorMsg)
+        throw new Error(errorMsg)
+      }
       setIsDirty(false)
       setMessage({ type: 'success', text: '✓ 草稿已儲存' })
       setTimeout(() => setMessage(null), 3000)
     } catch (err) {
-      setMessage({ type: 'error', text: '✗ 儲存失敗' })
+      const errMsg = err instanceof Error ? err.message : '儲存失敗'
+      console.error('[draft] 完整錯誤:', err)
+      setMessage({ type: 'error', text: `✗ 儲存失敗：${errMsg}` })
     } finally {
       setIsSaving(false)
     }
@@ -129,7 +136,12 @@ export function EditorFullC({ username }: { username: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
-      if (!response.ok) throw new Error('發布失敗')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg = errorData.error || `HTTP ${response.status}`
+        console.error('[publish] 錯誤:', errorMsg)
+        throw new Error(errorMsg)
+      }
       setMessage({ type: 'success', text: '✓ 已發布到正式首頁' })
       setTimeout(() => setMessage(null), 3000)
       // 重新載入版本
@@ -143,7 +155,9 @@ export function EditorFullC({ username }: { username: string }) {
         }
       }
     } catch (err) {
-      setMessage({ type: 'error', text: '✗ 發布失敗' })
+      const errMsg = err instanceof Error ? err.message : '發布失敗'
+      console.error('[publish] 完整錯誤:', err)
+      setMessage({ type: 'error', text: `✗ 發布失敗：${errMsg}` })
     } finally {
       setIsSaving(false)
     }
