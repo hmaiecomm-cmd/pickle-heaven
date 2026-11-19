@@ -12,10 +12,10 @@ import { currentPath, useAuth } from '@/components/auth-provider'
 import { LoginButtons } from '@/components/login-buttons'
 import type { SessionUser } from '@/lib/types'
 
-/** 右側選單的項目順序固定：場地預約、球敘、我的帳戶 */
+/** 右側選單的項目順序固定：場地預約、活動、我的帳戶 */
 const MENU = [
   { href: '/booking', label: '場地預約', icon: CalendarDays },
-  { href: '/sessions', label: '球敘', icon: Users },
+  { href: '/sessions', label: '活動', icon: Users },
   { href: '/account', label: '我的帳戶', icon: CircleUserRound },
 ] as const
 

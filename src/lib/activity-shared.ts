@@ -7,7 +7,7 @@
  */
 import { addDays, diffDays, formatMinute, taipeiWeekday, WEEKDAY_LABELS } from './time'
 
-export type ActivityTypeKey = 'OPEN_PLAY' | 'BEGINNER' | 'LESSON' | 'SOCIAL' | 'OTHER'
+export type ActivityTypeKey = 'OPEN_PLAY' | 'BEGINNER' | 'LESSON' | 'SOCIAL' | 'DUPR_MATCH' | 'OTHER'
 export type PriceUnitKey = 'PER_PERSON' | 'PER_PAIR'
 
 export const ACTIVITY_TYPE_LABEL: Record<ActivityTypeKey, string> = {
@@ -15,6 +15,7 @@ export const ACTIVITY_TYPE_LABEL: Record<ActivityTypeKey, string> = {
   OPEN_PLAY: 'Open Play',
   BEGINNER: '體驗課',
   LESSON: '教練課程',
+  DUPR_MATCH: 'DUPR 分級賽',
   OTHER: '自訂分類',
 }
 

@@ -790,6 +790,7 @@ enum ActivityType {
   BEGINNER // 新手體驗
   LESSON // 課程
   SOCIAL // 交流活動
+  DUPR_MATCH // DUPR 分級賽
   OTHER
 }
 
