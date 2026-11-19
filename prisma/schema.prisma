@@ -3047,6 +3047,7 @@ model Product {
   venue           Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
   inventory       ProductInventory?
   orderItems      ProductOrderItem[]
+  cartItems       CartProduct[]
 
   @@index([venueId])
   @@index([category])
@@ -3204,4 +3205,22 @@ model ProductRefund {
 
   @@index([orderId, createdAt])
   @@index([status])
+}
+
+/// 購物車商品項目
+model CartProduct {
+  id              String    @id @default(cuid())
+  cartToken       String
+  productId       String
+
+  quantity        Int       @default(1)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartToken, productId])
+  @@index([cartToken])
+  @@index([productId])
 }

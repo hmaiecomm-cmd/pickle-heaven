@@ -183,8 +183,12 @@ export async function PATCH(request: NextRequest) {
 
       // 回沖保留庫存
       for (const item of order.items) {
+        if (!item.productId) continue
+
+        const productId = item.productId
+
         const inventory = await prisma.productInventory.findUnique({
-          where: { productId: item.productId },
+          where: { productId },
         })
 
         if (inventory) {
