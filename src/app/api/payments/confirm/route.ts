@@ -54,10 +54,11 @@ export async function POST(request: NextRequest) {
       await prisma.payment.create({
         data: {
           bookingId,
+          provider: 'mock',
           method: paymentMethod as any,
           amount,
           status: 'SUCCESS',
-          transactionId,
+          providerRef: transactionId,
           paidAt: new Date(),
         },
       })
