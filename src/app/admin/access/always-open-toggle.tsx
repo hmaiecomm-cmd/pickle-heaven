@@ -8,13 +8,14 @@ import { toggleAlwaysOpenAction } from './actions'
 export interface AlwaysOpenToggleProps {
   isOpen: boolean
   canControl: boolean
+  embedded?: boolean
 }
 
 /**
  * 常開模式滑動開關 - iPhone 式設計
  * 支援滑鼠點擊、手指滑動、平板觸控
  */
-export function AlwaysOpenToggle({ isOpen, canControl }: AlwaysOpenToggleProps) {
+export function AlwaysOpenToggle({ isOpen, canControl, embedded = false }: AlwaysOpenToggleProps) {
   const [open, setOpen] = React.useState(isOpen)
   const [busy, setBusy] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -82,6 +83,65 @@ export function AlwaysOpenToggle({ isOpen, canControl }: AlwaysOpenToggleProps) 
   // 滑動結束
   const handleDragEnd = () => {
     setIsDragging(false)
+  }
+
+  if (embedded) {
+    return (
+      <div className="flex items-center gap-3">
+        {/* 狀態指示 */}
+        <div className="flex-shrink-0 text-sm font-medium text-zinc-700">
+          {open ? '已開啟' : '已關閉'}
+        </div>
+
+        {/* 滑動開關 */}
+        <div
+          ref={toggleRef}
+          role="switch"
+          aria-checked={open}
+          aria-label={open ? '大門常開模式已開啟' : '大門常開模式已關閉'}
+          tabIndex={canControl && !busy ? 0 : -1}
+          onClick={handleToggle}
+          onMouseDown={handleDragStart}
+          onMouseMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+          className={cn(
+            // 基礎樣式
+            'relative h-10 w-16 cursor-pointer rounded-full border-2 transition-all duration-200',
+            'flex items-center px-1',
+
+            // 狀態樣式
+            open
+              ? 'border-green-500 bg-green-500'
+              : 'border-zinc-300 bg-white',
+
+            // 禁用狀態
+            !canControl || busy
+              ? 'cursor-not-allowed opacity-60'
+              : 'hover:shadow-sm active:shadow-md',
+
+            // 拖動狀態
+            isDragging && 'shadow-lg'
+          )}
+        >
+          {/* 滑塊 */}
+          <div
+            className={cn(
+              'absolute h-8 w-8 rounded-full bg-white shadow-md transition-transform duration-150',
+              open ? 'translate-x-7' : 'translate-x-0'
+            )}
+          />
+        </div>
+
+        {/* 加載指示 */}
+        {busy && (
+          <Loader2 className="h-4 w-4 animate-spin text-brand-600 flex-shrink-0" aria-hidden />
+        )}
+      </div>
+    )
   }
 
   return (

@@ -1,7 +1,7 @@
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { redirect } from 'next/navigation'
-import { EditorFull } from './editor-full'
+import { EditorFullV2 } from './editor-full-v2'
 
 /**
  * 官網頁面管理頁面
@@ -19,5 +19,5 @@ export default async function HomeEditorPage() {
     redirect('/admin/login')
   }
 
-  return <EditorFull username={ctx.username} />
+  return <EditorFullV2 username={ctx.username} />
 }

@@ -26,13 +26,12 @@ export function EditorFull({ username }: { username: string }) {
       buttonLink: '/booking',
     },
     sections: {
-      plans: { title: '今天，你想怎麼玩？', description: '揪朋友一起開打，或加入一場新的相遇。', visible: true },
-      coaching: { title: '第一球，到下一個突破。', description: '找到適合你的練習節奏，讓每次上場都有新收穫。', visible: true },
+      plans: { title: '今天，你想怎麼玩？', description: '揪朋友一起開打，或加入一場新的相遇。', visible: true, selectedSessionIds: [] },
+      coaching: { title: '第一球，到下一個突破。', description: '找到適合你的練習節奏，讓每次上場都有新收穫。', visible: true, coaches: [] },
       story: { title: '森林裡的球場，生活裡的主場。', description: '揮拍、交流，也讓自己慢下來。', visible: true },
       visit: { title: '下一站，大新店森林匹克球。', description: '', visible: true },
       invite: { title: '下一場，約在森林裡。', description: '帶上想動一動的心情，來一場屬於你的匹克球時光。', visible: true },
     },
-    selectedActivityIds: [],
   })
 
   const [coaches, setCoaches] = useState<Coach[]>([

@@ -1,5 +1,14 @@
 export type HomeTheme = 'purple' | 'green' | 'blue' | 'berry'
 
+export interface EditorCoach {
+  id: string
+  name: string
+  specialties: string[]
+  bio: string
+  hourlyRate: number
+  photoId?: string
+}
+
 export interface EditorState {
   theme: HomeTheme
   hero: {
@@ -8,14 +17,40 @@ export interface EditorState {
     description: string
     buttonText: string
     buttonLink: string
-    imageId?: string
+    photoId?: string
   }
   sections: {
-    plans: { title: string; description: string; visible: boolean }
-    coaching: { title: string; description: string; visible: boolean }
-    story: { title: string; description: string; imageId?: string; visible: boolean }
-    visit: { title: string; description: string; visible: boolean }
-    invite: { title: string; description: string; visible: boolean }
+    plans: {
+      title: string
+      description: string
+      visible: boolean
+      selectedSessionIds: string[]
+    }
+    coaching: {
+      title: string
+      description: string
+      visible: boolean
+      coaches: EditorCoach[]
+    }
+    story: {
+      title: string
+      description: string
+      visible: boolean
+      photo1Id?: string
+      photo2Id?: string
+      photo3Id?: string
+    }
+    visit: {
+      title: string
+      description: string
+      visible: boolean
+      photoId?: string
+    }
+    invite: {
+      title: string
+      description: string
+      visible: boolean
+      backgroundPhotoId?: string
+    }
   }
-  selectedActivityIds: string[]
 }

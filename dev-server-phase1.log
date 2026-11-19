@@ -1,0 +1,27 @@
+
+> pickle-heaven@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.68.103:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 5.3s
+ ✓ Compiled /middleware in 392ms (195 modules)
+ ○ Compiling /admin/home ...
+ ✓ Compiled /admin/home in 2.9s (1168 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EBUSY: resource busy or locked, rename 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\15.pack.gz_' -> 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\15.pack.gz'
+ GET /admin/home 307 in 6013ms
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 2.1s (1184 modules)
+ GET /admin/login 200 in 3219ms
+ ✓ Compiled in 16s (1383 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EBUSY: resource busy or locked, rename 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\0.pack.gz_' -> 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\0.pack.gz'
+ ✓ Compiled in 1306ms (334 modules)
+ ✓ Compiled in 1164ms (334 modules)
+ ✓ Compiled in 858ms (334 modules)
+ GET /admin/login 200 in 2099ms
+ ✓ Compiled in 1055ms (334 modules)
+ ✓ Compiled in 717ms (334 modules)

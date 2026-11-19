@@ -16,6 +16,12 @@ export interface DoorRemoteState {
   last: { at: string; status: string; simulated: boolean; requestedBy: string } | null
 }
 
+export interface DoorRemoteCardProps {
+  state: DoorRemoteState
+  canRemote: boolean
+  embedded?: boolean
+}
+
 const CONNECTION: Record<DoorRemoteState['connection'], { label: string; tone: 'green' | 'gray' | 'red' }> = {
   CONNECTED: { label: '已連線', tone: 'green' },
   NOT_CONNECTED: { label: '未連線', tone: 'gray' },
@@ -37,7 +43,7 @@ const SIMULATE = [
 const fmt = (iso: string) => new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 /** 大門即時控制：一次瞬間開門脈衝，不建立授權。 */
-export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; canRemote: boolean }) {
+export function DoorRemoteCard({ state, canRemote, embedded = false }: DoorRemoteCardProps) {
   const router = useRouter()
   const [confirming, setConfirming] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
@@ -72,6 +78,48 @@ export function DoorRemoteCard({ state, canRemote }: { state: DoorRemoteState; c
       : result.simulated
         ? `${RESULT_TEXT[result.status] ?? result.status}（Demo 模擬，未實際開門）`
         : (RESULT_TEXT[result.status] ?? result.status)
+
+  if (embedded) {
+    return (
+      <>
+        <Button
+          size="lg"
+          onClick={ask}
+          disabled={!!blocked || busy}
+          title={blocked ?? undefined}
+          className="w-full bg-red-600 hover:bg-red-700 h-16"
+          aria-label="一鍵開門"
+        >
+          {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <DoorOpen className="h-5 w-5" aria-hidden />}
+          <span className="ml-2">{busy ? '開門中…' : '一鍵開門'}</span>
+        </Button>
+
+        {blocked && <p className="mt-2 text-xs text-muted">{blocked}</p>}
+
+        {message && (
+          <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${success ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
+            {message}
+          </p>
+        )}
+        <Sheet open={confirming} onOpenChange={(o) => !o && setConfirming(false)}>
+          <SheetContent title="確認開門" description="這次確認只會送出一次開門指令">
+            <div className="space-y-4 text-sm">
+              <p className="text-base font-semibold">確定要立即開啟{state.door.name}嗎？</p>
+              {state.demo && <Pill tone="violet">Demo 模式：只會產生模擬結果（{SIMULATE.find(([v]) => v === simulate)?.[1]}），不會真的開門</Pill>}
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={open}>
+                  確認開門
+                </Button>
+                <Button variant="secondary" onClick={() => setConfirming(false)}>
+                  取消
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
 
   return (
     <section aria-labelledby="door-remote-title" className="rounded-2xl border border-zinc-200 bg-white p-4">

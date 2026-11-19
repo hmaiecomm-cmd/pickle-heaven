@@ -201,14 +201,88 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
 
   return (
     <div className="space-y-5">
-      {/* 大門即時控制 - 行動優先 */}
-      <DoorRemoteCard state={doorState} canRemote={canRemote} />
+      {/* 左右兩欄佈局：大門控制 + 即時監控 */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.5fr]">
+        {/* 左側：大門機制控制 */}
+        <div className="space-y-4">
+          {/* 大門控制卡片 */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-900">大門機制控制</h2>
 
-      {/* 常開模式 */}
-      <AlwaysOpenToggle
-        isOpen={doorState.alwaysOpen}
-        canControl={canRemote}
-      />
+            {/* 一鍵開門按鈕 */}
+            <DoorRemoteCard state={doorState} canRemote={canRemote} embedded />
+
+            {/* 間距 */}
+            <div className="my-4" />
+
+            {/* 大門常開模式 */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-zinc-900">
+                大門常開模式
+              </label>
+              <AlwaysOpenToggle
+                isOpen={doorState.alwaysOpen}
+                canControl={canRemote}
+                embedded
+              />
+            </div>
+
+            {/* 間距 */}
+            <div className="my-4" />
+
+            {/* 連線狀態 */}
+            <div className="rounded-lg bg-zinc-50 p-3">
+              <p className="text-sm text-zinc-600">
+                {doorState.connection === 'NOT_CONNECTED' ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-gray-400" aria-hidden />
+                    未連線
+                  </span>
+                ) : doorState.connection === 'CONNECTED' ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-green-500" aria-hidden />
+                    已連線
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden />
+                    連線錯誤
+                  </span>
+                )}
+              </p>
+            </div>
+          </section>
+        </div>
+
+        {/* 右側：即時監控 */}
+        <div>
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-900">即時監控 → 01 QR 密碼鎖</h2>
+
+            {/* 即時監控卡片 - 仿真影像區 */}
+            <div className="relative overflow-hidden rounded-lg bg-zinc-900" style={{ aspectRatio: '16 / 9' }}>
+              {/* Demo 模擬影像容器 */}
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+                <div className="text-center">
+                  <p className="text-sm text-zinc-400">尚無即時影像</p>
+                  <p className="mt-1 text-xs text-zinc-500">設備尚未連線</p>
+                </div>
+              </div>
+
+              {/* LIVE 標籤 */}
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-red-400 animate-pulse" aria-hidden />
+                <span className="text-xs font-bold text-white">LIVE</span>
+              </div>
+
+              {/* 設備標籤 */}
+              <div className="absolute bottom-3 right-3 rounded bg-black/70 px-2 py-1">
+                <p className="text-xs font-semibold text-white whitespace-nowrap">QR 密碼鎖（門外）</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
 
       {/* 預約密碼設定 */}
       {slotData && !slotData.ready && (

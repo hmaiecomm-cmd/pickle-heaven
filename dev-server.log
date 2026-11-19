@@ -2,38 +2,11 @@
 > pickle-heaven@1.0.0 dev
 > next dev
 
- ⚠ Port 3000 is in use by process 31204, using available port 3001 instead.
+ ⚠ Port 3000 is in use by process 25644, using available port 3001 instead.
    ▲ Next.js 15.5.29
    - Local:        http://localhost:3001
-   - Network:      http://192.168.68.103:3001
+   - Network:      http://192.168.68.105:3001
    - Environments: .env.local, .env
 
  ✓ Starting...
- ✓ Ready in 7.4s
- ✓ Compiled /middleware in 344ms (195 modules)
- ○ Compiling /admin/home ...
- ✓ Compiled /admin/home in 12.6s (1188 modules)
- GET /admin/home 200 in 17964ms
- ○ Compiling /api/admin/home/config ...
- ✓ Compiled /api/admin/home/config in 4.5s (1194 modules)
-prisma:error 
-Invalid `prisma.homePageConfig.findFirst()` invocation:
-
-
-Error occurred during query execution:
-ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(SqliteError { extended_code: 1, message: Some("SQLITE_UNKNOWN: SQLite error: no such table: main.HomePageConfig") }), transient: false })
- GET /api/admin/home/config 400 in 7126ms
- GET /admin/home 200 in 1955ms
- ✓ Compiled in 1353ms (331 modules)
- ✓ Compiled in 842ms (331 modules)
- ✓ Compiled in 786ms (331 modules)
- ✓ Compiled in 769ms (331 modules)
- ✓ Compiled in 923ms (331 modules)
- ✓ Compiled in 834ms (331 modules)
- ✓ Compiled in 1034ms (331 modules)
- ✓ Compiled in 877ms (331 modules)
- ✓ Compiled in 798ms (331 modules)
- ✓ Compiled in 802ms (331 modules)
- ✓ Compiled in 1689ms (331 modules)
-<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\hmai.ecomm\Dropbox\顧好AI智慧場館平台\.next\cache\webpack\client-development\1.pack.gz'
- ✓ Compiled in 1096ms (331 modules)
+ ✓ Ready in 7.1s

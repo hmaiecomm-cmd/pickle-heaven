@@ -30,11 +30,13 @@ export function HomeEditorClient({ username }: { username: string }) {
         title: 'OPEN PLAY／訂場',
         description: '靈活的訂場系統，支援臨時報名和固定會員時段',
         visible: true,
+        selectedSessionIds: [],
       },
       coaching: {
         title: '教練',
         description: '專業教練團隊，提供個人和團體課程',
         visible: true,
+        coaches: [],
       },
       story: {
         title: '場館故事',
@@ -52,7 +54,6 @@ export function HomeEditorClient({ username }: { username: string }) {
         visible: true,
       },
     },
-    selectedActivityIds: [],
   })
 
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
