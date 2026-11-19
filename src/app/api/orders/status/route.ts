@@ -133,9 +133,8 @@ export async function PATCH(request: NextRequest) {
       await prisma.cancellationLog.create({
         data: {
           bookingId: orderId,
-          reason: reason || 'User requested',
-          cancelledBy: 'USER',
-          refundStatus: 'PENDING',
+          status: 'SUCCESS',
+          rejectionReason: reason || undefined,
         },
       })
 
