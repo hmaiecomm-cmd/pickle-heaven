@@ -278,6 +278,7 @@ model User {
   topUpOrders    TopUpOrder[]
   duprPlayerLink DuprPlayerLink?
   passwordLogs   SlotPasswordLog[]
+  productOrders  ProductOrder[]
 
   @@index([createdAt])
 }
@@ -341,6 +342,8 @@ model Venue {
   announcements       Announcement[]
   pageConfigurations  PageConfiguration[]
   marketingCampaigns  MarketingCampaign[]
+  products            Product[]
+  productOrders       ProductOrder[]
 }
 
 /// 場地（球場）
@@ -3143,7 +3146,7 @@ model ProductOrder {
 model ProductOrderItem {
   id              String    @id @default(cuid())
   orderId         String
-  productId       String
+  productId       String?
 
   productName     String    // 下單時的商品名稱快照
   productSku      String    // 下單時的 SKU 快照
@@ -3154,7 +3157,7 @@ model ProductOrderItem {
   createdAt       DateTime  @default(now())
 
   order           ProductOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product         Product   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product         Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([productId])

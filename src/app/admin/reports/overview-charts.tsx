@@ -90,7 +90,14 @@ function CourtMap({ courts }: { courts: OverviewData['courts'] }) {
 
 /* ─────────── 使用熱力圖：星期 × 時段 ─────────── */
 
-const heat = (v: number) => (v <= 0 ? '#f2f5ee' : v < 20 ? '#dcefcf' : v < 40 ? '#b9dea0' : v < 60 ? '#8cc56b' : v < 80 ? '#5ea43f' : '#2f7d3b')
+const heat = (v: number) => {
+  if (v <= 0) return '#f3f4f6'
+  if (v < 20) return '#3b82f6'
+  if (v < 40) return '#60a5fa'
+  if (v < 60) return '#fbbf24'
+  if (v < 80) return '#f97316'
+  return '#dc2626'
+}
 
 function Heatmap({ data }: { data: OverviewData['heatmap'] }) {
   if (!data.rows.some((r) => r.values.some((v) => v > 0))) return <Empty />
@@ -109,8 +116,13 @@ function Heatmap({ data }: { data: OverviewData['heatmap'] }) {
               <tr key={row.label}>
                 <th scope="row" className="pr-1 text-left font-semibold text-[#3d4a40]">{row.label}</th>
                 {row.values.map((v, i) => (
-                  <td key={i} className="h-8 rounded-md" style={{ background: heat(v) }} title={`${row.label} ${data.hours[i]}：${v}%`}>
-                    <span className="sr-only">{`${row.label} ${data.hours[i]} 使用率 ${v}%`}</span>
+                  <td
+                    key={i}
+                    className="h-8 rounded-md cursor-pointer transition-opacity hover:opacity-80"
+                    style={{ background: heat(v) }}
+                    title={`${row.label} ${data.hours[i]}${v > 0 ? `：${v}%` : ''}`}
+                  >
+                    <span className="sr-only">{`${row.label} ${data.hours[i]}${v > 0 ? ` 使用率 ${v}%` : ''}`}</span>
                   </td>
                 ))}
               </tr>
@@ -118,11 +130,37 @@ function Heatmap({ data }: { data: OverviewData['heatmap'] }) {
           </tbody>
         </table>
       </div>
-      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted">
-        <span>使用率低</span>
-        {[0, 10, 30, 50, 70, 90].map((v) => <span key={v} className="h-3 w-6 rounded" style={{ background: heat(v) }} aria-hidden />)}
-        <span>使用率高</span>
+
+      <div className="mt-4 rounded-lg bg-[#f8fafc] p-3 ring-1 ring-[#e2e8f0]">
+        <p className="mb-2 text-xs font-semibold text-[#1f2a22]">使用率色階</p>
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="text-muted">低</span>
+          <div className="flex gap-0.5">
+            {[
+              { v: 0, label: '0%' },
+              { v: 10, label: '10%' },
+              { v: 30, label: '30%' },
+              { v: 50, label: '50%' },
+              { v: 70, label: '70%' },
+              { v: 90, label: '90%' },
+            ].map(({ v, label }) => (
+              <div key={v} className="flex flex-col items-center gap-1">
+                <span className="h-6 w-5 rounded-sm border border-[#e5e7eb]" style={{ background: heat(v) }} aria-hidden />
+                <span className="w-5 text-center text-[10px] text-muted">{label}</span>
+              </div>
+            ))}
+          </div>
+          <span className="text-muted">高</span>
+        </div>
       </div>
+
+      <p className="mt-2 text-[11px] text-muted">
+        • 藍色表示低使用率、紅色表示高使用率
+        <br />
+        • 灰色表示無資料
+        <br />
+        • 將游標移到格子或點擊可看詳細資訊
+      </p>
     </div>
   )
 }

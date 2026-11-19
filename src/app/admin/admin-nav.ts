@@ -105,14 +105,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '系統設定',
     icon: 'settings',
     items: [
-      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true, group: '場館與品牌設定' },
-      { label: '官網頁面管理', href: '/admin/home', permission: 'settings', group: '場館與品牌設定' },
-      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff', group: '主管與權限設定' },
-      { label: '操作紀錄', href: '/admin/audit', permission: 'audit', group: '主管與權限設定' },
-      { label: '儲值方案', href: '/admin/settings/topup', permission: 'settings', group: '通知與串接設定' },
-      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings', group: '通知與串接設定' },
-      { label: '設備串接', href: '/admin/settings/devices', permission: 'settings', group: '通知與串接設定' },
-      { label: '定價與會員折扣', href: '/admin/pricing', permission: 'settings', group: '價格與會員方案' },
+      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
+      { label: '官網頁面管理', href: '/admin/home', permission: 'settings' },
+      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
+      { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
+      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
+      { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
     ],
   },
 ]
@@ -136,6 +134,8 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/bookings/products': '/admin/finance?tab=products',
   // 會員與教練導航別名
   '/admin/members/history': '/admin/members',
+  // 移除的系統設定頁面重定向到球館基本資料
+  '/admin/settings/topup': '/admin/settings',
   // 舊活動相關頁面重定向到會員管理
   '/admin/activities': '/admin/members',
   '/admin/sessions': '/admin/members',

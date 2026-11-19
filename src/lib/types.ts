@@ -169,3 +169,32 @@ export interface ApiError {
   /** 被搶走的時段，前端可據此標紅 */
   conflicts?: { courtId: string; start: number }[]
 }
+
+export type ProductCategory = 'RACKET' | 'APPAREL' | 'BALLS' | 'ACCESSORIES'
+
+export interface Product {
+  id: string
+  name: string
+  sku: string
+  category: ProductCategory
+  description: string
+  imageUrl: string | null
+  price: number
+  stockQuantity: number
+  reservedQuantity: number
+  availableQuantity: number
+  published: boolean
+  status: 'ACTIVE' | 'INACTIVE' | 'LOW_STOCK' | 'SOLD_OUT'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProductOrderDTO {
+  id: string
+  code: string
+  status: 'PENDING' | 'PAID' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+  paymentStatus: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED'
+  shippingStatus: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+  total: number
+  createdAt: string
+}
