@@ -120,6 +120,24 @@ export function EditorFullV5({ username }: { username: string }) {
     }
   }
 
+  const handlePublish = async () => {
+    setIsSaving(true)
+    setMessage(null)
+    try {
+      const response = await fetch('/api/admin/home/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) throw new Error('發布失敗')
+      setMessage({ type: 'success', text: '✓ 已發布到正式首頁' })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      setMessage({ type: 'error', text: '✗ 發布失敗' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handlePhotoUpload = (section: 'story1' | 'story2' | 'story3' | 'visit' | 'invite', file: File) => {
     if (!file.type.startsWith('image/')) {
       setMessage({ type: 'error', text: '請選擇圖片文件' })
@@ -179,6 +197,14 @@ export function EditorFullV5({ username }: { username: string }) {
           >
             <Save className="h-4 w-4" />
             {isSaving ? '儲存中...' : '儲存草稿'}
+          </button>
+          <button
+            onClick={handlePublish}
+            disabled={isSaving}
+            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white disabled:opacity-50 hover:bg-green-700 font-medium"
+          >
+            <ArrowRight className="h-4 w-4" />
+            {isSaving ? '發布中...' : '發布到正式首頁'}
           </button>
         </div>
       </div>

@@ -68,9 +68,9 @@ export default async function HomePage() {
         <HeroSection data={data} />
         <PlansSection data={data} />
         <CoachingSection data={data} />
-        <StorySection />
+        <StorySection data={data} />
         <VisitSection data={data} />
-        <InviteSection />
+        <InviteSection data={data} />
       </main>
       <HomeFooter data={data} />
       <MobileBookingBar />

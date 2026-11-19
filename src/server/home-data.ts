@@ -2,6 +2,7 @@ import { CoachStatus, RegistrationStatus, SessionStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getUpcomingSessions } from './activity-service'
 import { zonedParts } from '@/lib/timezone'
+import type { EditorState } from '@/app/admin/home/editor-types'
 
 /**
  * 首頁用的營運資料，全部來自資料庫既有設定；任何一項讀取失敗都回傳空值，
@@ -43,6 +44,7 @@ export interface HomeData {
   minPrice: number | null
   sessions: HomeSession[]
   coaches: HomeCoach[]
+  editor?: EditorState
 }
 
 const DAY_LABEL = { ALL: '每日', WEEKDAY: '平日', WEEKEND: '假日' } as const
@@ -71,7 +73,7 @@ export async function getHomeData(): Promise<HomeData> {
     null,
   )
 
-  const [rules, sessions, coaches] = await Promise.all([
+  const [rules, sessions, coaches, homePageConfig] = await Promise.all([
     venue
       ? safe(
           '費率',
@@ -90,6 +92,11 @@ export async function getHomeData(): Promise<HomeData> {
         }),
       [],
     ),
+    safe(
+      '首頁配置',
+      () => prisma.homePageConfig.findFirst(),
+      null,
+    ),
   ])
 
   const prices: HomePriceRow[] = rules.map((r) => ({
@@ -97,6 +104,16 @@ export async function getHomeData(): Promise<HomeData> {
     timeLabel: `${minuteLabel(r.startMinute)}–${minuteLabel(r.endMinute)}`,
     price: r.price,
   }))
+
+  // 解析發布的編輯器配置
+  let editor: EditorState | undefined
+  if (homePageConfig?.publishedConfig) {
+    try {
+      editor = JSON.parse(homePageConfig.publishedConfig) as EditorState
+    } catch (err) {
+      console.error('[home] 解析發布配置失敗', err)
+    }
+  }
 
   return {
     venue: venue
@@ -123,5 +140,6 @@ export async function getHomeData(): Promise<HomeData> {
       ...c,
       specialties: Array.isArray(c.specialties) ? c.specialties.filter((x): x is string => typeof x === 'string') : [],
     })),
+    editor,
   }
 }

@@ -295,44 +295,62 @@ export function CoachingSection({ data }: { data: HomeData }) {
 /* ================================================================
  * 品牌與場館故事：一張主照片＋兩張細節照片錯位
  * ================================================================ */
-export function StorySection() {
+export function StorySection({ data }: { data: HomeData }) {
+  const editorConfig = data.editor?.sections.story
+
   return (
     <section id="story" aria-labelledby="story-title" className="hp-section bg-hp-cream">
       <div className="hp-container grid gap-10 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-0">
-        <Photo
-          image={images.forestCourt}
-          sizes="(min-width: 1024px) 55vw, 100vw"
-          className="hp-reveal lg:col-span-7 lg:row-span-2"
-          frameClassName="aspect-[4/3] lg:aspect-[5/6]"
-        />
+        {editorConfig?.photo1Id ? (
+          <img src={editorConfig.photo1Id} alt={editorConfig?.title || 'Story'} className="hp-reveal lg:col-span-7 lg:row-span-2 w-full h-full object-cover rounded-[var(--hp-radius-lg)]" />
+        ) : (
+          <Photo
+            image={images.forestCourt}
+            sizes="(min-width: 1024px) 55vw, 100vw"
+            className="hp-reveal lg:col-span-7 lg:row-span-2"
+            frameClassName="aspect-[4/3] lg:aspect-[5/6]"
+          />
+        )}
 
         <div className="lg:col-span-5 lg:pt-6">
           <Eyebrow index="03" className="hp-reveal text-hp-purple">
             OUR STORY
           </Eyebrow>
           <h2 id="story-title" className="hp-h2 hp-reveal mt-4">
-            森林裡的球場，
-            <br />
-            生活裡的主場。
+            {editorConfig?.title || (
+              <>
+                森林裡的球場，
+                <br />
+                生活裡的主場。
+              </>
+            )}
           </h2>
           <p className="hp-lead hp-reveal mt-6 text-hp-ink/80">
-            揮拍、交流，也讓自己慢下來。大新店森林匹克球，希望讓每一次相聚，都成為你期待再次上場的理由。
+            {editorConfig?.description || '揮拍、交流，也讓自己慢下來。大新店森林匹克球，希望讓每一次相聚，都成為你期待再次上場的理由。'}
           </p>
         </div>
 
         <div className="grid grid-cols-2 items-start gap-4 sm:gap-6 lg:col-span-5 lg:self-end">
-          <Photo
-            image={images.lounge}
-            sizes="(min-width: 1024px) 20vw, 50vw"
-            className="hp-reveal"
-            frameClassName="aspect-[4/5]"
-          />
-          <Photo
-            image={images.entrance}
-            sizes="(min-width: 1024px) 20vw, 50vw"
-            className="hp-reveal mt-12 [--hp-delay:120ms] sm:mt-20"
-            frameClassName="aspect-[3/4]"
-          />
+          {editorConfig?.photo2Id ? (
+            <img src={editorConfig.photo2Id} alt="Detail 1" className="hp-reveal w-full h-40 object-cover rounded-[var(--hp-radius-lg)]" />
+          ) : (
+            <Photo
+              image={images.lounge}
+              sizes="(min-width: 1024px) 20vw, 50vw"
+              className="hp-reveal"
+              frameClassName="aspect-[4/5]"
+            />
+          )}
+          {editorConfig?.photo3Id ? (
+            <img src={editorConfig.photo3Id} alt="Detail 2" className="hp-reveal w-full h-40 object-cover rounded-[var(--hp-radius-lg)] mt-12 sm:mt-20" />
+          ) : (
+            <Photo
+              image={images.entrance}
+              sizes="(min-width: 1024px) 20vw, 50vw"
+              className="hp-reveal mt-12 [--hp-delay:120ms] sm:mt-20"
+              frameClassName="aspect-[3/4]"
+            />
+          )}
         </div>
       </div>
     </section>
@@ -364,6 +382,8 @@ export function VisitSection({ data }: { data: HomeData }) {
   const navHref = navigationHref(address)
   const contactText = [phone, contact.email].filter(Boolean).join('　')
 
+  const editorConfig = data.editor?.sections.visit
+
   const rows: { k: string; v: React.ReactNode | null }[] = [
     { k: '場館名稱', v: brand.name },
     { k: '地址', v: address },
@@ -382,13 +402,17 @@ export function VisitSection({ data }: { data: HomeData }) {
     <section id="visit" aria-labelledby="visit-title" className="hp-section bg-hp-lilac">
       <div className="hp-container">
         <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-8">
-          <Photo
-            image={images.exterior}
-            sizes="(min-width: 1024px) 40vw, 100vw"
-            className="hp-reveal lg:col-span-5"
-            frameClassName="aspect-[4/3] lg:aspect-[4/5]"
-            imgClassName="object-[66%_50%]"
-          />
+          {editorConfig?.photoId ? (
+            <img src={editorConfig.photoId} alt={editorConfig?.title || 'Visit'} className="hp-reveal lg:col-span-5 w-full h-full object-cover rounded-[var(--hp-radius-lg)] aspect-[4/3] lg:aspect-[4/5]" />
+          ) : (
+            <Photo
+              image={images.exterior}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              className="hp-reveal lg:col-span-5"
+              frameClassName="aspect-[4/3] lg:aspect-[4/5]"
+              imgClassName="object-[66%_50%]"
+            />
+          )}
 
           <div className="lg:col-span-6 lg:col-start-7">
             <Eyebrow index="04" className="hp-reveal text-hp-purple">
@@ -467,30 +491,49 @@ export function VisitSection({ data }: { data: HomeData }) {
 /* ================================================================
  * 底部預約邀請：深紫底、大字，右側只露出部分場館照片
  * ================================================================ */
-export function InviteSection() {
+export function InviteSection({ data }: { data: HomeData }) {
+  const editorConfig = data.editor?.sections.invite
+
   return (
     <section id="invite" aria-labelledby="invite-title" className="hp-on-dark relative isolate overflow-hidden bg-hp-deep text-white">
       <div className="lg:grid lg:min-h-[34rem] lg:grid-cols-12">
         <div className="relative h-56 overflow-hidden sm:h-72 lg:order-2 lg:col-span-4 lg:col-start-9 lg:h-auto">
-          <Image
-            src={images.hero.src}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 34vw, 100vw"
-            className="origin-[85%_10%] scale-[1.35] object-cover object-[85%_20%]"
-          />
+          {editorConfig?.backgroundPhotoId ? (
+            <img src={editorConfig.backgroundPhotoId} alt="" className="w-full h-full object-cover origin-[85%_10%] scale-[1.35] object-[85%_20%]" />
+          ) : (
+            <Image
+              src={images.hero.src}
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 34vw, 100vw"
+              className="origin-[85%_10%] scale-[1.35] object-cover object-[85%_20%]"
+            />
+          )}
           <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-hp-deep via-transparent to-transparent lg:bg-gradient-to-r lg:via-transparent" />
         </div>
         <div className="relative px-[var(--hp-gutter)] py-16 lg:col-span-8 lg:flex lg:flex-col lg:justify-center lg:py-24">
           <CourtLines className="absolute right-0 top-1/2 hidden h-[26rem] w-[12rem] -translate-y-1/2 rotate-90 text-white/[0.08] lg:block" />
           <div className="relative mx-auto w-full max-w-[52rem] lg:mx-0 lg:ml-auto lg:mr-12">
             <h2 id="invite-title" className="hp-display hp-reveal">
-              下一場，
-              <br />
-              約在森林裡。
+              {editorConfig?.title ? (
+                <>
+                  {editorConfig.title.split('\n').map((line, i) => (
+                    <span key={i}>
+                      {line}
+                      {i < editorConfig.title.split('\n').length - 1 && <br />}
+                    </span>
+                  ))}
+                </>
+              ) : (
+                <>
+                  下一場，
+                  <br />
+                  約在森林裡。
+                </>
+              )}
             </h2>
             <p className="hp-lead hp-reveal mt-6 max-w-[30rem] text-white/85 [--hp-delay:80ms]">
-              帶上想動一動的心情，來一場屬於你的匹克球時光。
+              {editorConfig?.description || '帶上想動一動的心情，來一場屬於你的匹克球時光。'}
             </p>
             <div className="hp-reveal mt-9 flex flex-wrap gap-3 [--hp-delay:160ms]">
               <Link href="/booking" className="hp-btn hp-btn-primary">
