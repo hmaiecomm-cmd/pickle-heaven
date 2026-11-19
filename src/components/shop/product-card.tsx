@@ -69,7 +69,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* Action Buttons */}
           <div className={styles.actions}>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className={styles.buttonOutline}
               onClick={() => setShowDetail(true)}

@@ -236,7 +236,7 @@ export function ProductOrdersClient() {
                     <Truck className="h-4 w-4 mr-2" aria-hidden />
                     標記出貨
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="secondary">
                     <RefreshCw className="h-4 w-4 mr-2" aria-hidden />
                     查看退款
                   </Button>

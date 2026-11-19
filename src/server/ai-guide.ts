@@ -74,8 +74,8 @@ export const GUIDES: GuideEntry[] = [
   {
     id: 'topup_how',
     question: '客人如何購買點數？',
-    answer: '客人登入前台會員中心，在會員總覽或「我的點數」按「儲值點數」，選擇方案、確認內容後付款；後端收到金流確認才會入帳。正式金流尚未接通前，前台會顯示「線上儲值尚未開放」，請改由櫃台處理。方案由擁有者在「設定管理 → 儲值方案」設定。',
-    links: [{ label: '儲值方案設定', href: '/admin/settings/topup', permission: 'settings' }, { label: '儲值單', href: '/admin/topup', permission: 'finance' }],
+    answer: '客人登入前台會員中心，在會員總覽或「我的點數」按「儲值點數」，選擇方案、確認內容後付款；後端收到金流確認才會入帳。正式金流尚未接通前，前台會顯示「線上儲值尚未開放」，請改由櫃台處理。',
+    links: [{ label: '儲值單', href: '/admin/topup', permission: 'finance' }],
     patterns: [/(購買|買|儲值).*(點數)/, /點數.*(購買|怎麼買|儲值)/, /儲值/],
   },
   {

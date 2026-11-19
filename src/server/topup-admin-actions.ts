@@ -39,7 +39,7 @@ export async function savePlanAction(input: z.infer<typeof planSchema>): Promise
       ? await prisma.topUpPlan.update({ where: { id: v.id }, data })
       : await prisma.topUpPlan.create({ data: { ...data, createdBy: `admin:${ctx.username}` } })
     await prisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: v.id ? 'TOPUP_PLAN_UPDATE' : 'TOPUP_PLAN_CREATE', target: plan.id, detail: data } })
-    revalidatePath('/admin/settings/topup')
+    revalidatePath('/admin/settings')
     revalidatePath('/account/topup')
     return { ok: true, id: plan.id, message: v.id ? '已更新方案' : '已建立方案' }
   } catch (err) {
@@ -52,7 +52,7 @@ export async function setPlanActiveAction(id: string, active: boolean): Promise<
     const ctx = await requirePermission('settings')
     const plan = await prisma.topUpPlan.update({ where: { id }, data: { active } })
     await prisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: active ? 'TOPUP_PLAN_ON' : 'TOPUP_PLAN_OFF', target: plan.id, detail: { name: plan.name } } })
-    revalidatePath('/admin/settings/topup')
+    revalidatePath('/admin/settings')
     revalidatePath('/account/topup')
     return { ok: true, message: active ? '已上架' : '已下架' }
   } catch (err) {
