@@ -1,0 +1,312 @@
+<claude-code-hint v="1" type="plugin" value="vercel@claude-plugins-official" />
+Vercel CLI 59.25.0 (Node.js 22.16.0)
+Deploying pickle-heaven
+Uploading [--------------------] (0.0B/20.1KB)
+Uploading [===============-----] (16.0KB/20.1KB)
+Uploading [====================] (20.1KB/20.1KB)
+  Inspect         https://vercel.com/karajankuo-7123s-projects/pickle-heaven/CaPNf9wLWzfGhPcNQscbNZsSK3ZE
+  Production      https://pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app
+Building…
+Building…
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 4 cores, 8 GB (Standard Build Machine)
+Retrieving list of deployment files...
+Downloading 1106 deployment files...
+Restored build cache from previous deployment (3v4fqCccnpP81kMFQmK7J9PU2reD)
+Running "vercel build"
+Vercel CLI 66.2.0
+Warning: Detected "engines": { "node": ">=20" } in your `package.json` that will automatically upgrade when a new major Node.js Version is released. Learn More: https://vercel.link/node-version
+Installing dependencies...
+npm warn Unknown env config "cache-dir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+> pickle-heaven@1.0.0 postinstall
+> node scripts/generate-prisma.mjs
+npm warn Unknown env config "cache-dir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+Loaded Prisma config from prisma.config.ts.
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma/schema.prisma
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 462ms
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+[patch-prisma] 已修補 #main-entry-point → ./index.js
+up to date in 3s
+60 packages are looking for funding
+run `npm fund` for details
+npm warn install-scripts 5 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @prisma/client@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @prisma/engines@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+npm warn install-scripts   prisma@6.19.3 (preinstall: node scripts/preinstall-entry.js)
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+Detected Next.js version: 15.5.29
+Running "npm run build"
+npm warn Unknown env config "cache-dir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+> pickle-heaven@1.0.0 build
+> node scripts/generate-prisma.mjs && next build
+npm warn Unknown env config "cache-dir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+Loaded Prisma config from prisma.config.ts.
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma/schema.prisma
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.3 -> 8.0.0-rc.34                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 479ms
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+[patch-prisma] 已修補 #main-entry-point → ./index.js
+▲ Next.js 15.5.29
+Creating an optimized production build ...
+✓ Compiled successfully in 12.3s
+Linting and checking validity of types ...
+Collecting page data ...
+[DUPR] 警告：DUPR_ENCRYPTION_KEY 未設置。Token 加密可能無法正常工作。
+[DUPR] 警告：DUPR_ENCRYPTION_KEY 未設置。Token 加密可能無法正常工作。
+Generating static pages (0/47) ...
+Generating static pages (11/47)
+Generating static pages (23/47)
+Generating static pages (35/47)
+✓ Generating static pages (47/47)
+Finalizing page optimization ...
+Collecting build traces ...
+Route (app)                                                     Size  First Load JS
+┌ ƒ /                                                        1.22 kB         119 kB
+├ ƒ /_not-found                                                375 B         103 kB
+├ ƒ /account                                                 9.47 kB         129 kB
+├ ƒ /account/dupr-tab                                        1.28 kB         107 kB
+├ ƒ /account/topup                                            3.8 kB         121 kB
+├ ƒ /account/topup/[id]                                      5.61 kB         123 kB
+├ ƒ /account/topup/confirm                                   5.83 kB         123 kB
+├ ƒ /admin                                                   6.18 kB         138 kB
+├ ƒ /admin/access                                            14.3 kB         141 kB
+├ ƒ /admin/activities                                          199 B         106 kB
+├ ƒ /admin/activities/[id]                                     146 B         160 kB
+├ ƒ /admin/activities/new                                      199 B         152 kB
+├ ƒ /admin/ai-assistant                                        375 B         103 kB
+├ ƒ /admin/ai-courts                                           375 B         103 kB
+├ ƒ /admin/audit                                               199 B         106 kB
+├ ƒ /admin/automation                                          889 B         120 kB
+├ ƒ /admin/bookings                                          24.6 kB         156 kB
+├ ƒ /admin/bookings/products                                   194 B         106 kB
+├ ƒ /admin/change-password                                   5.44 kB         115 kB
+├ ƒ /admin/coaches/[id]                                      1.32 kB         107 kB
+├ ƒ /admin/control                                           7.91 kB         135 kB
+├ ƒ /admin/courts                                            7.43 kB         140 kB
+├ ƒ /admin/devices                                              8 kB         127 kB
+├ ƒ /admin/events                                            9.48 kB         142 kB
+├ ƒ /admin/expenses                                          12.2 kB         142 kB
+├ ƒ /admin/finance                                            2.6 kB         115 kB
+├ ƒ /admin/finance/daily                                       199 B         106 kB
+├ ƒ /admin/finance/payments                                  5.16 kB         138 kB
+├ ƒ /admin/home                                              6.72 kB         116 kB
+├ ƒ /admin/incidents                                         5.77 kB         118 kB
+├ ƒ /admin/invoices                                          5.55 kB         138 kB
+├ ƒ /admin/login                                             5.07 kB         114 kB
+├ ƒ /admin/logs                                              3.05 kB         109 kB
+├ ƒ /admin/maintenance                                       9.77 kB         140 kB
+├ ƒ /admin/marketing                                         14.9 kB         149 kB
+├ ƒ /admin/marketing/activities/[id]                           146 B         160 kB
+├ ƒ /admin/marketing/activities/new                            199 B         152 kB
+├ ƒ /admin/marketing/campaigns                                 194 B         106 kB
+├ ƒ /admin/marketing/products                                  194 B         106 kB
+├ ƒ /admin/marketing/vouchers                                  194 B         106 kB
+├ ƒ /admin/members                                           1.57 kB         108 kB
+├ ƒ /admin/members/[id]                                      7.37 kB         120 kB
+├ ƒ /admin/members/history                                     199 B         106 kB
+├ ƒ /admin/members/points                                      199 B         106 kB
+├ ƒ /admin/members/restrictions                                199 B         106 kB
+├ ƒ /admin/monitor                                           18.9 kB         132 kB
+├ ƒ /admin/pricing                                           5.94 kB         125 kB
+├ ƒ /admin/product-management                                5.41 kB         115 kB
+├ ƒ /admin/product-orders                                    6.21 kB         116 kB
+├ ƒ /admin/products                                          4.94 kB         114 kB
+├ ƒ /admin/receipts                                            375 B         103 kB
+├ ƒ /admin/refunds                                             199 B         106 kB
+├ ƒ /admin/registrations                                       199 B         106 kB
+├ ƒ /admin/remote-control-watchdog                           2.75 kB         109 kB
+├ ƒ /admin/reports                                           12.8 kB         125 kB
+├ ƒ /admin/reports/activities                                  199 B         106 kB
+├ ƒ /admin/reports/members                                     199 B         106 kB
+├ ƒ /admin/reports/utilization                                 199 B         106 kB
+├ ƒ /admin/schedule                                          6.13 kB         133 kB
+├ ƒ /admin/sessions                                          4.81 kB         131 kB
+├ ƒ /admin/sessions/[id]                                     3.65 kB         121 kB
+├ ƒ /admin/settings                                          9.71 kB         128 kB
+├ ƒ /admin/settings/devices                                    194 B         106 kB
+├ ƒ /admin/settings/payments                                   194 B         106 kB
+├ ƒ /admin/settings/site                                       194 B         106 kB
+├ ƒ /admin/settings/staff                                    5.49 kB         118 kB
+├ ƒ /admin/settings/topup                                    4.16 kB         117 kB
+├ ƒ /admin/templates                                         8.95 kB         122 kB
+├ ƒ /admin/topup                                             2.59 kB         115 kB
+├ ƒ /admin/venue-map                                          3.8 kB         110 kB
+├ ƒ /admin/watchdog                                          2.54 kB         108 kB
+├ ƒ /api/admin/ai/actions                                      375 B         103 kB
+├ ƒ /api/admin/ai/chat                                         375 B         103 kB
+├ ƒ /api/admin/audit                                           375 B         103 kB
+├ ƒ /api/admin/automation/logs                                 375 B         103 kB
+├ ƒ /api/admin/automation/rules                                375 B         103 kB
+├ ƒ /api/admin/automation/rules/[id]                           375 B         103 kB
+├ ƒ /api/admin/circuits/schedule                               375 B         103 kB
+├ ƒ /api/admin/circuits/schedule/audit                         375 B         103 kB
+├ ƒ /api/admin/circuits/schedule/preview                       375 B         103 kB
+├ ƒ /api/admin/coaches                                         375 B         103 kB
+├ ƒ /api/admin/coaches/[id]                                    375 B         103 kB
+├ ƒ /api/admin/control/command                                 375 B         103 kB
+├ ƒ /api/admin/courts                                          375 B         103 kB
+├ ƒ /api/admin/courts/[id]                                     375 B         103 kB
+├ ƒ /api/admin/courts/[id]/status                              375 B         103 kB
+├ ƒ /api/admin/devices                                         375 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies                     375 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies/[id]/acknowledge    375 B         103 kB
+├ ƒ /api/admin/devices/[circuit]/anomalies/[id]/resolve        375 B         103 kB
+├ ƒ /api/admin/devices/statistics                              375 B         103 kB
+├ ƒ /api/admin/events                                          375 B         103 kB
+├ ƒ /api/admin/expenses                                        375 B         103 kB
+├ ƒ /api/admin/expenses/[id]                                   375 B         103 kB
+├ ƒ /api/admin/expenses/[id]/status                            375 B         103 kB
+├ ƒ /api/admin/expenses/attachments                            375 B         103 kB
+├ ƒ /api/admin/expenses/attachments/[id]                       375 B         103 kB
+├ ƒ /api/admin/expenses/duplicates                             375 B         103 kB
+├ ƒ /api/admin/finance/revenue                                 375 B         103 kB
+├ ƒ /api/admin/finance/summary                                 375 B         103 kB
+├ ƒ /api/admin/home/config                                     375 B         103 kB
+├ ƒ /api/admin/home/draft                                      375 B         103 kB
+├ ƒ /api/admin/home/publish                                    375 B         103 kB
+├ ƒ /api/admin/home/restore                                    375 B         103 kB
+├ ƒ /api/admin/home/sessions                                   375 B         103 kB
+├ ƒ /api/admin/home/upload                                     375 B         103 kB
+├ ƒ /api/admin/invoices                                        375 B         103 kB
+├ ƒ /api/admin/invoices/[id]/status                            375 B         103 kB
+├ ƒ /api/admin/logs                                            375 B         103 kB
+├ ƒ /api/admin/marketing/[kind]                                375 B         103 kB
+├ ƒ /api/admin/marketing/[kind]/[id]                           375 B         103 kB
+├ ƒ /api/admin/media                                           375 B         103 kB
+├ ƒ /api/admin/members                                         375 B         103 kB
+├ ƒ /api/admin/members/[id]/level                              375 B         103 kB
+├ ƒ /api/admin/mfa/setup                                       375 B         103 kB
+├ ƒ /api/admin/mfa/verify                                      375 B         103 kB
+├ ƒ /api/admin/payments                                        375 B         103 kB
+├ ƒ /api/admin/pricing                                         375 B         103 kB
+├ ƒ /api/admin/pricing/tiers                                   375 B         103 kB
+├ ƒ /api/admin/product-inventory                               375 B         103 kB
+├ ƒ /api/admin/product-management                              375 B         103 kB
+├ ƒ /api/admin/product-orders                                  375 B         103 kB
+├ ƒ /api/admin/receipts                                        375 B         103 kB
+├ ƒ /api/admin/receipts/[id]/confirm                           375 B         103 kB
+├ ƒ /api/admin/settings                                        375 B         103 kB
+├ ƒ /api/admin/settings/venue/[id]                             375 B         103 kB
+├ ƒ /api/admin/watchdog                                        375 B         103 kB
+├ ƒ /api/auth/dupr/authorize                                   375 B         103 kB
+├ ƒ /api/auth/dupr/callback                                    375 B         103 kB
+├ ƒ /api/booking/cancel                                        375 B         103 kB
+├ ƒ /api/bookings/[id]/status                                  375 B         103 kB
+├ ƒ /api/cart-product                                          375 B         103 kB
+├ ƒ /api/cron/check-schedules                                  375 B         103 kB
+├ ƒ /api/cron/door-watchdog                                    375 B         103 kB
+├ ƒ /api/cron/expire-bookings                                  375 B         103 kB
+├ ƒ /api/cron/reminders                                        375 B         103 kB
+├ ƒ /api/cron/sessions                                         375 B         103 kB
+├ ƒ /api/cron/slot-passwords                                   375 B         103 kB
+├ ƒ /api/cron/watchdog                                         375 B         103 kB
+├ ƒ /api/door/access                                           375 B         103 kB
+├ ƒ /api/door/schedule                                         375 B         103 kB
+├ ƒ /api/door/verify-code                                      375 B         103 kB
+├ ƒ /api/door/watchdog                                         375 B         103 kB
+├ ƒ /api/dupr/link                                             375 B         103 kB
+├ ƒ /api/dupr/me                                               375 B         103 kB
+├ ƒ /api/dupr/sync-ratings                                     375 B         103 kB
+├ ƒ /api/health                                                375 B         103 kB
+├ ƒ /api/marketing/announcements                               375 B         103 kB
+├ ƒ /api/marketing/banners                                     375 B         103 kB
+├ ƒ /api/marketing/promotion-cards                             375 B         103 kB
+├ ƒ /api/orders/send-confirmation                              375 B         103 kB
+├ ƒ /api/orders/status                                         375 B         103 kB
+├ ƒ /api/payments/[provider]/notify                            375 B         103 kB
+├ ƒ /api/payments/confirm                                      375 B         103 kB
+├ ƒ /api/payments/initiate                                     375 B         103 kB
+├ ƒ /api/payments/tappay/prime                                 375 B         103 kB
+├ ƒ /api/preview/[pageType]                                    375 B         103 kB
+├ ƒ /api/product-orders                                        375 B         103 kB
+├ ƒ /api/products                                              375 B         103 kB
+├ ƒ /api/refunds                                               375 B         103 kB
+├ ƒ /api/remote-control/watchdog                               375 B         103 kB
+├ ƒ /api/test/send-booking-confirmed                           375 B         103 kB
+├ ƒ /api/test/send-reminder                                    375 B         103 kB
+├ ƒ /api/topup/[id]/status                                     375 B         103 kB
+├ ƒ /api/ws/anomalies                                          375 B         103 kB
+├ ƒ /booking                                                 10.6 kB         149 kB
+├ ƒ /booking/[code]                                          7.34 kB         117 kB
+├ ƒ /bookings                                                  375 B         103 kB
+├ ƒ /bookings/[id]                                           9.43 kB         140 kB
+├ ƒ /cart                                                    10.9 kB         129 kB
+├ ƒ /checkout                                                9.43 kB         145 kB
+├ ƒ /checkout/[id]                                           2.42 kB         138 kB
+├ ƒ /checkout/result                                         4.57 kB         117 kB
+├ ƒ /checkout/simulator                                      4.52 kB         114 kB
+├ ƒ /coaches                                                  2.9 kB         112 kB
+├ ƒ /dupr/link-error                                          2.4 kB         105 kB
+├ ƒ /dupr/link-success                                       1.92 kB         104 kB
+├ ƒ /line-check                                              6.87 kB         116 kB
+├ ƒ /media/[id]                                                375 B         103 kB
+├ ƒ /order-tabs-preview                                        375 B         103 kB
+├ ƒ /privacy                                                   194 B         106 kB
+├ ○ /robots.txt                                                375 B         103 kB
+├ ƒ /sessions                                                5.03 kB         140 kB
+├ ƒ /shop                                                    8.44 kB         123 kB
+└ ƒ /terms                                                     194 B         106 kB
++ First Load JS shared by all                                 103 kB
+├ chunks/1255-f10d95188f4e6d2a.js                          46.4 kB
+├ chunks/4bd1b696-182b6b13bdad92e3.js                      54.2 kB
+└ other shared chunks (total)                              1.94 kB
+ƒ Middleware                                                 39.5 kB
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+Traced Next.js server files in: 40.433ms
+Created all serverless functions in: 1.126s
+Collected static files (public/, static/, .next/static): 18.553ms
+Build Completed in /vercel/output [56s]
+Deploying outputs...
+[2K[1A[2K[G  Production      https://pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app
+Completing…
+▲ Aliased         https://pickle-heaven.vercel.app
+{
+  "status": "ok",
+  "deployment": {
+    "id": "dpl_CaPNf9wLWzfGhPcNQscbNZsSK3ZE",
+    "url": "https://pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app",
+    "inspectorUrl": "https://vercel.com/karajankuo-7123s-projects/pickle-heaven/CaPNf9wLWzfGhPcNQscbNZsSK3ZE",
+    "readyState": "READY",
+    "target": "production",
+    "deploymentApiUrl": "https://api.vercel.com/v13/deployments/dpl_CaPNf9wLWzfGhPcNQscbNZsSK3ZE",
+    "buildMachine": {
+      "cores": 4,
+      "memory": 8192,
+      "machine": "standard",
+      "selectionType": "elastic",
+      "selectionSource": "elastic-algorithm"
+    }
+  },
+  "message": "Deployment pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app ready.",
+  "next": [
+    {
+      "command": "vercel curl https://pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app",
+      "when": "Verify deployment, including when Deployment Protection is enabled"
+    },
+    {
+      "command": "vercel inspect pickle-heaven-knx93gmdm-karajankuo-7123s-projects.vercel.app",
+      "when": "Inspect deployment"
+    },
+    {
+      "command": "vercel deploy --prod",
+      "when": "Promote to production"
+    }
+  ]
+}
