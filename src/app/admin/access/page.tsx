@@ -163,6 +163,7 @@ async function loadSlotPasswordData(venue: { id: string; bookAheadDays: number; 
       ready: true,
       settings: {
         generationMode: rule.generationMode,
+        passwordLength: rule.passwordLength,
         generateAheadDays: rule.generateAheadDays,
         passwordOpenTime: rule.passwordOpenTime,
         passwordOpenCustomMinutes: rule.passwordOpenCustomMinutes,
@@ -170,6 +171,9 @@ async function loadSlotPasswordData(venue: { id: string; bookAheadDays: number; 
         lockWhenNoOrders: rule.lockWhenNoOrders,
         allowSharedPassword: rule.allowSharedPassword,
         passwordBookAheadDaysOverride: venue.passwordBookAheadDaysOverride,
+        basicMemberBookAheadDays: rule.basicMemberBookAheadDays,
+        pointsMemberBookAheadDays: rule.pointsMemberBookAheadDays,
+        vipMemberBookAheadDays: rule.vipMemberBookAheadDays,
       },
       stats,
       records,

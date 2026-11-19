@@ -116,6 +116,7 @@ export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: st
 
 export interface PasswordRuleInput {
   generationMode: string
+  passwordLength: number
   generateAheadDays: number
   passwordOpenTime: string
   passwordOpenCustomMinutes: number | null
@@ -123,26 +124,63 @@ export interface PasswordRuleInput {
   lockWhenNoOrders: boolean
   allowSharedPassword: boolean
   passwordBookAheadDaysOverride: number | null
+  basicMemberBookAheadDays: number | null
+  pointsMemberBookAheadDays: number | null
+  vipMemberBookAheadDays: number | null
 }
 
 export async function updatePasswordSettingsAction(data: PasswordRuleInput): Promise<R> {
   const ctx = await guard()
   if (!ctx) return NO_PERMISSION
 
+  // 驗證密碼產生方式
   if (!(GENERATION_MODES as readonly string[]).includes(data.generationMode)) return { ok: false, error: '密碼產生方式不正確' }
+
+  // 驗證密碼長度
+  const LENGTH_OPTIONS = [4, 6, 8, 10]
+  if (!LENGTH_OPTIONS.includes(data.passwordLength)) return { ok: false, error: '密碼長度必須為 4、6、8 或 10 碼' }
+
+  // 驗證開放時間
   if (!(OPEN_TIME_OPTIONS as readonly string[]).includes(data.passwordOpenTime)) return { ok: false, error: '密碼開放時間不正確' }
+
+  // 驗證失效時間
   if (!(EXPIRE_TIME_OPTIONS as readonly string[]).includes(data.passwordExpireTime)) return { ok: false, error: '密碼失效時間不正確' }
+
+  // 驗證提前產生天數
   const ahead = Math.round(Number(data.generateAheadDays))
   if (!Number.isFinite(ahead) || ahead < AHEAD_DAYS_MIN || ahead > AHEAD_DAYS_MAX) {
     return { ok: false, error: `密碼提前產生天數須為 ${AHEAD_DAYS_MIN}～${AHEAD_DAYS_MAX} 天` }
   }
+
+  // 驗證自訂開放分鐘數
   let customOpen: number | null = null
   if (data.passwordOpenTime === 'CUSTOM') {
     customOpen = Math.round(Number(data.passwordOpenCustomMinutes))
     if (!Number.isFinite(customOpen) || customOpen < 0 || customOpen > 1440) return { ok: false, error: '自訂開放分鐘數須為 0～1440' }
   }
+
+  // 驗證預約開放提前天數覆蓋
   const override = data.passwordBookAheadDaysOverride
-  if (override !== null && (!Number.isInteger(override) || override < 1 || override > 365)) return { ok: false, error: '預約開放提前天數須為 1～365 天' }
+  if (override !== null && (!Number.isInteger(override) || override < 1 || override > 365)) {
+    return { ok: false, error: '預約開放提前天數須為 1～365 天' }
+  }
+
+  // 驗證會員分級預約天數
+  const validateMemberDays = (days: number | null, name: string) => {
+    if (days === null || days === undefined) return true
+    if (!Number.isInteger(days) || days < 0 || days > 365) {
+      throw new Error(`${name}預約提前天數須為 0～365 天`)
+    }
+    return true
+  }
+
+  try {
+    validateMemberDays(data.basicMemberBookAheadDays, '普通會員')
+    validateMemberDays(data.pointsMemberBookAheadDays, '點數會員')
+    validateMemberDays(data.vipMemberBookAheadDays, 'VIP會員')
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : '會員設定驗證失敗' }
+  }
 
   try {
     const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
@@ -150,22 +188,26 @@ export async function updatePasswordSettingsAction(data: PasswordRuleInput): Pro
 
     const rule = {
       generationMode: data.generationMode,
+      passwordLength: data.passwordLength,
       generateAheadDays: ahead,
       passwordOpenTime: data.passwordOpenTime,
       passwordOpenCustomMinutes: customOpen,
       passwordExpireTime: data.passwordExpireTime,
       lockWhenNoOrders: Boolean(data.lockWhenNoOrders),
       allowSharedPassword: Boolean(data.allowSharedPassword),
+      basicMemberBookAheadDays: data.basicMemberBookAheadDays,
+      pointsMemberBookAheadDays: data.pointsMemberBookAheadDays,
+      vipMemberBookAheadDays: data.vipMemberBookAheadDays,
     }
     await prisma.slotPasswordRule.upsert({ where: { venueId: venue.id }, create: { venueId: venue.id, ...rule }, update: rule })
     await prisma.venue.update({ where: { id: venue.id }, data: { passwordBookAheadDaysOverride: override } })
     await prisma.auditLog.create({ data: { actor: ctx.username, action: 'SLOT_PASSWORD_RULE_UPDATE', target: venue.id, detail: rule } })
 
     revalidatePath('/admin/access')
-    return { ok: true, message: '密碼設定已更新（新付款的訂單套用新規則，已發出的密碼不變）' }
+    return { ok: true, message: '設定已儲存。新付款的訂單會套用新規則，已發出的密碼不變。' }
   } catch (err) {
     console.error('[password-settings] 更新失敗', err)
-    return { ok: false, error: '操作失敗，請稍後再試' }
+    return { ok: false, error: err instanceof Error ? err.message : '操作失敗，請稍後再試' }
   }
 }
 

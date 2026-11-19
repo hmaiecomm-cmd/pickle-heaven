@@ -2581,6 +2581,8 @@ model SlotPasswordRule {
   venueId                   String    @unique // 每個場館一筆規則
   /// 密碼產生模式：PER_ORDER(每筆訂單) / DAILY(每天一組) / SPLIT_DAY(上下午各一組) / HOURLY(每小時)
   generationMode            String    @default("SPLIT_DAY")
+  /// 密碼長度：4 / 6 / 8 / 10 碼（預設 6）
+  passwordLength            Int       @default(6)
   /// 提前產生密碼的天數（1-30）
   generateAheadDays         Int       @default(7)
   /// 密碼開放時間（相對預約開始）：10_MIN_BEFORE / 30_MIN_BEFORE / 1_HOUR_BEFORE / CUSTOM
@@ -2595,6 +2597,12 @@ model SlotPasswordRule {
   lockWhenNoOrders          Boolean   @default(true)
   /// 是否允許同一時段多筆訂單共用密碼
   allowSharedPassword       Boolean   @default(true)
+  /// 普通會員可提前預約天數（null 表示沿用場館設定）
+  basicMemberBookAheadDays  Int?
+  /// 點數會員可提前預約天數
+  pointsMemberBookAheadDays Int?
+  /// VIP會員可提前預約天數
+  vipMemberBookAheadDays    Int?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
