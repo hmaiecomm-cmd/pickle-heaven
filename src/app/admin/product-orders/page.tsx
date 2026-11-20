@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { ProductOrdersClient } from './product-orders-client'
 
 export const metadata: Metadata = {
-  title: '客戶訂單',
+  title: '商品進銷存',
 }
 
 export const dynamic = 'force-dynamic'

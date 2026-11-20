@@ -1,6 +1,6 @@
 /* Product Inventory Page Styles */
 
-.container {
+.pageContainer {
   max-width: 100%;
 }
 
@@ -43,6 +43,85 @@
   letter-spacing: 0.05em;
 }
 
+/* KPI Grid */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.kpiContent {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.kpiLabel {
+  font-size: 0.85rem;
+  color: rgb(107, 114, 128);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpiValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgb(31, 41, 55);
+}
+
+.kpiValue.warning {
+  color: rgb(161, 98, 7);
+}
+
+.kpiValue.danger {
+  color: rgb(220, 38, 38);
+}
+
+/* Main Layout */
+.mainLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.listPanel {
+  min-height: 600px;
+}
+
+.detailPanel {
+  min-height: 600px;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.detailPanel > :not(:first-child) {
+  margin-top: 1.5rem;
+}
+
+/* Filters */
+.filterGroup {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filterInput {
+  flex: 1;
+  min-height: 40px;
+}
+
+.filterSelect {
+  min-width: 150px;
+  min-height: 40px;
+}
+
 /* Table Wrapper */
 .tableWrapper {
   overflow-x: auto;
@@ -51,12 +130,13 @@
 .table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
 .table thead th {
-  padding: 1rem;
+  padding: 0.75rem;
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -67,7 +147,8 @@
 
 .table tbody tr {
   border-bottom: 1px solid rgb(229, 231, 235);
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s;
+  cursor: pointer;
 }
 
 .table tbody tr:hover {
@@ -75,38 +156,41 @@
 }
 
 .rowSelected {
-  background-color: rgb(139, 92, 246) / 0.05;
+  background-color: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid rgb(34, 197, 94);
 }
 
 .table td {
-  padding: 1rem;
+  padding: 0.75rem;
   color: rgb(31, 41, 55);
-  font-size: 0.95rem;
 }
 
 .productName {
   font-weight: 600;
-  max-width: 20rem;
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sku {
   color: rgb(107, 114, 128);
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
+  font-family: monospace;
+  font-size: 0.8rem;
 }
 
 .quantity {
   text-align: center;
   font-weight: 600;
+  color: rgb(31, 41, 55);
 }
 
 .status {
   display: inline-block;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .status-active {
@@ -119,58 +203,336 @@
   color: rgb(161, 98, 7);
 }
 
-.date {
-  color: rgb(107, 114, 128);
-  font-size: 0.9rem;
-  white-space: nowrap;
+.status-out_of_stock {
+  background-color: rgb(254, 226, 226);
+  color: rgb(220, 38, 38);
 }
 
 .actions {
   display: flex;
-  gap: 0.5rem;
-  justify-content: center;
+  gap: 0.3rem;
 }
 
-.tableTitle {
+/* Detail Panel */
+.detailHeader {
+  margin-bottom: 1.5rem;
+}
+
+.detailTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+  color: rgb(31, 41, 55);
+}
+
+.detailSku {
+  font-size: 0.85rem;
+  color: rgb(107, 114, 128);
   margin: 0;
+  font-family: monospace;
 }
 
-/* Info Section */
-.info {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background-color: rgb(239, 246, 255);
-  border-left: 4px solid rgb(59, 130, 246);
+.actionButtons {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.buttonPrimary {
+  flex: 1;
+  background-color: rgb(34, 197, 94);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
   border-radius: 0.375rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
 }
 
-.infoText {
+.buttonPrimary:hover {
+  background-color: rgb(22, 163, 74);
+}
+
+.cardTitle {
   margin: 0;
-  color: rgb(30, 58, 138);
   font-size: 0.95rem;
 }
 
+.summaryContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgb(229, 231, 235);
+  font-size: 0.95rem;
+}
+
+.summaryRow:last-child {
+  border-bottom: none;
+}
+
+.summaryValue {
+  font-weight: 700;
+  color: rgb(31, 41, 55);
+}
+
+/* Movement History */
+.movementContent {
+  padding: 1rem 0;
+}
+
+.emptyState {
+  color: rgb(107, 114, 128);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.timelineItem {
+  border: 1px solid rgb(229, 231, 235);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.timelineHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: rgb(249, 250, 251);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.timelineHeader:hover {
+  background-color: rgb(243, 244, 246);
+}
+
+.movementType {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-right: 0.75rem;
+}
+
+.type-進貨 {
+  background-color: rgb(220, 252, 231);
+  color: rgb(5, 150, 105);
+}
+
+.type-出貨 {
+  background-color: rgb(254, 226, 226);
+  color: rgb(220, 38, 38);
+}
+
+.type-訂單保留 {
+  background-color: rgb(239, 246, 255);
+  color: rgb(30, 58, 138);
+}
+
+.movementQty {
+  font-weight: 700;
+  color: rgb(31, 41, 55);
+}
+
+.timelineInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.movementTime {
+  font-size: 0.85rem;
+  color: rgb(107, 114, 128);
+}
+
+.expanded {
+  transform: rotate(180deg);
+}
+
+.timelineDetail {
+  padding: 1rem;
+  border-top: 1px solid rgb(229, 231, 235);
+  background-color: white;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.detailRow:last-child {
+  padding-bottom: 0;
+}
+
+.detailRow span:first-child {
+  color: rgb(107, 114, 128);
+}
+
+.detailRow span:last-child {
+  font-weight: 600;
+  color: rgb(31, 41, 55);
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgb(229, 231, 235);
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(31, 41, 55);
+}
+
+.modalBody {
+  padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgb(31, 41, 55);
+  margin-bottom: 0.5rem;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(209, 213, 219);
+  border-radius: 0.375rem;
+  font-size: 0.95rem;
+}
+
+.helperText {
+  font-size: 0.8rem;
+  color: rgb(107, 114, 128);
+  margin-top: 0.3rem;
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgb(229, 231, 235);
+  background-color: rgb(249, 250, 251);
+}
+
+.modalFooter button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalFooter button:last-child {
+  background-color: rgb(34, 197, 94);
+  color: white;
+}
+
+.modalFooter button:last-child:hover {
+  background-color: rgb(22, 163, 74);
+}
+
 /* Responsive */
+@media (max-width: 1024px) {
+  .mainLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .detailPanel {
+    max-height: none;
+  }
+}
+
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
+  .kpiGrid {
+    grid-template-columns: 1fr 1fr;
   }
 
   .table {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
 
   .table th,
   .table td {
-    padding: 0.75rem 0.5rem;
+    padding: 0.5rem;
   }
 
   .productName {
-    max-width: 10rem;
+    max-width: 8rem;
   }
 
-  .actions button {
-    padding: 0.4rem;
+  .filterGroup {
+    flex-direction: column;
+  }
+
+  .filterInput,
+  .filterSelect {
+    width: 100%;
   }
 }

@@ -74,7 +74,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '訂場訂單', href: '/admin/bookings?tab=venue', permission: 'bookings' },
       { label: '活動訂單', href: '/admin/bookings?tab=activity', permission: 'bookings' },
-      { label: '商品訂單', href: '/admin/bookings?tab=products', permission: 'marketing', notOpen: true },
+      { label: '商品進銷存', href: '/admin/product-orders', permission: 'marketing' },
       { label: '點數與票券', href: '/admin/bookings?tab=points', permission: 'members' },
     ],
   },
