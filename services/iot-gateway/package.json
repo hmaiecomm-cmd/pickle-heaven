@@ -1,0 +1,29 @@
+{
+  "name": "@gh/iot-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "顧好 IoT Gateway：場館電腦（REST client，主動連出）與顧好平台之間的中繼服務，部署於 DigitalOcean",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "esbuild src/index.ts src/migrate.ts --bundle --platform=node --target=node20 --format=esm --outdir=dist --packages=external --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "migrate": "tsx src/migrate.ts",
+    "migrate:prod": "node dist/migrate.js",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.19",
+    "hono": "4.6.14",
+    "ioredis": "5.4.1",
+    "postgres": "3.4.5",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "esbuild": "0.24.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}

@@ -1,0 +1,7 @@
+# 只有 IoT Gateway 用 Docker 建置；其餘一律排除，避免把整個平台與 .env 送進 build context
+*
+!packages/iot-contract/**
+!services/iot-gateway/**
+services/iot-gateway/node_modules
+services/iot-gateway/dist
+**/.env*

@@ -1,0 +1,13 @@
+{
+  "name": "@gh/edge-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "顧好場館模擬器：場館電腦參考實作＋情境測試＋多場館壓力測試＋即時面板（依賴 services/iot-gateway 的套件）",
+  "type": "module",
+  "scripts": {
+    "scenarios": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts scenarios",
+    "load": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts load",
+    "panel": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts panel",
+    "typecheck": "node ../../services/iot-gateway/node_modules/typescript/bin/tsc --noEmit -p ."
+  }
+}

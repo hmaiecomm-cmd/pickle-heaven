@@ -6,11 +6,15 @@
  * 2. 事件時間線追蹤（預約→命令→回報）
  * 3. CSV 匯出
  * 4. 同步狀態檢視
+ * 5. 調閱場館電腦（地端）原始 log
  */
 
 import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { iotGatewayConfig } from '@/server/iot/gateway-client'
+import { edgeSitesFor } from '@/server/iot/edge-logs'
+import { EdgeLogsPanel } from './edge-logs-panel'
 import { LogsClient } from './logs-client'
 
 export const metadata: Metadata = { title: '日誌檢視' }
@@ -19,6 +23,7 @@ export const dynamic = 'force-dynamic'
 export default async function LogsPage() {
   const ctx = await pagePermission('audit')
   if (ctx === 'forbidden') return <Forbidden />
+  const sites = (await edgeSitesFor(ctx)).map(({ siteCode, name }) => ({ siteCode, name }))
 
   return (
     <div>
@@ -26,6 +31,7 @@ export default async function LogsPage() {
         title="日誌檢視"
         desc="查詢控制系統的所有事件日誌、追蹤預約執行流程、監控系統健康狀態。"
       />
+      <EdgeLogsPanel sites={sites} configured={iotGatewayConfig() !== null} />
       <LogsClient />
     </div>
   )

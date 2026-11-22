@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAndUpdateSchedules } from '@/server/scheduling-service'
 import { checkMqttHeartbeat } from '@/server/mqtt-service'
+import { iotGatewayConfig } from '@/server/iot/gateway-client'
 
 export const maxDuration = 60 // 最長執行時間 60 秒
 
@@ -31,7 +32,8 @@ export async function GET(req: NextRequest) {
     await checkAndUpdateSchedules()
 
     // 檢查 MQTT 心跳
-    const mqttOk = await checkMqttHeartbeat()
+    // 已改用 IoT Gateway 時不再檢查舊的模擬 MQTT（避免每分鐘寫一筆 MQTT 斷線告警）
+    const mqttOk = iotGatewayConfig() ? true : await checkMqttHeartbeat()
 
     return NextResponse.json(
       {

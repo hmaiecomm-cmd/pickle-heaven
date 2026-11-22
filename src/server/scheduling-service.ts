@@ -335,7 +335,10 @@ export async function checkAndUpdateSchedules() {
     include: { circuits: true, courts: true },
   })
   const currentTime = now()
-  const connected = (await deviceIntegration()).mode !== 'NOT_CONNECTED'
+  const mode = (await deviceIntegration()).mode
+  const connected = mode !== 'NOT_CONNECTED'
+  // GATEWAY 模式由場館電腦依場館計畫自己執行排程，雲端只記錄預期狀態，不逐分鐘下指令
+  const sendCommands = mode === 'SIMULATED'
 
   for (const venue of venues) {
     const states = await calculateCircuitStates(venue.id, currentTime)
@@ -369,7 +372,7 @@ export async function checkAndUpdateSchedules() {
 
       if (current !== expectedState) {
         await prisma.circuit.update({ where: { id: circuit.id }, data: { expectedState } })
-        if (connected) await sendCircuitCommand(venue.id, [circuit.circuitNumber as CircuitNumber], expectedState, 'SCHEDULE')
+        if (sendCommands) await sendCircuitCommand(venue.id, [circuit.circuitNumber as CircuitNumber], expectedState, 'SCHEDULE')
       }
     }
   }

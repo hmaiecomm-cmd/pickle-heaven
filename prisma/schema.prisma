@@ -288,6 +288,8 @@ model Venue {
   id                   String  @id @default(cuid())
   organizationId       String
   slug                 String  @unique
+  /// IoT 場館代碼（場館電腦連 IoT Gateway 的身分，例如 xindian001）；未設定表示尚未接上場館電腦
+  siteCode             String? @unique
   name                 String
   address              String
   phone                String

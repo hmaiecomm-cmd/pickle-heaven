@@ -96,7 +96,7 @@ export default async function ControlPage() {
           門禁的授權與開關由「門禁權限管理」負責，控制中心不提供開門、上鎖。
           <Link href="/admin/access" className="ml-1 font-semibold text-brand-700 hover:underline">前往門禁權限管理 →</Link>
         </p>
-        <CircuitPanel circuits={circuits} canControl={can(ctx.role, 'device.control')} connected={snap.integration.mode === 'SIMULATED'} hasData={dbCircuits.length > 0} />
+        <CircuitPanel circuits={circuits} canControl={can(ctx.role, 'device.control')} connected={snap.integration.mode !== 'NOT_CONNECTED'} hasData={dbCircuits.length > 0} />
       </ControlClient>
     </div>
   )

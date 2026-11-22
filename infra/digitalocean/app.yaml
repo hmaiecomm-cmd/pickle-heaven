@@ -1,0 +1,54 @@
+# DigitalOcean App Platform 規格：顧好 IoT Gateway
+#   doctl apps create --spec infra/digitalocean/app.yaml
+#   （之後更新：doctl apps update <app-id> --spec infra/digitalocean/app.yaml）
+#
+# 架構：App Platform 內建 Load Balancer（HTTPS）→ gateway × N（無狀態，可水平擴充）
+#       → Managed Redis（Valkey）＋ Managed Postgres，全部在 sgp1（新加坡）同一個 VPC
+# 秘密值（type: SECRET）請在 DO 控制台設定，不要寫進這個檔案。
+name: gh-iot-gateway
+region: sgp
+services:
+  - name: gateway
+    github:
+      repo: hmaiecomm-cmd/pickle-heaven
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: services/iot-gateway/Dockerfile
+    source_dir: /
+    http_port: 8080
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 2
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 10
+      period_seconds: 15
+    routes:
+      - path: /
+    envs:
+      - { key: STORE, value: postgres }
+      - { key: DATABASE_URL, value: "${gh-iot-db.DATABASE_URL}" }
+      - { key: REDIS_URL, type: SECRET }
+      - { key: SITE_MASTER_KEY, type: SECRET }
+      - { key: PLATFORM_SECRET, type: SECRET }
+      - { key: DATA_KEY, type: SECRET }
+      - { key: WEBHOOK_URL, value: "https://pickle-heaven.vercel.app/api/iot/webhook" }
+      - { key: WEBHOOK_SECRET, type: SECRET }
+      - { key: MAX_WAIT_SEC, value: "25" }
+      - { key: OFFLINE_AFTER_SEC, value: "90" }
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: hmaiecomm-cmd/pickle-heaven
+      branch: main
+    dockerfile_path: services/iot-gateway/Dockerfile
+    source_dir: /
+    run_command: node dist/migrate.js
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - { key: DATABASE_URL, value: "${gh-iot-db.DATABASE_URL}" }
+databases:
+  - name: gh-iot-db
+    engine: PG
+    production: true
+    cluster_name: gh-iot-pg
