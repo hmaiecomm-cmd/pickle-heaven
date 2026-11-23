@@ -32,3 +32,8 @@ vercel-*.txt
 *.zip
 0[0-9]_*/
 1[0-9]_*/
+
+# IoT：Gateway（部署到 DigitalOcean）與場館模擬器不放上 Vercel；packages/iot-contract 平台要用，必須上傳
+services
+edge
+infra

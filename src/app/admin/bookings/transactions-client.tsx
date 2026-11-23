@@ -180,6 +180,9 @@ export function TransactionsClient({
                     aria-label="搜尋姓名、Email、電話或訂單編號"
                   />
                 </div>
+                <button type="submit" disabled={loading} className="h-12 shrink-0 rounded-xl bg-[#1f4d34] px-4 text-sm font-semibold text-white disabled:opacity-40">
+                  搜尋
+                </button>
                 <button
                   type="button"
                   onClick={() => setExpandAdvanced(!expandAdvanced)}

@@ -19,7 +19,7 @@ const TARGET_LABEL: Record<string, string> = { ON: '開啟', OFF: '關閉' }
 const SOURCE_LABEL: Record<string, string> = { MANUAL_OVERRIDE: '手動', SCHEDULE: '排程', EMERGENCY: '緊急' }
 
 export default async function ControlPage() {
-  const ctx = await pagePermission('monitor')
+  const ctx = await pagePermission('device')
   if (ctx === 'forbidden') return <Forbidden />
   const [snap, cmds, circuitCmds, dbCircuits] = await Promise.all([
     getMonitorSnapshot(),
@@ -96,7 +96,7 @@ export default async function ControlPage() {
           門禁的授權與開關由「門禁權限管理」負責，控制中心不提供開門、上鎖。
           <Link href="/admin/access" className="ml-1 font-semibold text-brand-700 hover:underline">前往門禁權限管理 →</Link>
         </p>
-        <CircuitPanel circuits={circuits} canControl={can(ctx.role, 'device.control')} connected={snap.integration.mode === 'SIMULATED'} hasData={dbCircuits.length > 0} />
+        <CircuitPanel circuits={circuits} canControl={can(ctx.role, 'device.control')} connected={snap.integration.mode !== 'NOT_CONNECTED'} hasData={dbCircuits.length > 0} />
       </ControlClient>
     </div>
   )

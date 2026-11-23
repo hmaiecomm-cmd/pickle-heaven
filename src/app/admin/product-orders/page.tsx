@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
-import { ProductOrdersClient } from './product-orders-client'
+import { Forbidden, NotOpen } from '@/components/admin/page-bits'
+import { pagePermission } from '@/lib/admin-auth'
 
 export const metadata: Metadata = {
-  title: '客戶訂單',
+  title: '商品訂單',
 }
 
 export const dynamic = 'force-dynamic'
 
-export default function ProductOrdersPage() {
-  return <ProductOrdersClient />
+export default async function ProductOrdersPage() {
+  if ((await pagePermission('marketing')) === 'forbidden') return <Forbidden />
+  return <NotOpen title="商品訂單" reason="商品訂單功能目前未開放。" />
 }

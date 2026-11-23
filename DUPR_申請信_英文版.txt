@@ -1,0 +1,195 @@
+========================================================================
+英文申請信範本
+DUPR Club Application & Website Integration Inquiry
+========================================================================
+
+【信件主旨】
+DUPR Club, Rated Events and Website Integration Inquiry – [Venue Name], Taiwan
+
+【收件人】
+clubs@mydupr.com
+
+【信件正文】
+
+Dear DUPR Club Support Team,
+
+We are writing on behalf of [Venue Name], a pickleball facility based in [City], Taiwan. We operate a dedicated facility with our own membership system, online booking platform, and event management system. We are very interested in becoming a registered DUPR Club and running DUPR-rated events at our venue.
+
+We would like to understand the process and requirements for the following:
+
+**1. Club Registration & Management**
+- What is the process for a new venue to apply for or confirm DUPR Club status?
+- If our club already has a Club ID, how do we designate a Club Director and add Club Organizers?
+- What are the specific roles and permissions for each position (Club Director vs. Club Organizer)?
+
+**2. Event Formats & Scoring**
+- Which event formats can we submit for DUPR ratings? For example:
+  - Doubles round-robin tournaments
+  - Doubles bracket tournaments
+  - Mixed league competitions
+  - Are any of these formats restricted or require prior approval?
+- What are the specific rules or restrictions for each format?
+- Do we need to use any official DUPR tools, apps, or certified scorekeeping methods?
+
+**3. Registration & Score Submission**
+- Can we accept registrations on our own website and then manually enter or upload player data to DUPR?
+- If so, what is the official CSV template or format for uploading scores?
+- What are the required fields (player names, DUPR IDs, match results, timestamps, etc.)?
+- What is the process for correcting scores after submission?
+- How do we handle score disputes or rule violations?
+- Is there a deadline for submitting scores after an event ends?
+
+**4. Website Integration & API Access**
+- What are the options for integrating member DUPR data into our website?
+  a) Is there an official API we can apply for to allow members to link their DUPR accounts and display ratings?
+  b) Are there approved integration partners or third-party solutions (e.g., Picklr, Sportime)?
+  c) What is the application process, including testing environment, timeline, and approval criteria?
+- What data can we request and display to members (DUPR ID, current rating, match history, etc.)?
+- What are the privacy and consent requirements for displaying member DUPR data publicly?
+
+**5. Branding & Marketing**
+- How can we refer to events on our website? Can we use terms like "DUPR-Rated Event" or "DUPR Rating Event"?
+- What DUPR logos and branding materials can we use in our marketing?
+- Are there restrictions on using DUPR's name or logos in our event descriptions?
+- Under what circumstances can we claim official approval or certification from DUPR?
+
+**Additional Information**
+
+We plan to host our first event in [Month/Date], and we expect [Event Format] with approximately [Number of Players] participants.
+
+Please find our venue details below:
+
+Venue Name (English):        [Venue Name]
+Venue Name (Chinese):        [場館中文名稱]
+City / Region:               [City], Taiwan
+Website:                     [Official Website URL]
+Contact Person:              [Contact Name]
+Email:                       [Email Address]
+Phone:                       [Phone Number]
+Current Club ID (if any):    [Club ID or "N/A"]
+Estimated First Event Date:  [Date]
+Anticipated Event Format:    [Format and player count]
+Estimated Monthly Events:    [Frequency estimate, e.g., 2-4 events]
+
+We would greatly appreciate any guidance on the process and timeline. We are committed to following all DUPR rules and ensuring a professional, fair experience for our members.
+
+Thank you for your time, and we look forward to your response.
+
+Best regards,
+
+[Your Name]
+[Your Title]
+[Venue Name]
+[Phone Number]
+[Email Address]
+[Website URL]
+
+========================================================================
+繁體中文對照版
+========================================================================
+
+【信件主旨】
+DUPR 俱樂部、評分賽與網站整合申請 – [場館名稱]，台灣
+
+【收件人】
+clubs@mydupr.com
+
+【信件正文】
+
+親愛的 DUPR Club 支援團隊，
+
+我們代表位於台灣[城市]的[場館名稱]致函。本場館擁有自己的會員系統、線上訂場平台及活動報名系統。我們非常有興趣成為 DUPR 認可的俱樂部，並在場館舉辦 DUPR 評分賽。
+
+我們想了解以下內容的流程與要求：
+
+**1. 俱樂部申請與管理**
+- 新場館如何申請或確認 DUPR 俱樂部資格？
+- 若我們已有 Club ID，如何指定主辦人（Club Director）並新增協辦人（Club Organizer）？
+- 各角色的權限分別是什麼（主辦人與協辦人的差異）？
+
+**2. 比賽形式與計分規則**
+- 我們可以提交哪些比賽形式進行 DUPR 評分？例如：
+  - 雙打循環賽
+  - 雙打淘汰賽
+  - 聯賽制
+  - 其中有限制或需事先核准的嗎？
+- 每種形式的具體規則或限制是什麼？
+- 是否需要使用 DUPR 官方工具、App 或認證的記分方式？
+
+**3. 報名與成績提交**
+- 我們可以在自家官網接受報名，然後手動輸入或上傳成績資料嗎？
+- 若可以，官方提供哪種 CSV 格式或模板？
+- 必填欄位包括哪些（球友名字、DUPR ID、比分、時間戳記等）？
+- 提交後如何修正比分？
+- 如何處理比分爭議或規則違反？
+- 比賽結束後多久內需提交成績？
+
+**4. 官網整合與 API 合作**
+- 我們可以如何在官網整合會員的 DUPR 資料？
+  a) 是否有官方 API 供申請，讓會員連結 DUPR 帳號並顯示評分？
+  b) 是否有認可的整合合作方或第三方解決方案（例 Picklr、Sportime）？
+  c) 申請流程、測試環境、時程及審核條件是什麼？
+- 我們可取用及顯示哪些會員 DUPR 資料（ID、當前評分、比賽紀錄等）？
+- 公開顯示會員 DUPR 資料時的隱私及同意要求是什麼？
+
+**5. 品牌與行銷用語**
+- 我們在官網如何稱呼比賽？可以寫「DUPR 評分賽」或「DUPR 認證賽」嗎？
+- 可以使用哪些 DUPR 標誌和品牌素材進行行銷？
+- 在活動說明中使用 DUPR 名稱或標誌有限制嗎？
+- 什麼情況下可以宣稱獲得 DUPR 官方認可或認證？
+
+**場館資訊**
+
+我們計畫於[月份/日期]舉辦首場比賽，預計[比賽形式]，參賽人數約[人數]。
+
+場館詳細資訊如下：
+
+俱樂部英文名稱：        [Venue Name]
+俱樂部中文名稱：        [場館中文名稱]
+城市：                 [城市]，台灣
+官網網址：             [官網網址]
+聯絡人：               [聯絡人姓名]
+電子郵件：             [電子郵件]
+電話：                 [電話]
+現有 Club ID（如有）：  [Club ID 或「無」]
+預計首場日期：         [日期]
+比賽形式：             [形式及人數]
+預計月度賽事次數：      [頻率，例 2-4 場]
+
+感謝您的時間，我們期待您的回覆。
+
+此致
+敬禮
+
+[您的姓名]
+[您的職位]
+[場館名稱]
+[電話號碼]
+[電子郵件]
+[官網網址]
+
+========================================================================
+寄信前的檢查清單
+========================================================================
+
+在寄送此信前，請確認以下項目：
+
+☐ 您已確認或申請了 Club ID（可在 https://dashboard.dupr.com 查詢）
+☐ 已備妥場館英文名稱、官網網址、聯絡資訊
+☐ 已確認首場比賽的日期、形式及預計人數
+☐ 已將【 】內的占位符改為您的實際資訊
+☐ 信件已檢查無誤，準備好寄送
+
+=========================================================================
+寄信方式
+=========================================================================
+
+1. 複製上述英文申請信正文（從「Dear DUPR...」至「[官網網址]」）
+2. 粘貼到您的電子郵件程式
+3. 收件人：clubs@mydupr.com
+4. 主旨：DUPR Club, Rated Events and Website Integration Inquiry – [Venue Name], Taiwan
+5. 發送
+
+預期回覆時間：5-7 個工作天（工作日）
+
+如無回覆，可在 1 週後重新寄出或聯絡 DUPR 支援：https://support.dupr.com

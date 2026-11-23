@@ -3,6 +3,7 @@ import { isDemoTenant, prisma } from '@/lib/db'
 import { activityTimeLabel } from '@/lib/activity-shared'
 import { formatDateTime, now, taipeiDateString, taipeiMinuteOfDay, taipeiToUtc, addDays } from '@/lib/time'
 import { maskPhone } from './admin-orders'
+import { iotGatewayConfig } from './iot/gateway-client'
 
 /**
  * 場地監測與無人化管理。
@@ -20,10 +21,14 @@ export const STALE_MS = 5 * 60_000
 const ACK_AFTER_MS = 2_000
 const TIMEOUT_MS = 30_000
 
-export type DeviceMode = 'NOT_CONNECTED' | 'SIMULATED'
+/** GATEWAY：已接上 IoT Gateway（DigitalOcean），由場館電腦執行；狀態以場館回報為準 */
+export type DeviceMode = 'NOT_CONNECTED' | 'SIMULATED' | 'GATEWAY'
 
 export async function deviceIntegration(): Promise<{ mode: DeviceMode; label: string; reason: string }> {
   if (await isDemoTenant()) return { mode: 'SIMULATED', label: '模擬設備（展示環境）', reason: '展示環境的設備狀態與指令結果皆為模擬' }
+  if (iotGatewayConfig()) {
+    return { mode: 'GATEWAY', label: 'IoT Gateway', reason: '指令經 IoT Gateway 送到場館電腦；送出不等於已動作，收到場館回報才算完成' }
+  }
   if (process.env.DEVICE_GATEWAY_URL) {
     return { mode: 'NOT_CONNECTED', label: '已設定閘道網址，尚未實作串接', reason: '系統尚未實作設備閘道的通訊協定，無法讀取狀態或下指令' }
   }

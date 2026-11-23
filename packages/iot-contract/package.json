@@ -1,0 +1,9 @@
+{
+  "name": "@gh/iot-contract",
+  "version": "1.0.0",
+  "private": true,
+  "description": "顧好 IoT 協定 v1：平台、IoT Gateway、場館電腦共用的型別、簽章與排程參考邏輯（無外部依賴）",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

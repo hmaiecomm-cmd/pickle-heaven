@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>場館模擬器（地端）</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#18202e;--mute:#667085;--line:#e2e6ee;--on:#16a34a;--onbg:#dcfce7;--off:#cbd2dc;--warn:#b45309;--warnbg:#fef3c7;--bad:#dc2626;--badbg:#fee2e2;--info:#2563eb;--infobg:#dbeafe;--up:#7c3aed;--down:#0891b2}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1117;--card:#161b24;--fg:#e5e9f0;--mute:#97a0b3;--line:#262d3a;--off:#3a4252;--onbg:#14351f;--warnbg:#3a2c0c;--badbg:#3d1414;--infobg:#132544}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+header h1{font-size:16px;margin:0}
+main{padding:12px 16px;display:grid;gap:12px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}
+.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media (max-width:1100px){.c4,.c6,.c8{grid-column:span 12}}
+h2{font-size:13px;margin:0 0 8px;color:var(--mute);font-weight:600;letter-spacing:.02em}
+.k{color:var(--mute);font-size:12px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.ok{background:var(--onbg);color:var(--on)}.bad{background:var(--badbg);color:var(--bad)}.warn{background:var(--warnbg);color:var(--warn)}.info{background:var(--infobg);color:var(--info)}
+button,select,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
+button{cursor:pointer}button:hover{border-color:var(--mute)}button.on{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.do{border:1px solid var(--line);border-radius:8px;padding:8px;position:relative}
+.do.on{border-color:var(--on);background:var(--onbg)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--off);margin-right:6px;vertical-align:middle}
+.do.on .dot{background:var(--on);box-shadow:0 0 8px var(--on)}
+.do .stuck{position:absolute;top:6px;right:6px}
+.cams{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.cam{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cam .screen{aspect-ratio:16/9;background:#05070a;color:#9fb3c8;display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center;padding:6px}
+.cam video{width:100%;height:100%;object-fit:cover}
+.cam .meta{padding:6px 8px}
+table{border-collapse:collapse;width:100%}
+td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mute);font-size:12px}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.scroll{max-height:420px;overflow:auto}
+.up{color:var(--up);font-weight:700}.down{color:var(--down);font-weight:700}
+tr.sel td{background:var(--infobg)}
+pre{margin:0;white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:360px;overflow:auto}
+.tl{position:relative;height:16px;background:var(--bg);border-radius:4px;overflow:hidden}
+.tl i{position:absolute;top:0;bottom:0;background:var(--on);opacity:.75}
+.tl i.BUSINESS_HOURS{background:var(--info)}.tl i.NIGHT{background:var(--up)}.tl i.EVENT{background:var(--warn)}
+.tl b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--bad)}
+.tabs button.sel{background:var(--infobg);border-color:var(--info);color:var(--info)}
+.err{color:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏟️ 場館模擬器（地端）<span class="k" id="site"></span></h1>
+  <span id="netpill"></span>
+  <span class="k">Gateway <span class="mono" id="gw"></span></span>
+  <span class="k">場館時間 <b id="clock" class="mono"></b> <span id="offset"></span></span>
+  <span class="k">計畫 rev <b id="rev"></b></span>
+  <span class="k">待送事件 <b id="outbox"></b></span>
+  <span class="err mono" id="lasterr"></span>
+</header>
+<main>
+  <section class="card c4">
+    <h2>連線與網路（故障注入）</h2>
+    <div class="row"><button id="b-offline" onclick="act('offline')">拔網路線</button><button id="b-badsig" onclick="act('badsig')">簽錯章</button>
+      <label class="k">延遲 <select onchange="act('latency',this.value)"><option value="0">0</option><option value="500">0.5 秒</option><option value="3000">3 秒</option><option value="15000">15 秒</option></select></label>
+      <label class="k">時鐘偏差 <select id="skew" onchange="act('skew',this.value)"><option value="0">0</option><option value="60000">+1 分</option><option value="360000">+6 分（會被拒）</option><option value="-360000">−6 分</option></select></label></div>
+    <div class="row"><span class="k">模擬時間</span><button onclick="act('offset',-24)">−1 天</button><button onclick="act('offset',-1)">−1 時</button><button onclick="act('offset',1)">+1 時</button><button onclick="act('offset',24)">+1 天</button><button onclick="act('offset','reset')">回到現在</button></div>
+    <div class="row"><button onclick="act('heartbeat')">立即心跳</button><button onclick="act('status')">回報狀態</button><button onclick="act('plan')">重新下載計畫</button><button onclick="act('flush')">補送事件</button><button onclick="if(confirm('模擬場館電腦重開機？'))act('restart')">重開機</button></div>
+    <div class="k" id="planmeta"></div>
+  </section>
+
+  <section class="card c12">
+    <h2>浮動 IP 與心跳（場館電腦主動連出；雲端不會連進來，只看得到它從哪個 IP 來）</h2>
+    <div class="row">
+      <span class="k">目前對外 IP <b class="mono" id="fip">—</b> <span id="fipstate"></span></span>
+      <button onclick="act('ipRotate')">立即換 IP（重新撥接）</button>
+      <button onclick="act('ipRotate',30)">換 IP 並斷線 30 秒</button>
+      <label class="k">自動換 IP <select id="fevery" onchange="act('ipEvery',this.value)"><option value="0">不自動</option><option value="2">每 2 分</option><option value="10">每 10 分</option><option value="30">每 30 分</option><option value="120">每 2 小時</option><option value="1440">每天</option></select></label>
+      <label class="k">換號斷線 <select id="frecon" onchange="act('ipReconnect',this.value)"><option value="0">0 秒</option><option value="5">5 秒</option><option value="15">15 秒</option><option value="60">60 秒</option></select></label>
+      <button id="b-ftoggle" onclick="act('ipToggle')">停用浮動 IP 模擬</button>
+      <span class="k" id="hbsum"></span>
+    </div>
+    <div class="row" style="align-items:flex-start;gap:16px">
+      <div style="flex:1;min-width:260px"><div class="k">IP 變更紀錄</div><table class="mono" id="fhist" style="width:100%"></table></div>
+      <div style="flex:2;min-width:320px"><div class="k">最近心跳（每 <span id="hbms"></span> 秒一次，綠＝成功、紅＝失敗；高度＝來回毫秒）</div><div id="hbbars" style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-top:4px"></div><div class="k mono" id="hblast"></div></div>
+    </div>
+  </section>
+  <section class="card c4">
+    <h2>硬體故障</h2>
+    <div class="row"><button id="b-modbus" onclick="act('modbus')">RS-485 斷線（M-7045）</button><button id="b-door" onclick="act('door')">門禁控制器故障</button></div>
+    <div class="row"><label class="k">繼電器寫入失敗率 <select id="failrate" onchange="act('failrate',this.value)"><option value="0">0%</option><option value="0.2">20%</option><option value="0.5">50%</option><option value="1">100%</option></select></label></div>
+    <div class="k">在下方迴路卡片按「卡住」可讓單一繼電器寫入後不動作（讀回不一致）。</div>
+  </section>
+
+  <section class="card c4">
+    <h2>大門門禁（Soyal 密碼鍵盤）</h2>
+    <div class="row"><input id="code" class="mono" placeholder="輸入 6 位數密碼" maxlength="10" onkeydown="if(event.key==='Enter')enter()"><button onclick="enter()">按下確認</button><span id="coderes"></span></div>
+    <div class="row">門鎖：<span id="lock"></span></div>
+    <div class="k">開門紀錄</div><ul id="unlocks" class="mono" style="margin:4px 0;padding-left:18px"></ul>
+  </section>
+
+  <section class="card c12">
+    <h2>16 路 DO（M-7045）— 實際讀回狀態</h2>
+    <div class="grid" id="do"></div>
+  </section>
+
+  <section class="card c12">
+    <h2>攝影機（NVR 6 路）— 雲端要求即時影像時會在這裡出現本機預覽</h2>
+    <div class="cams" id="cams"></div>
+    <div class="row" style="margin-top:8px"><span class="k">進行中與最近的串流／錄影調閱</span></div>
+    <div class="scroll" style="max-height:200px"><table><thead><tr><th>時間</th><th>攝影機</th><th>類型</th><th>片段</th><th>大小</th><th>結果</th><th>session</th></tr></thead><tbody id="mediahist"></tbody></table></div>
+  </section>
+
+  <section class="card c12">
+    <h2>場館計畫（雲端下行的參數）</h2>
+    <div class="row tabs"><button class="sel" data-pt="timeline" onclick="planTab(this)">迴路時間表</button><button data-pt="codes" onclick="planTab(this)">門禁密碼</button><button data-pt="raw" onclick="planTab(this)">完整 JSON</button>
+      <label class="k" style="margin-left:auto" id="revealwrap"><input type="checkbox" id="reveal" onchange="loadPlan()"> 顯示明碼（僅本機）</label></div>
+    <div id="plan"></div>
+  </section>
+
+  <section class="card c8">
+    <h2>上行 ↑ ／下行 ↓ 流量（場館電腦送出與收到的每個請求）</h2>
+    <div class="row"><select id="tf" onchange="renderTraffic()"><option value="all">全部</option><option value="up">只看上行 ↑</option><option value="down">只看下行 ↓</option><option value="err">只看錯誤</option></select>
+      <label class="k"><input type="checkbox" id="quiet" checked onchange="renderTraffic()"> 隱藏空的長輪詢與心跳</label>
+      <button onclick="act('clearTraffic');traffic=[];renderTraffic()">清除</button></div>
+    <div class="scroll"><table><thead><tr><th>時間</th><th></th><th>請求</th><th>狀態</th><th>耗時</th><th>摘要</th></tr></thead><tbody id="traffic"></tbody></table></div>
+  </section>
+  <section class="card c4">
+    <h2>選取的請求內容</h2>
+    <div id="detail" class="k">點左邊任一列查看完整內容</div>
+  </section>
+
+  <section class="card c6">
+    <h2>執行過的指令（雲端 → 場館）</h2>
+    <div class="scroll" style="max-height:260px"><table><thead><tr><th>時間</th><th>指令</th><th>結果</th></tr></thead><tbody id="cmds"></tbody></table></div>
+  </section>
+  <section class="card c6">
+    <h2>廣播器</h2>
+    <div class="scroll" style="max-height:260px"><table><thead><tr><th>時間</th><th>音檔</th></tr></thead><tbody id="audio"></tbody></table></div>
+  </section>
+
+  <section class="card c12">
+    <h2>本機 log</h2>
+    <div class="row tabs"><button class="sel" data-lf="edge" onclick="logTab(this)">edge.log</button><button data-lf="audit" onclick="logTab(this)">audit.log</button><button data-lf="modbus" onclick="logTab(this)">modbus.log</button></div>
+    <pre id="logs" style="max-height:300px"></pre>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const tpe = (iso, sec = true) => iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', ...(sec ? { second: '2-digit' } : {}) }) : '—'
+const kb = (n) => n == null ? '' : n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB'
+let S = null, traffic = [], selected = null, planView = 'timeline', logFile = 'edge', players = {}
+
+async function act(a, v) {
+  const r = await fetch('api/action', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ a, v }) })
+  const j = await r.json().catch(() => ({}))
+  load()
+  return j
+}
+async function enter() {
+  const v = $('code').value.trim()
+  if (!v) return
+  const r = await act('code', v)
+  $('coderes').innerHTML = r.ok ? '<span class="pill ok">開門</span>' : '<span class="pill bad">拒絕</span>'
+  $('code').value = ''
+}
+const KIND = { COURT: '球場', BUSINESS: '營業', NIGHT: '夜間', ALWAYS_ON: '24h', RESERVED: '預留' }
+const HOLD = { NEXT_CHANGE: '到下個切換點', MINUTES: '限時', INDEFINITE: '一直維持' }
+
+function renderFloating(s) {
+  const f = s.floating
+  $('fip').textContent = f ? (f.enabled ? f.ip : '（停用，用實際連線 IP）') : '（未模擬）'
+  $('fipstate').innerHTML = f?.rotating ? '<span class="pill warn">重新撥接中…</span>' : s.online ? '<span class="pill ok">已連線</span>' : '<span class="pill bad">離線</span>'
+  if (f) {
+    if (document.activeElement !== $('fevery')) $('fevery').value = String(f.everyMin)
+    if (document.activeElement !== $('frecon')) $('frecon').value = String(f.reconnectSec)
+    $('b-ftoggle').textContent = f.enabled ? '停用浮動 IP 模擬' : '啟用浮動 IP 模擬'
+    const next = f.everyMin > 0 ? Math.max(0, Math.round((f.lastRotateAt + f.everyMin * 60000 - Date.now()) / 1000)) : null
+    $('fhist').innerHTML = f.history.slice(0, 8).map((h) => `<tr><td>${new Date(h.at).toLocaleTimeString('zh-TW', { hour12: false })}</td><td><b>${esc(h.ip)}</b></td><td class="k">${esc(h.reason)}</td></tr>`).join('') + (next !== null ? `<tr><td colspan="3" class="k">下次換 IP 約 ${Math.floor(next / 60)} 分 ${next % 60} 秒後</td></tr>` : '')
+  }
+  $('hbms').textContent = Math.round(s.heartbeatMs / 1000)
+  const hb = (s.heartbeats ?? []).slice().reverse()
+  const max = Math.max(200, ...hb.map((h) => h.ms))
+  $('hbbars').innerHTML = hb.map((h) => `<i title="${esc(h.at)} ${h.ms} ms ${h.ok ? '' : esc(h.error ?? '')}" style="display:block;width:8px;height:${Math.max(4, (h.ms / max) * 60)}px;background:${h.ok ? 'var(--on)' : 'var(--bad)'};border-radius:2px"></i>`).join('')
+  const okN = hb.filter((h) => h.ok).length
+  $('hbsum').textContent = hb.length ? `心跳成功 ${okN}/${hb.length}` : ''
+  const last = s.heartbeats?.[0]
+  $('hblast').textContent = last ? `最後一次 ${new Date(last.at).toLocaleTimeString('zh-TW', { hour12: false })}・${last.ok ? '成功' : '失敗'}・${last.ms} ms${last.ip ? '・來源 IP ' + last.ip : ''}${last.skewMs !== undefined ? '・時差 ' + last.skewMs + ' ms' : ''}${last.error ? '・' + last.error : ''}` : '尚未送出心跳'
+}
+
+function render() {
+  const s = S
+  renderFloating(s)
+  $('site').textContent = ' · ' + s.siteId + (s.label ? '（' + s.label + '）' : '')
+  $('gw').textContent = s.gatewayUrl
+  $('revealwrap').style.display = s.cloud ? 'none' : ''
+  $('netpill').innerHTML = s.net.offline ? '<span class="pill bad">網路線已拔（模擬）</span>' : s.online ? '<span class="pill ok">已連線雲端</span>' : '<span class="pill warn">連線中斷，重試中</span>'
+  $('clock').textContent = tpe(s.localTime)
+  $('offset').innerHTML = s.offsetMs ? '<span class="pill warn">快轉 ' + (s.offsetMs / 3600000).toFixed(0) + ' 小時</span>' : ''
+  $('rev').textContent = (s.planRev ?? '—') + (s.serverPlanRev && s.serverPlanRev !== s.planRev ? '（雲端 ' + s.serverPlanRev + '）' : '')
+  $('outbox').textContent = s.outbox
+  $('lasterr').textContent = s.lastError && !s.online ? s.lastError : ''
+  for (const [id, on] of [['b-offline', s.net.offline], ['b-badsig', s.net.badSignature], ['b-modbus', s.faults.modbusDown], ['b-door', s.faults.doorControllerDown]]) $(id).classList.toggle('on', !!on)
+  const p = s.plan
+  $('planmeta').innerHTML = p ? `計畫產生 ${tpe(p.generatedAt)}・涵蓋到 ${tpe(p.window.to, false)}（剩 ${p.staleInHours} 小時${p.staleInHours < 6 ? '，<b class="err">快過期</b>' : ''}）・${p.intervals} 段時段・密碼 ${p.codes} 組（現在可用 ${p.activeCodes}）・手動 ${p.overrides}・營業 ${hm(p.business.openMinute)}–${hm(p.business.closeMinute)}` : '<b class="err">尚未收到場館計畫</b>'
+  $('lock').innerHTML = s.door.locked ? '<span class="pill info">上鎖</span>' : '<span class="pill ok">開啟中</span>'
+  $('unlocks').innerHTML = s.door.unlocks.map((u) => `<li>${tpe(new Date(u.at).toISOString())} ${esc(u.door)} ${u.seconds}s</li>`).join('') || '<li class="k">尚無</li>'
+  $('do').innerHTML = s.circuits.map((c) => `<div class="do ${c.state === 'ON' ? 'on' : ''}">
+    <button class="stuck ${c.stuck ? 'on' : ''}" title="讓這個繼電器卡住" onclick="act('stuck',${c.channel})">${c.stuck ? '卡住中' : '卡住'}</button>
+    <div><span class="dot"></span><b>${c.no}</b> <span class="k">DO${String(c.channel).padStart(2, '0')}</span></div>
+    <div>${esc(c.name)}</div>
+    <div class="k">${KIND[c.kind] ?? c.kind}${c.court ? ' ' + c.court + ' 場' : ''}${c.maxOnMinutes ? '・上限 ' + c.maxOnMinutes + ' 分' : ''}${c.remote ? '' : '・不可遠端'}</div>
+    ${c.override ? `<div class="pill warn">手動 ${c.override.state}・${HOLD[c.override.hold.mode] ?? c.override.hold.mode}${c.override.hold.until ? ' 至 ' + tpe(c.override.hold.until, false) : ''}</div>` : ''}
+    <div class="k">${c.next ? '下次切換 ' + tpe(c.next, false) : ''}</div></div>`).join('') || '<div class="k">尚未收到計畫</div>'
+  const active = new Map((s.media?.active ?? []).map((a) => [a.camera + ':' + a.kind, a]))
+  $('cams').innerHTML = s.cameras.map((c) => {
+    const live = active.get(c.id + ':live'), clip = active.get(c.id + ':clip')
+    const court = c.court ? `<button onclick="act('motion','${c.court}')">${c.court} 場有人進場</button>` : ''
+    return `<div class="cam"><div class="screen" id="scr-${c.id}">${live ? '' : '<div>CAM' + c.id + '<br>' + esc(c.scene) + '<br><span class="k">雲端未要求即時影像</span></div>'}</div>
+      <div class="meta"><b>CAM${c.id}</b> ${esc(c.name)} ${live ? '<span class="pill bad">● 直播上傳中 ' + live.segments + ' 片・剩 ' + live.untilSec + ' 秒</span>' : ''} ${clip ? '<span class="pill info">錄影調閱中</span>' : ''}
+      ${s.occupied[c.court] ? '<span class="pill warn">有人</span>' : ''}<div class="row" style="margin:4px 0 0">${court}</div></div></div>`
+  }).join('')
+  for (const c of s.cameras) {
+    const live = active.get(c.id + ':live')
+    const el = $('scr-' + c.id)
+    if (live) attach(el, live.session)
+  }
+  for (const sess of Object.keys(players)) if (![...active.values()].some((a) => a.session === sess)) { players[sess].destroy(); delete players[sess] }
+  const hist = [...(s.media?.active ?? []).map((a) => ({ ...a, startedAt: null, reason: '進行中' })), ...(s.media?.history ?? [])]
+  $('mediahist').innerHTML = hist.map((h) => `<tr><td>${h.startedAt ? tpe(new Date(h.startedAt).toISOString()) : '進行中'}</td><td>CAM${h.camera}</td><td>${h.kind === 'live' ? '即時' : '錄影'}</td><td>${h.segments}</td><td>${kb(h.bytes)}</td><td>${esc(h.reason)}${h.error ? ' <span class="err">' + esc(h.error) + '</span>' : ''}</td><td class="mono k">${esc(h.session)}</td></tr>`).join('') || '<tr><td colspan="7" class="k">尚無</td></tr>'
+  $('cmds').innerHTML = s.executed.map((e) => `<tr><td>${tpe(new Date(e.at).toISOString())}</td><td class="mono">${esc(e.command.type)} ${esc(cmdArgs(e.command))}</td><td><span class="pill ${e.result === 'OK' ? 'ok' : e.result === 'EXPIRED' ? 'warn' : 'bad'}">${e.result}</span></td></tr>`).join('') || '<tr><td colspan="3" class="k">尚無</td></tr>'
+  $('audio').innerHTML = s.played.map((a) => `<tr><td>${tpe(new Date(a.at).toISOString())}</td><td class="mono">🔊 ${esc(a.file)}</td></tr>`).join('') || '<tr><td colspan="2" class="k">尚無</td></tr>'
+}
+function attach(el, session) {
+  if (players[session]) {
+    if (!el.querySelector('video')) { el.innerHTML = ''; el.appendChild(players[session].media) }
+    return
+  }
+  if (!window.Hls || !Hls.isSupported()) { el.innerHTML = '<div>直播上傳中（瀏覽器不支援 HLS 預覽）</div>'; return }
+  const v = document.createElement('video')
+  v.muted = true; v.autoplay = true; v.playsInline = true
+  el.innerHTML = ''; el.appendChild(v)
+  const h = new Hls({ liveSyncDurationCount: 2 })
+  h.loadSource('media/' + session + '/index.m3u8'); h.attachMedia(v)
+  players[session] = h
+}
+const hm = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')
+function cmdArgs(c) {
+  const { type, ...rest } = c
+  return Object.entries(rest).map(([k, v]) => k + '=' + (typeof v === 'object' ? JSON.stringify(v) : v)).join(' ').slice(0, 120)
+}
+
+function summary(r) {
+  const j = r.response, q = r.request
+  if (r.error) return '<span class="err">' + esc(r.error) + '</span>'
+  if (r.path.startsWith('/edge/v1/plan')) return r.status === 304 ? '未變動（304）' : j ? `rev ${j.rev}・${j.timeline?.length} 段・密碼 ${j.doorCodes?.length}・手動 ${j.overrides?.length}` : ''
+  if (r.path.startsWith('/edge/v1/commands?')) return j?.commands?.length ? '<b>' + j.commands.map((c) => esc(c.command.type)).join('、') + '</b>' : '無指令'
+  if (r.path.includes('/ack')) return esc(q?.result) + (q?.error ? '：' + esc(q.error) : '')
+  if (r.path.startsWith('/edge/v1/events')) return (q?.events ?? []).map((e) => esc(e.type)).join('、')
+  if (r.path.startsWith('/edge/v1/status')) return 'ON：' + Object.entries(q?.circuits ?? {}).filter(([, v]) => v === 'ON').map(([k]) => k).join(' ')
+  if (r.path.startsWith('/edge/v1/heartbeat')) return `rev ${q?.planRev ?? '—'} → 雲端 ${j?.planRev ?? '—'}・時差 ${j?.clockSkewMs ?? '—'} ms`
+  if (r.path.includes('/segments/')) return '影像片段 ' + kb(r.bytes) + '（每 15 片記一筆）'
+  if (r.path.includes('/nvr-index/')) return (q?.recordings?.length ?? 0) + ' 段錄影'
+  if (r.path.includes('/logs/')) return (q?.files ?? []).map((f) => f.name + ' ' + f.lines + ' 行').join('、')
+  return ''
+}
+function renderTraffic() {
+  const f = $('tf').value, quiet = $('quiet').checked
+  const rows = traffic.filter((r) => (f === 'all' || (f === 'err' ? r.error || r.status >= 400 : r.dir === f)) && !(quiet && !r.error && (r.path.startsWith('/edge/v1/heartbeat') || (r.path.startsWith('/edge/v1/commands?') && !r.response?.commands?.length)))).slice(-300).reverse()
+  $('traffic').innerHTML = rows.map((r) => `<tr data-id="${r.id}" class="${selected === r.id ? 'sel' : ''}" onclick="pick(${r.id})" style="cursor:pointer">
+    <td class="mono">${tpe(r.at)}</td><td class="${r.dir}">${r.dir === 'up' ? '↑' : '↓'}</td><td class="mono">${r.method} ${esc(r.path.replace('/edge/v1', ''))}</td>
+    <td><span class="pill ${r.status && r.status < 400 ? 'ok' : 'bad'}">${r.status ?? '—'}</span></td><td class="k">${r.ms} ms</td><td>${summary(r)}</td></tr>`).join('') || '<tr><td colspan="6" class="k">尚無</td></tr>'
+}
+function pick(id) {
+  selected = id
+  const r = traffic.find((x) => x.id === id)
+  $('detail').innerHTML = r ? `<div class="row"><b class="${r.dir}">${r.dir === 'up' ? '↑ 上行' : '↓ 下行'}</b><span class="mono">${r.method} ${esc(r.path)}</span></div>
+    ${r.request !== undefined ? '<div class="k">送出</div><pre>' + esc(JSON.stringify(r.request, null, 2)) + '</pre>' : ''}
+    ${r.response !== undefined && r.response !== null ? '<div class="k" style="margin-top:6px">收到</div><pre>' + esc(JSON.stringify(r.response, null, 2)) + '</pre>' : ''}
+    ${r.error ? '<div class="err">' + esc(r.error) + '</div>' : ''}` : ''
+  renderTraffic()
+}
+
+function planTab(b) { planView = b.dataset.pt; document.querySelectorAll('[data-pt]').forEach((x) => x.classList.toggle('sel', x === b)); loadPlan() }
+async function loadPlan() {
+  const p = await (await fetch('api/plan' + ($('reveal').checked ? '?reveal=1' : ''))).json()
+  if (!p) { $('plan').innerHTML = '<div class="k">尚未收到計畫</div>'; return }
+  if (planView === 'raw') { $('plan').innerHTML = '<pre>' + esc(JSON.stringify(p, null, 2)) + '</pre>'; return }
+  if (planView === 'codes') {
+    $('plan').innerHTML = '<table><thead><tr><th>密碼</th><th>時段</th><th>可用時間</th><th>門</th><th>id</th></tr></thead><tbody>' + p.doorCodes.map((c) => `<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.slotType)}</td><td>${tpe(c.validFrom, false)} – ${tpe(c.validTo, false)}</td><td>${esc(c.doors.join(','))}</td><td class="mono k">${esc(c.id)}</td></tr>`).join('') + '</tbody></table>' + (p.doorCodes.length ? '' : '<div class="k">計畫內沒有密碼（今明兩天沒有已付款的預約）</div>')
+    return
+  }
+  const from = Date.parse(p.window.from), to = Date.parse(p.window.to), span = to - from, now = Date.parse(S?.localTime ?? new Date().toISOString())
+  const pct = (t) => Math.max(0, Math.min(100, ((t - from) / span) * 100))
+  const ticks = []
+  for (let t = from; t <= to; t += 6 * 3600000) ticks.push(`<span style="position:absolute;left:${pct(t)}%" class="k">${tpe(new Date(t).toISOString(), false).slice(6)}</span>`)
+  $('plan').innerHTML = `<div style="position:relative;height:18px;margin-left:190px">${ticks.join('')}</div>` + p.circuits.map((c) => {
+    const bars = p.timeline.filter((i) => i.circuit === c.no).map((i) => `<i class="${i.reason}" title="${esc(i.reason)} ${tpe(i.start, false)}–${tpe(i.end, false)} ${esc(i.ref ?? '')}" style="left:${pct(Date.parse(i.start))}%;width:${pct(Date.parse(i.end)) - pct(Date.parse(i.start))}%"></i>`).join('')
+    const ov = p.overrides.find((o) => o.circuit === c.no)
+    return `<div class="row" style="margin:2px 0"><div style="width:184px" class="mono">${c.no} ${esc(c.name).slice(0, 12)} <span class="k">${KIND[c.kind] ?? ''}</span></div><div class="tl" style="flex:1">${c.kind === 'ALWAYS_ON' ? '<i style="left:0;width:100%;opacity:.35"></i>' : bars}<b style="left:${pct(now)}%"></b></div>${ov ? '<span class="pill warn">手動 ' + ov.state + '</span>' : ''}</div>`
+  }).join('') + '<div class="k" style="margin-top:6px">綠＝預約、藍＝營業時間、紫＝夜間、橘＝活動；紅線＝場館時間。滑鼠停在色塊上可看原因與預約編號。</div>'
+}
+function logTab(b) { logFile = b.dataset.lf; document.querySelectorAll('[data-lf]').forEach((x) => x.classList.toggle('sel', x === b)); loadLogs() }
+async function loadLogs() {
+  const { lines } = await (await fetch('api/logs?file=' + logFile + '&tail=200')).json()
+  const el = $('logs'), atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20
+  el.textContent = lines.join('\n')
+  if (atBottom) el.scrollTop = el.scrollHeight
+}
+
+let lastRev = null
+async function load() {
+  try {
+    S = await (await fetch('api/state')).json()
+    render()
+    if (S.planRev !== lastRev) { lastRev = S.planRev; loadPlan() }
+    const after = traffic.at(-1)?.id ?? 0
+    if (S.trafficLast < after) traffic = []
+    if (S.trafficLast !== after) {
+      const { traffic: t } = await (await fetch('api/traffic?after=' + (traffic.at(-1)?.id ?? 0))).json()
+      traffic.push(...t)
+      if (traffic.length > 1000) traffic = traffic.slice(-1000)
+      renderTraffic()
+    }
+  } catch (e) { $('netpill').innerHTML = '<span class="pill bad">模擬器程式沒有回應</span>' }
+}
+load(); setInterval(load, 1000); setInterval(loadLogs, 3000); loadLogs()
+</script>
+</body>
+</html>

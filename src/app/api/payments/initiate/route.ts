@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { prisma } from '@/lib/db'
+import { getPaymentProvider, PaymentError } from '@/lib/payments'
 
 /**
  * POST /api/payments/initiate
- * 初始化支付流程（包含場地租借、活動、商品訂單）
+ *
+ * 初始化支付流程
+ *
+ * 請求體（JSON）：
+ * {
+ *   "bookingId": "...",
+ *   "providerId": "newebpay" | "linepay" | "tappay"
+ * }
+ *
+ * 回應（成功）：
+ * {
+ *   "ok": true,
+ *   "instruction": {
+ *     "kind": "redirect" | "form" | "client",
+ *     ...
+ *   },
+ *   "metadata": { ... }
+ * }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -13,81 +31,145 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '需要登入' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const {
-      bookingId,
-      productOrderId,
-      paymentMethod,
-      amount,
-    } = body
+    const body = (await request.json()) as Record<string, unknown>
+    const { bookingId, providerId } = body
 
-    // 驗證訂單
-    if (bookingId) {
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
-        select: { userId: true, status: true, total: true },
-      })
-
-      if (!booking || booking.userId !== user.id) {
-        return NextResponse.json({ error: '訂單不存在或無權限' }, { status: 404 })
-      }
-
-      if (booking.status !== 'PENDING') {
-        return NextResponse.json({ error: '訂單狀態不允許支付' }, { status: 400 })
-      }
+    if (!bookingId || typeof bookingId !== 'string') {
+      return NextResponse.json(
+        { error: '缺少或無效的 bookingId' },
+        { status: 400 }
+      )
     }
 
-    if (productOrderId) {
-      const order = await prisma.productOrder.findUnique({
-        where: { id: productOrderId },
-        select: { userId: true, status: true, total: true },
-      })
+    // ===== 訂單驗證 =====
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        items: true,
+        activityItems: { where: { status: 'ACTIVE' } },
+        venue: true,
+        user: true,
+      },
+    })
 
-      if (!order || order.userId !== user.id) {
-        return NextResponse.json({ error: '訂單不存在或無權限' }, { status: 404 })
-      }
-
-      if (order.status !== 'PENDING') {
-        return NextResponse.json({ error: '訂單狀態不允許支付' }, { status: 400 })
-      }
+    if (!booking) {
+      return NextResponse.json(
+        { error: '訂單不存在' },
+        { status: 404 }
+      )
     }
 
-    if (!bookingId && !productOrderId) {
-      return NextResponse.json({ error: '缺少訂單資訊' }, { status: 400 })
+    if (booking.userId !== user.id) {
+      return NextResponse.json(
+        { error: '無權限存取此訂單' },
+        { status: 403 }
+      )
     }
 
-    // 生成交易編號
-    const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-    // 支付方法特定邏輯
-    if (paymentMethod === 'LINE_PAY') {
-      // LINE Pay 重定向 URI
-      const linePayRedirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/line-pay?transactionId=${transactionId}`
-
-      return NextResponse.json({
-        transactionId,
-        paymentMethod: 'LINE_PAY',
-        amount,
-        redirectUrl: linePayRedirectUri,
-        // 實際使用時應呼叫 LINE Pay API
-        // const linePayResult = await initiateLINEPay(amount, transactionId);
-      })
+    if (booking.status !== 'PENDING') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: '訂單狀態不允許支付',
+          currentStatus: booking.status,
+        },
+        { status: 400 }
+      )
     }
 
-    if (paymentMethod === 'CREDIT_CARD') {
-      // 信用卡支付方式
-      return NextResponse.json({
-        transactionId,
-        paymentMethod: 'CREDIT_CARD',
-        amount,
-        // 返回信用卡表單所需資訊
-        // 實際使用時應使用 Stripe、Newebpay 等第三方服務
-      })
+    if (booking.total === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: '全額折抵，無須支付',
+          info: { bookingId, total: 0 },
+        },
+        { status: 400 }
+      )
     }
 
-    return NextResponse.json({ error: '不支援的支付方式' }, { status: 400 })
-  } catch (error) {
-    console.error('[API] POST /payments/initiate error:', error)
-    return NextResponse.json({ error: '初始化支付失敗' }, { status: 500 })
+    if (booking.expiresAt && booking.expiresAt < new Date()) {
+      return NextResponse.json(
+        { ok: false, error: '訂單保留時間已逾期' },
+        { status: 400 }
+      )
+    }
+
+    // ===== 支付方式驗證 =====
+    let provider
+    try {
+      provider = getPaymentProvider(
+        providerId && typeof providerId === 'string' ? providerId : undefined
+      )
+    } catch (err) {
+      const msg = err instanceof PaymentError ? err.message : '金流商配置無效'
+      return NextResponse.json(
+        { ok: false, error: msg },
+        { status: 400 }
+      )
+    }
+
+    if (!provider.isConfigured()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `${provider.displayName} 尚未設定完成`,
+          provider: { id: provider.id, displayName: provider.displayName },
+        },
+        { status: 503 }
+      )
+    }
+
+    // ===== 生成金流指示 =====
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+    const instruction = await provider.createCharge({
+      bookingId: booking.id,
+      bookingCode: booking.code,
+      amount: booking.total,
+      description: [
+        booking.items.length > 0 ? `場地租借 ${booking.items.length} 個時段` : '',
+        booking.activityItems.length > 0 ? `活動報名 ${booking.activityItems.length} 場` : '',
+      ]
+        .filter(Boolean)
+        .join('、')
+        .replace(/^/, `${booking.venue.name} `),
+      itemNames: [
+        ...booking.items.map((i) => `場地 ${i.courtName} ${i.rateName}`),
+        ...booking.activityItems.map((i) => `活動 ${i.title} ×${i.quantity}`),
+      ],
+      customer: {
+        name: booking.contactName,
+        phone: booking.contactPhone,
+        email: booking.user.email,
+      },
+      returnUrl: `${appUrl}/checkout/result?booking=${booking.id}`,
+      notifyUrl: `${appUrl}/api/payments/${provider.id}/notify`,
+      cancelUrl: `${appUrl}/checkout/${booking.id}`,
+    })
+
+    return NextResponse.json({
+      ok: true,
+      instruction,
+      metadata: {
+        bookingCode: booking.code,
+        amount: booking.total,
+        provider: provider.id,
+      },
+    })
+  } catch (err) {
+    console.error('[API] POST /payments/initiate error:', err)
+
+    if (err instanceof PaymentError) {
+      return NextResponse.json(
+        { ok: false, error: err.message },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      { ok: false, error: '初始化支付失敗，請稍後重試' },
+      { status: 500 }
+    )
   }
 }

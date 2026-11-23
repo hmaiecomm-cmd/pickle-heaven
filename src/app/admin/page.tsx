@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CalendarDays, Cctv, ChartNoAxesColumnIncreasing, CreditCard, Layers, UsersRound } from 'lucide-react'
+import { CalendarDays, Cctv, ChartNoAxesColumnIncreasing, CreditCard, Layers, Lightbulb } from 'lucide-react'
 import { getAdminContext } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { Hills } from '@/components/admin/brand'
@@ -11,12 +11,12 @@ import { listCameras } from '@/server/camera-service'
 export const dynamic = 'force-dynamic'
 
 const GRID_ITEMS = [
-  { id: 'courts', label: '場地與預約', href: '/admin/schedule', permission: 'courts' as const, icon: CalendarDays },
-  { id: 'monitor', label: '即時監控', href: '/admin/monitor', permission: 'monitor' as const, icon: Cctv },
-  { id: 'finance', label: '訂單記錄', href: '/admin/bookings', permission: 'bookings' as const, icon: CreditCard },
-  { id: 'members', label: '會員與教練', href: '/admin/members', permission: 'members' as const, icon: UsersRound },
-  { id: 'devices', label: '智慧設備管理', href: '/admin/devices', permission: 'device' as const, icon: Layers },
-  { id: 'overview', label: '營運與行銷', href: '/admin/reports', permission: 'finance' as const, icon: ChartNoAxesColumnIncreasing },
+  { id: 'courts', label: '場地預約', href: '/admin/schedule', permission: 'courts' as const, icon: CalendarDays },
+  { id: 'orders', label: '訂單紀錄', href: '/admin/bookings', permission: 'bookings' as const, icon: CreditCard },
+  { id: 'operations', label: '無人營運管理', href: '/admin/devices', permission: 'device' as const, icon: Layers },
+  { id: 'monitoring', label: 'AI 即時監控', href: '/admin/monitor', permission: 'monitor' as const, icon: Cctv },
+  { id: 'assistant', label: 'AI 超級特助', href: '/admin/reports', permission: 'finance' as const, icon: ChartNoAxesColumnIncreasing },
+  { id: 'ambience', label: 'AI 情境營造', href: '/admin/ambience', permission: 'device' as const, icon: Lightbulb },
 ]
 
 export default async function AdminDashboard() {

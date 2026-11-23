@@ -88,7 +88,7 @@ export function ProductOrdersClient() {
         {/* Left Panel - Orders List */}
         <div className={styles.listPanel}>
           <div className={styles.listHeader}>
-            <h1 className={styles.title}>客戶訂單</h1>
+            <h1 className={styles.title}>商品進銷存</h1>
             <p className={styles.subtitle}>共 {orders.length} 筆訂單</p>
           </div>
 

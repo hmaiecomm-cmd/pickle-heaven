@@ -11,6 +11,8 @@
  * 付款成功、取消、退款、付款失敗、後台取消活動都會呼叫；排程也會定期補跑（付款當下失敗時可補上）。
  */
 
+import { after } from 'next/server'
+import { iotEnabled, pushAllSitePlans, pushSitePlanForBookingSafe } from './iot/sync'
 import 'server-only'
 import { prisma } from '@/lib/db'
 import { now } from '@/lib/time'
@@ -139,6 +141,18 @@ export async function syncSlotPasswordsForBookingSafe(bookingId: string): Promis
   } catch (err) {
     console.error('[slot-password] 同步時段密碼失敗', bookingId, err)
   }
+  // 密碼與預約時段有變 → 推新版場館計畫給場館電腦（回應送出後才執行，不拖慢付款／取消流程）
+  scheduleIotPush(bookingId)
+}
+
+function scheduleIotPush(bookingId: string) {
+  if (!iotEnabled()) return
+  try {
+    after(() => pushSitePlanForBookingSafe(bookingId))
+  } catch {
+    // 不在請求情境（排程、腳本）：直接執行
+    void pushSitePlanForBookingSafe(bookingId)
+  }
 }
 
 /**
@@ -212,5 +226,7 @@ export async function runSlotPasswordMaintenance(opts: SyncOptions = {}) {
   const statusChanged = await refreshSlotStatuses(at)
   const batch = await generateUpcomingSlotPasswords({ ...opts, at })
   const retry = await retryFailedSlotPasswordLogs({ send: opts.send, at })
-  return { statusChanged, batch, retry }
+  // 每 15 分鐘把 48 小時場館計畫往前滾動（也涵蓋活動、封場、排程修改）
+  const iot = await pushAllSitePlans()
+  return { statusChanged, batch, retry, iot }
 }

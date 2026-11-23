@@ -7,6 +7,10 @@ import { CIRCUIT_DEFINITIONS, type CircuitNumber } from '@/lib/control-types'
 import { CATEGORY_INFO, circuitLocation } from '@/lib/venue-layout'
 import { deviceIntegration } from './monitor-service'
 import { calculateCircuitStates } from './scheduling-service'
+import { after } from 'next/server'
+import type { Circuit } from '@prisma/client'
+import { gateway } from './iot/gateway-client'
+import { pushSitePlanSafe } from './iot/sync'
 
 export class CircuitCommandError extends Error {}
 
@@ -38,7 +42,7 @@ export async function previewCircuitCommand(circuitNumber: string, targetState: 
     const b = circuitCommandBlocker(circuit, 'MANUAL_OVERRIDE')
     if (b) blockers.push(b)
   }
-  if (integ.mode !== 'SIMULATED') blockers.push(integ.reason)
+  if (integ.mode === 'NOT_CONNECTED') blockers.push(integ.reason)
 
   if (targetState === 'OFF' && !blockers.length) {
     warnings.push('關閉前請確認現場沒有人員使用；此操作不影響逃生照明與 24 小時供電迴路')
@@ -83,6 +87,8 @@ export async function sendManualCircuitCommand(params: { circuitNumber: string; 
     overrideUntil: hold.minutes ? addMinutes(t, hold.minutes) : null,
     overrideBy: params.actor,
   }
+
+  if (!preview.simulated) return sendViaGateway({ key, reason, hold, preview, circuit, override, actor: params.actor, t })
 
   const cmd = await prisma.$transaction(async (tx) => {
     const c = await tx.controlCommand.create({
@@ -131,6 +137,13 @@ export async function resumeCircuitSchedule(circuitNumber: string, actor: string
   const circuit = await prisma.circuit.findUnique({ where: { circuitNumber } })
   if (!circuit) throw new CircuitCommandError('找不到迴路')
   if (!circuit.overrideMode) throw new CircuitCommandError('這一路目前沒有手動維持')
+  if ((await deviceIntegration()).mode === 'GATEWAY') {
+    const siteCode = await siteCodeOf(circuit.venueId)
+    await gateway.enqueue(siteCode, `release-${randomUUID()}`, { type: 'circuit.release', circuit: circuitNumber }, actor, 120).catch((err) => {
+      throw new CircuitCommandError(`無法通知場館恢復排程：${err instanceof Error ? err.message : err}`)
+    })
+    afterResponse(() => pushSitePlanSafe(circuit.venueId))
+  }
   await prisma.$transaction(async (tx) => {
     await tx.circuit.update({ where: { id: circuit.id }, data: { overrideMode: null, overrideState: null, overrideBaseline: null, overrideUntil: null, overrideBy: null } })
     await tx.controlEvent.create({
@@ -153,4 +166,85 @@ export async function resumeCircuitSchedule(circuitNumber: string, actor: string
 
 export async function recentCircuitCommands(limit = 20) {
   return prisma.controlCommand.findMany({ orderBy: { createdAt: 'desc' }, take: limit, include: { circuit: { select: { circuitNumber: true, name: true } } } })
+}
+
+// ───────────── IoT Gateway（真實場館電腦） ─────────────
+
+/** 在回應送出後執行；不在請求情境（腳本）時直接執行 */
+function afterResponse(fn: () => Promise<unknown>) {
+  try {
+    after(fn)
+  } catch {
+    void fn()
+  }
+}
+
+async function siteCodeOf(venueId: string): Promise<string> {
+  const v = await prisma.venue.findUnique({ where: { id: venueId }, select: { siteCode: true } })
+  if (!v?.siteCode) throw new CircuitCommandError('場館尚未設定 IoT 場館代碼（Venue.siteCode），無法下指令')
+  return v.siteCode
+}
+
+/**
+ * 經 IoT Gateway 下指令：先記錄為「已送出」（SENT），收到場館回報（/api/iot/webhook）才改為已確認或失敗。
+ * 指令 30 秒內沒被場館取走就過期，不會在場館恢復連線後補執行。
+ */
+async function sendViaGateway(p: {
+  key: string
+  reason: string
+  hold: { mode: HoldMode; minutes: number | null }
+  preview: Awaited<ReturnType<typeof previewCircuitCommand>>
+  circuit: Circuit
+  override: { overrideMode: string; overrideState: string; overrideBaseline: string | null; overrideUntil: Date | null; overrideBy: string }
+  actor: string
+  t: Date
+}) {
+  const siteCode = await siteCodeOf(p.circuit.venueId)
+  const n = p.preview.circuit.number
+  const cmd = await prisma.$transaction(async (tx) => {
+    const c = await tx.controlCommand.create({
+      data: { commandId: p.key, circuitId: p.circuit.id, source: 'MANUAL_OVERRIDE', targetState: p.preview.targetState, status: 'SENT', requestedBy: p.actor, sentAt: p.t, expiresAt: addMinutes(p.t, 0.5), simulated: false },
+    })
+    await tx.circuit.update({ where: { id: p.circuit.id }, data: { expectedState: p.preview.targetState, lastCommandStatus: 'SENT', lastCommandAt: p.t, lastCommandError: null, ...p.override } })
+    await tx.controlEvent.create({
+      data: {
+        eventId: randomUUID(),
+        venueId: p.circuit.venueId,
+        circuitId: p.circuit.id,
+        commandId: c.id,
+        userId: p.actor,
+        eventType: 'MANUAL_OVERRIDE',
+        severity: 'WARNING',
+        environment: 'PRODUCTION',
+        title: `迴路 ${n} 手動${p.preview.actionLabel}（已送往場館）`,
+        description: `操作者: ${p.actor}, 原因: ${p.reason}`,
+        data: { circuitNumber: n, targetState: p.preview.targetState, reason: p.reason, hold: p.hold, siteCode },
+      },
+    })
+    await tx.auditLog.create({ data: { actor: p.actor, action: 'CIRCUIT_COMMAND', target: `迴路 ${n} ${p.preview.circuit.name}`, detail: { targetState: p.preview.targetState, reason: p.reason, commandId: c.id, simulated: false, hold: p.hold, siteCode } } })
+    return c
+  })
+  try {
+    await gateway.enqueue(
+      siteCode,
+      p.key,
+      {
+        type: 'circuit.set',
+        circuit: n,
+        state: p.preview.targetState,
+        hold: { mode: p.hold.mode, ...(p.override.overrideUntil ? { until: p.override.overrideUntil.toISOString() } : {}) },
+        reason: p.reason,
+      },
+      p.actor,
+      30,
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await prisma.controlCommand.update({ where: { id: cmd.id }, data: { status: 'FAILED', error: msg } })
+    await prisma.circuit.update({ where: { id: p.circuit.id }, data: { lastCommandStatus: 'FAILED', lastCommandError: msg } })
+    throw new CircuitCommandError(`指令無法送到 IoT Gateway：${msg}`)
+  }
+  // 手動操作也寫進場館計畫，場館重開機後能還原
+  afterResponse(() => pushSitePlanSafe(p.circuit.venueId))
+  return cmd
 }

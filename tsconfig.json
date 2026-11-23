@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@gh/iot-contract": [
+        "./packages/iot-contract/src/index.ts"
       ]
     }
   },
@@ -39,6 +42,8 @@
     "node_modules",
     "rpi-sdk",
     "iot",
+    "services",
+    "edge",
     "**/*.test.ts",
     "**/__tests__/**"
   ]

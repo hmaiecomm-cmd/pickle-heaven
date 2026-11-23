@@ -19,11 +19,11 @@ const CELL: Record<SlotState, { label: string; tone: string; open: boolean }> = 
   BLOCKED: { label: '封場', tone: 'bg-zinc-700 text-white hover:bg-zinc-600', open: true },
   MAINTENANCE: { label: '清潔維護', tone: 'bg-sky-100 text-sky-900 hover:bg-sky-200', open: true },
   EVENT: { label: '活動', tone: 'bg-violet-100 text-violet-900 hover:bg-violet-200', open: true },
-  RESERVED: { label: '場館保留', tone: 'bg-violet-50 text-violet-700', open: false },
-  STARTED: { label: '已開始', tone: 'bg-zinc-50 text-zinc-400', open: false },
+  RESERVED: { label: '場館保留', tone: 'bg-violet-50 text-violet-700', open: true },
+  STARTED: { label: '已開始', tone: 'bg-zinc-50 text-zinc-400', open: true },
   CUTOFF: { label: '已截止', tone: 'bg-zinc-50 text-zinc-400', open: true },
-  PAST: { label: '已結束', tone: 'bg-zinc-50 text-zinc-300', open: false },
-  CLOSED: { label: '未開放', tone: 'bg-zinc-50 text-zinc-300', open: false },
+  PAST: { label: '已結束', tone: 'bg-zinc-50 text-zinc-300', open: true },
+  CLOSED: { label: '未開放', tone: 'bg-zinc-50 text-zinc-300', open: true },
 }
 
 type Picked = { courtId: string; courtName: string; start: number; end: number; state: SlotState; sessionId: string | null }
