@@ -19,6 +19,8 @@ export interface AdminNavItem {
 
 export type AdminNavIcon = 'home' | 'courts' | 'monitor' | 'devices' | 'access' | 'orders' | 'members' | 'reports' | 'settings'
 
+export type AdminNavSection = 'plus' | 'pro' | 'settings'
+
 export interface AdminNavGroup {
   key: string
   label: string
@@ -26,84 +28,118 @@ export interface AdminNavGroup {
   /** 沒有子項目時直接連結 */
   href?: string
   permission?: Permission
+  /** 只在路徑完全相同時視為選中 */
+  exact?: boolean
+  /** 副標題（如「智慧營運與成長管理」） */
+  subtitle?: string
+  /** 頂級分組（PLUS｜基礎營運, PRO｜智慧無人營運, 系統設定） */
+  section?: AdminNavSection
   items?: AdminNavItem[]
 }
 
 export const ADMIN_NAV: AdminNavGroup[] = [
   { key: 'home', label: '首頁', icon: 'home', href: '/admin', permission: 'dashboard' },
+
+  // PLUS｜基礎營運
   {
     key: 'courts',
-    label: '場地與預約',
+    label: '場地預約',
     icon: 'courts',
+    section: 'plus',
     items: [
-      { label: '智慧排程', href: '/admin/schedule', permission: 'courts' },
+      { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地設定', href: '/admin/courts', permission: 'courts' },
       { label: '維護與封場', href: '/admin/maintenance', permission: 'courts' },
     ],
   },
   {
-    key: 'monitor',
-    label: '即時監控',
-    icon: 'monitor',
-    items: [
-      { label: '即時影像', href: '/admin/monitor', permission: 'monitor' },
-      { label: '歷史回放', href: '/admin/monitor?tab=playback', permission: 'camera.playback' },
-      { label: '事件紀錄', href: '/admin/monitor?tab=events', permission: 'monitor' },
-      { label: '攝影機管理', href: '/admin/monitor?tab=cameras', permission: 'camera.manage' },
-    ],
-  },
-  {
-    key: 'devices',
-    label: '智慧設備管理（不含門禁）',
-    icon: 'devices',
-    items: [
-      { label: '設備總覽與智慧排程', href: '/admin/devices', permission: 'device' },
-      { label: '手動控制中心', href: '/admin/control', permission: 'device' },
-    ],
-  },
-  {
-    key: 'access',
-    label: '門禁權限管理',
-    icon: 'access',
-    items: [{ label: '門禁設備與授權', href: '/admin/access', permission: 'access' }],
-  },
-  {
     key: 'orders',
-    label: '訂單記錄',
+    label: '訂單紀錄',
     icon: 'orders',
+    section: 'plus',
     items: [
       { label: '訂場訂單', href: '/admin/bookings?tab=venue', permission: 'bookings' },
       { label: '活動訂單', href: '/admin/bookings?tab=activity', permission: 'bookings' },
-      { label: '商品進銷存', href: '/admin/product-orders', permission: 'marketing' },
+      { label: '商品訂單', href: '/admin/product-orders', permission: 'marketing' },
       { label: '點數與票券', href: '/admin/bookings?tab=points', permission: 'members' },
     ],
+  },
+  {
+    key: 'finance',
+    label: '財務報表',
+    icon: 'reports',
+    section: 'plus',
+    href: '/admin/finance',
+    permission: 'finance',
+    exact: true,
   },
   {
     key: 'members',
     label: '會員與教練',
     icon: 'members',
+    section: 'plus',
     items: [
       { label: '會員管理', href: '/admin/members', permission: 'members' },
       { label: '教練', href: '/admin/members?tab=coaches', permission: 'members' },
       { label: '黑名單', href: '/admin/members?tab=blacklist', permission: 'members' },
     ],
   },
+
+  // PRO｜智慧無人營運
   {
-    key: 'reports',
-    label: '營運與行銷',
-    icon: 'reports',
+    key: 'operations',
+    label: '無人營運管理',
+    icon: 'devices',
+    section: 'pro',
     items: [
-      { label: '營運總覽', href: '/admin/reports', permission: 'finance', exact: true },
-      { label: '財務報表', href: '/admin/finance', permission: 'finance', exact: true },
-      { label: '活動與行銷設計', href: '/admin/marketing', permission: 'activities' },
-      { label: '商品與商城', href: '/admin/marketing/products', permission: 'marketing', notOpen: true },
-      { label: '價格與會員方案', href: '/admin/pricing', permission: 'settings' },
+      { label: '門禁設備與授權', href: '/admin/access', permission: 'access' },
+      { label: '電力及環控排程', href: '/admin/devices', permission: 'device' },
+      { label: '球場狀態與遠端控制', href: '/admin/control', permission: 'device' },
     ],
   },
+  {
+    key: 'monitoring',
+    label: 'AI 即時監控',
+    icon: 'monitor',
+    section: 'pro',
+    items: [
+      { label: '即時影像與攝影機管理', href: '/admin/monitor', permission: 'monitor' },
+      { label: '歷史影像回放', href: '/admin/monitor?tab=playback', permission: 'camera.playback' },
+      { label: '設備異常事件', href: '/admin/monitor?tab=events', permission: 'monitor' },
+    ],
+  },
+  {
+    key: 'assistant',
+    label: 'AI 超級特助',
+    icon: 'reports',
+    section: 'pro',
+    subtitle: '智慧營運與成長管理',
+    items: [
+      { label: '營收與會員成長洞察', href: '/admin/reports', permission: 'finance', exact: true },
+      { label: '會員經營與精準溝通', href: '/admin/reports/members', permission: 'finance' },
+      { label: 'AI 行銷活動策劃', href: '/admin/marketing', permission: 'activities' },
+      { label: '空場率與收益優化', href: '/admin/reports/utilization', permission: 'finance' },
+      { label: '動態定價', href: '/admin/pricing', permission: 'settings' },
+    ],
+  },
+  {
+    key: 'ambience',
+    label: 'AI 情境營造',
+    icon: 'devices',
+    section: 'pro',
+    items: [
+      { label: '語音廣播與音樂暖場', href: '/admin/ambience?tab=voice', permission: 'device' },
+      { label: '場景與燈光模式', href: '/admin/ambience?tab=lighting', permission: 'device' },
+      { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device' },
+    ],
+  },
+
+  // 系統設定
   {
     key: 'settings',
     label: '系統設定',
     icon: 'settings',
+    section: 'settings',
     items: [
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
       { label: '官網頁面管理', href: '/admin/home', permission: 'settings' },
@@ -111,39 +147,40 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
       { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
+      { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device' },
     ],
   },
 ]
 
 /** 相關但不在側欄的頁面，歸屬到哪個選單項目（用來標示選中） */
 export const ALIAS_PATHS: Record<string, string> = {
-  '/admin/receipts': '/admin/expenses',
+  '/admin/receipts': '/admin/finance',
   '/admin/ai-courts': '/admin/control',
   '/admin/ai-assistant': '/admin',
-  '/admin/templates': '/admin/activities',
+  '/admin/templates': '/admin/marketing',
   '/admin/incidents': '/admin/monitor?tab=events',
-  '/admin/automation': '/admin/devices', // V8.1 排程功能暫時整合到設備總覽
-  // 訂單記錄標籤式導航別名
-  '/admin/finance/payments': '/admin/finance?tab=payments',
-  '/admin/refunds': '/admin/finance?tab=refunds',
-  '/admin/topup': '/admin/finance?tab=topup',
-  '/admin/members/points': '/admin/finance?tab=points',
-  '/admin/invoices': '/admin/finance?tab=invoices',
-  '/admin/expenses': '/admin/finance?tab=expenses',
-  '/admin/finance/daily': '/admin/finance?tab=daily',
-  '/admin/bookings/products': '/admin/finance?tab=products',
+  '/admin/automation': '/admin/devices', // 無人營運管理／電力及環控排程
+  // 財務相關別名 - 全部歸到 /admin/finance
+  '/admin/finance/payments': '/admin/finance',
+  '/admin/refunds': '/admin/finance',
+  '/admin/topup': '/admin/finance',
+  '/admin/members/points': '/admin/finance',
+  '/admin/invoices': '/admin/finance',
+  '/admin/expenses': '/admin/finance',
+  '/admin/finance/daily': '/admin/finance',
+  '/admin/bookings/products': '/admin/finance',
   // 會員與教練導航別名
   '/admin/members/history': '/admin/members',
   // 移除的系統設定頁面重定向到球館基本資料
   '/admin/settings/topup': '/admin/settings',
-  // 舊活動相關頁面重定向到會員管理
-  '/admin/activities': '/admin/members',
-  '/admin/sessions': '/admin/members',
-  '/admin/registrations': '/admin/members',
-  '/admin/events': '/admin/members',
-  '/admin/marketing/vouchers': '/admin/members',
-  '/admin/marketing/products': '/admin/members',
-  '/admin/marketing/campaigns': '/admin/members',
+  // 舊活動相關頁面重定向到行銷
+  '/admin/activities': '/admin/marketing',
+  '/admin/sessions': '/admin/marketing',
+  '/admin/registrations': '/admin/marketing',
+  '/admin/events': '/admin/marketing',
+  '/admin/marketing/vouchers': '/admin/marketing',
+  '/admin/marketing/products': '/admin/marketing',
+  '/admin/marketing/campaigns': '/admin/marketing',
 }
 
 /**
@@ -156,12 +193,19 @@ export function activeHref(pathname: string, search: string = ''): string | null
   const params = new URLSearchParams(aliasQuery ?? search)
   let best: string | null = null
   for (const g of ADMIN_NAV) {
-    const hrefs = g.href ? [g.href] : (g.items ?? []).map((i) => i.href)
-    for (const h of hrefs) {
-      const [hPath, hQuery] = h.split('?')
-      const pathMatch = hPath === '/admin' ? path === hPath : path === hPath || path.startsWith(hPath + '/')
+    // 檢查分組本身的 href（如財務報表）
+    if (g.href) {
+      const [hPath, hQuery] = g.href.split('?')
+      const pathMatch = g.exact ? path === hPath : (hPath === '/admin' ? path === hPath : path === hPath || path.startsWith(hPath + '/'))
       const queryMatch = [...new URLSearchParams(hQuery ?? '')].every(([k, v]) => params.get(k) === v)
-      if (pathMatch && queryMatch && (!best || h.length > best.length)) best = h
+      if (pathMatch && queryMatch && (!best || g.href.length > best.length)) best = g.href
+    }
+    // 檢查子項目
+    for (const i of g.items ?? []) {
+      const [hPath, hQuery] = i.href.split('?')
+      const pathMatch = i.exact ? path === hPath : (hPath === '/admin' ? path === hPath : path === hPath || path.startsWith(hPath + '/'))
+      const queryMatch = [...new URLSearchParams(hQuery ?? '')].every(([k, v]) => params.get(k) === v)
+      if (pathMatch && queryMatch && (!best || i.href.length > best.length)) best = i.href
     }
   }
   return best

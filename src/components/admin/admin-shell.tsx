@@ -152,7 +152,12 @@ function SidebarNav({ user }: { user: ShellUser }) {
   const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items?.filter((i) => allowed(i.permission)) })).filter(
     (g) => (g.href ? allowed(g.permission) : (g.items?.length ?? 0) > 0),
   )
-  const activeGroup = groups.find((g) => g.items?.some((i) => i.href === current))?.key
+  const activeGroup = groups.find((g) => g.items?.some((i) => i.href === current)) || groups.find((g) => g.href === current)
+
+  const sectionLabels: Record<string, string> = {
+    plus: 'PLUS｜基礎營運',
+    pro: 'PRO｜智慧無人營運',
+  }
 
   // 預設只展開目前所在分類；使用者手動展開／收合的狀態保留
   const [manual, setManual] = React.useState<Record<string, boolean>>({})
@@ -163,18 +168,18 @@ function SidebarNav({ user }: { user: ShellUser }) {
   }, [])
   // 進入某分類的頁面時（含重新整理、直接開網址），之前手動收合的該分類要重新展開，才看得到選取項目
   React.useEffect(() => {
-    if (!activeGroup) return
+    if (!activeGroup?.key) return
     setManual((m) => {
-      if (m[activeGroup] !== false) return m
+      if (m[activeGroup.key] !== false) return m
       const next = { ...m }
-      delete next[activeGroup]
+      delete next[activeGroup.key]
       try {
         localStorage.setItem(OPEN_KEY, JSON.stringify(next))
       } catch {}
       return next
     })
   }, [activeGroup, current])
-  const isOpen = (key: string) => manual[key] ?? key === activeGroup
+  const isOpen = (key: string) => manual[key] ?? key === activeGroup?.key
   const toggle = (key: string) => {
     const next = { ...manual, [key]: !isOpen(key) }
     setManual(next)
@@ -196,7 +201,8 @@ function SidebarNav({ user }: { user: ShellUser }) {
 
       <nav className="admin-sidebar-scroll flex-1 overflow-y-auto px-3 pb-3" aria-label="後台選單">
         <ul className="space-y-1">
-          {groups.map((g) => {
+          {/* 首頁 */}
+          {groups.filter(g => !g.section).map((g) => {
             const Icon = NAV_ICON[g.icon]
             return g.href ? (
               <li key={g.key}>
@@ -212,51 +218,92 @@ function SidebarNav({ user }: { user: ShellUser }) {
                   {g.label}
                 </Link>
               </li>
-            ) : (
-              <li key={g.key}>
-                <button
-                  type="button"
-                  onClick={() => toggle(g.key)}
-                  aria-expanded={isOpen(g.key)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] font-semibold transition-colors hover:bg-white/10',
-                    activeGroup === g.key ? 'bg-white/10 text-white' : 'text-white/85',
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.9} aria-hidden />
-                  <span className="flex-1">{g.label}</span>
-                  <ChevronDown className={cn('h-4 w-4 text-white/50 transition-transform', isOpen(g.key) && 'rotate-180')} aria-hidden />
-                </button>
-                {isOpen(g.key) && (
-                  <ul className="mb-1 ml-5 mt-1 space-y-0.5 border-l border-white/15 pl-3">
-                    {(() => {
-                      const items = g.items!
-                      const groups = g.key === 'settings' ? [...new Set(items.map((i) => i.group))] : [undefined]
-                      return groups.flatMap((group) => {
-                        const groupItems = g.key === 'settings' ? items.filter((i) => i.group === group) : items
-                        return [
-                          ...(group && g.key === 'settings' ? [<div key={`group-${group}`} className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{group}</div>] : []),
-                          ...groupItems.map((i) => (
-                            <li key={i.href}>
-                              <Link
-                                href={i.href}
-                                aria-current={current === i.href ? 'page' : undefined}
-                                className={cn(
-                                  'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors',
-                                  current === i.href ? 'bg-[#7cb342] font-semibold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
-                                )}
-                              >
-                                <span>{i.label}</span>
-                                {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
-                              </Link>
-                            </li>
-                          )),
-                        ]
-                      })
-                    })()}
-                  </ul>
+            ) : null
+          })}
+
+          {/* 按 section 分組 */}
+          {(['plus', 'pro', 'settings'] as const).map((section) => {
+            const sectionGroups = groups.filter((g) => g.section === section)
+            if (!sectionGroups.length) return null
+
+            return (
+              <React.Fragment key={section}>
+                {/* Section 標籤 */}
+                {section !== 'settings' && (
+                  <div className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{sectionLabels[section]}</div>
                 )}
-              </li>
+                {section === 'settings' && (
+                  <div className="mb-2 mt-4 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">系統設定</div>
+                )}
+
+                {/* Section 內的分組 */}
+                {sectionGroups.map((g) => {
+                  const Icon = NAV_ICON[g.icon]
+                  return g.href ? (
+                    <li key={g.key}>
+                      <Link
+                        href={g.href}
+                        aria-current={current === g.href ? 'page' : undefined}
+                        className={cn(
+                          'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors',
+                          current === g.href ? 'bg-[#7cb342] text-white shadow-sm' : 'text-white/85 hover:bg-white/10',
+                        )}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={1.9} aria-hidden />
+                        {g.label}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li key={g.key}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(g.key)}
+                        aria-expanded={isOpen(g.key)}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] font-semibold transition-colors hover:bg-white/10',
+                          activeGroup?.key === g.key ? 'bg-white/10 text-white' : 'text-white/85',
+                        )}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" strokeWidth={1.9} aria-hidden />
+                        <div className="flex-1">
+                          <div>{g.label}</div>
+                          {g.subtitle && <div className="text-[11px] font-normal text-white/60">{g.subtitle}</div>}
+                        </div>
+                        <ChevronDown className={cn('h-4 w-4 text-white/50 transition-transform shrink-0', isOpen(g.key) && 'rotate-180')} aria-hidden />
+                      </button>
+                      {isOpen(g.key) && (
+                        <ul className="mb-1 ml-5 mt-1 space-y-0.5 border-l border-white/15 pl-3">
+                          {(() => {
+                            const items = g.items!
+                            const itemGroups = g.key === 'settings' ? [...new Set(items.map((i) => i.group))] : [undefined]
+                            return itemGroups.flatMap((itemGroup) => {
+                              const groupItems = g.key === 'settings' ? items.filter((i) => i.group === itemGroup) : items
+                              return [
+                                ...(itemGroup && g.key === 'settings' ? [<div key={`group-${itemGroup}`} className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{itemGroup}</div>] : []),
+                                ...groupItems.map((i) => (
+                                  <li key={i.href}>
+                                    <Link
+                                      href={i.href}
+                                      aria-current={current === i.href ? 'page' : undefined}
+                                      className={cn(
+                                        'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] transition-colors',
+                                        current === i.href ? 'bg-[#7cb342] font-semibold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
+                                      )}
+                                    >
+                                      <span>{i.label}</span>
+                                      {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
+                                    </Link>
+                                  </li>
+                                )),
+                              ]
+                            })
+                          })()}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                })}
+              </React.Fragment>
             )
           })}
         </ul>
