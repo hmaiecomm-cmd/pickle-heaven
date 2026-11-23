@@ -164,6 +164,11 @@ export const LOG_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 /** Gateway 保存天數 */
 export const LOG_RETENTION_DAYS = 30
 
+/** NVR 錄影保存天數 */
+export const NVR_RETENTION_DAYS = 14
+/** 一次調閱的最長影片秒數（10 分鐘） */
+export const CLIP_MAX_SECONDS = 600
+
 export interface LogUploadFile {
   name: LogFile
   /** JSON Lines 原文（時間範圍與等級已篩選），每行一筆 */
@@ -327,4 +332,50 @@ export interface CommandRecord {
 
 export interface ApiError {
   error: { code: string; message: string }
+}
+
+// ─────────────────────────── 攝影機與媒體 ───────────────────────────
+
+export type MediaQuality = 'low' | 'high'
+
+export interface CameraDef {
+  id: string
+  name: string
+  court?: string
+}
+
+export interface NvrIndex {
+  camera: string
+  from: string
+  to: string
+  segments: { start: string; end: string; hasMotion: boolean }[]
+}
+
+export interface NvrRecording {
+  camera: string
+  from: string
+  to: string
+  url: string
+}
+
+export interface MediaSessionInfo {
+  session: string
+  camera: string
+  live: boolean
+  title: string
+  createdAt: string
+  expiresAt: string
+  url?: string
+}
+
+// ─────────────────────────── 網絡流量紀錄 ───────────────────────────
+
+export interface TrafficEntry {
+  at: string
+  direction: 'up' | 'down'
+  bytes: number
+  method?: string
+  path?: string
+  status?: number
+  error?: string
 }
