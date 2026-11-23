@@ -127,8 +127,14 @@ export type EdgeCommand =
   | { type: 'status.report' }
   | { type: 'plan.refresh' }
   | { type: 'audio.play'; file: string }
+  | { type: 'camera.live'; camera: string; session: string; seconds: number }
+  | { type: 'camera.stop'; session: string }
+  | { type: 'nvr.index'; cameras?: string[]; from: string; to: string }
+  | { type: 'nvr.clip'; camera: string; session: string; from: string; to: string }
   /** 調閱本機 log：篩選後以 PUT /edge/v1/logs/{指令 id} 上傳，再 ack */
   | { type: 'log.upload'; files: LogFile[]; from: string; to: string; minLevel?: LogLevel; maxBytes?: number }
+  /** 模擬器故障注入（工程測試用） */
+  | { type: 'sim.inject'; fault: string; [key: string]: unknown }
 
 export type EdgeCommandType = EdgeCommand['type']
 
