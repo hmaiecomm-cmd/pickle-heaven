@@ -61,4 +61,6 @@ export const gateway = {
   logFile: (siteId: string, id: string, file: LogFile) => send('GET', `/internal/v1/sites/${siteId}/logs/${encodeURIComponent(id)}?file=${file}`, undefined, 30_000),
   /** 下載媒體檔案（HLS 片段）（串流回傳） */
   mediaFile: (siteId: string, session: string, file: string) => send('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}/${encodeURIComponent(file)}`, undefined, 30_000),
+  /** 取得指令詳情 */
+  command: (id: string) => call<CommandRecord>('GET', `/internal/v1/commands/${encodeURIComponent(id)}`),
 }
