@@ -19,7 +19,7 @@ const TARGET_LABEL: Record<string, string> = { ON: '開啟', OFF: '關閉' }
 const SOURCE_LABEL: Record<string, string> = { MANUAL_OVERRIDE: '手動', SCHEDULE: '排程', EMERGENCY: '緊急' }
 
 export default async function ControlPage() {
-  const ctx = await pagePermission('monitor')
+  const ctx = await pagePermission('device')
   if (ctx === 'forbidden') return <Forbidden />
   const [snap, cmds, circuitCmds, dbCircuits] = await Promise.all([
     getMonitorSnapshot(),

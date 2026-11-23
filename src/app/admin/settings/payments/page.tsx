@@ -4,6 +4,7 @@ import { isDemoTenant } from '@/lib/db'
 import { availableProviders, linepayProvider, mockProvider, newebpayProvider, tappayProvider } from '@/lib/payments'
 import { invoiceIntegration } from '@/server/invoice-service'
 import { Forbidden, PageTitle, Pill } from '@/components/admin/page-bits'
+import { PaymentConfigClient } from './payment-config-client'
 
 export const metadata: Metadata = { title: '金流與發票設定' }
 export const dynamic = 'force-dynamic'
@@ -21,11 +22,13 @@ export default async function PaymentSettingsPage() {
   const enabled = new Set(availableProviders().map((p) => p.id))
   const inv = await invoiceIntegration()
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageTitle title="金流與發票設定" desc="顯示目前實際生效的設定。金鑰屬於伺服器環境變數，不在畫面上顯示或修改。" />
       {demo && <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">展示環境一律使用模擬金流與模擬發票服務，不會連線真實金流。</p>}
+
+      {/* 簡略視圖 */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">金流</h2>
+        <h2 className="text-sm font-semibold">金流概覽</h2>
         <p className="mt-1 text-xs text-muted">主要金流：{primary}{primary === 'mock' ? '（模擬金流：付款與退款都不是真實款項）' : ''}</p>
         <ul className="mt-3 divide-y divide-zinc-100 text-sm">
           {providers.map((p) => (
@@ -40,6 +43,14 @@ export default async function PaymentSettingsPage() {
           ))}
         </ul>
       </section>
+
+      {/* 詳細配置檢查 */}
+      <div>
+        <h2 className="text-sm font-semibold mb-3">配置詳檢</h2>
+        <PaymentConfigClient />
+      </div>
+
+      {/* 電子發票 */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">電子發票</h2>
         <p className="mt-1 text-sm">

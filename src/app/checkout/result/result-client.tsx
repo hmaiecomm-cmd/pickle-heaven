@@ -17,16 +17,38 @@ export function ResultClient({ bookingId, transactionId }: { bookingId: string; 
   React.useEffect(() => {
     let attempts = 0
     let stopped = false
+    let confirmCalled = false
+
+    async function confirmPayment() {
+      if (confirmCalled || !transactionId) return
+      confirmCalled = true
+
+      try {
+        const res = await fetch(
+          `/api/payments/confirm?bookingId=${encodeURIComponent(bookingId)}&transactionId=${encodeURIComponent(transactionId)}`,
+          { method: 'POST', cache: 'no-store' }
+        )
+        const data = (await res.json()) as { ok?: boolean }
+        if (!data.ok) {
+          console.warn('[confirm] LINE Pay 確認可能失敗，繼續輪詢', res.status)
+        }
+      } catch (err) {
+        console.warn('[confirm] 調用失敗，繼續輪詢', err)
+      }
+    }
 
     async function poll() {
       if (stopped) return
+
+      // 首次嘗試時先確認支付（LINE Pay 專用）
+      if (attempts === 0 && transactionId) {
+        await confirmPayment()
+      }
+
       attempts += 1
 
       try {
-        // LINE Pay 需在導回時呼叫 confirm 才真正扣款
-        const url = transactionId
-          ? `/api/bookings/${bookingId}/status?transactionId=${encodeURIComponent(transactionId)}`
-          : `/api/bookings/${bookingId}/status`
+        const url = `/api/bookings/${bookingId}/status`
         const res = await fetch(url, { cache: 'no-store' })
         const data = (await res.json()) as { status?: string }
 

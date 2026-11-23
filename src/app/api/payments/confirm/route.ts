@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { prisma } from '@/lib/db'
+import { getPaymentProvider } from '@/lib/payments'
 
 /**
  * POST /api/payments/confirm
- * 確認支付完成，更新訂單狀態
+ *
+ * 確認支付完成（LINE Pay 二次確認或其他方式）
+ *
+ * 查詢參數：
+ * - bookingId: 訂單 ID
+ * - transactionId: 金流商交易編號（LINE Pay 專用）
  */
 export async function POST(request: NextRequest) {
   try {
@@ -13,132 +19,101 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '需要登入' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const {
-      transactionId,
-      bookingId,
-      productOrderId,
-      paymentMethod,
-      amount,
-    } = body
+    const { searchParams } = new URL(request.url)
+    const bookingId = searchParams.get('bookingId')
+    const transactionId = searchParams.get('transactionId')
 
-    // 驗證參數
-    if (!transactionId || (!bookingId && !productOrderId)) {
-      return NextResponse.json({ error: '缺少必要資訊' }, { status: 400 })
+    if (!bookingId) {
+      return NextResponse.json({ error: '缺少訂單 ID' }, { status: 400 })
     }
 
-    let updatedBooking = null
-    let updatedOrder = null
+    // ===== 訂單驗證 =====
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { userId: true, status: true, total: true },
+    })
 
-    // 更新場地租借訂單
-    if (bookingId) {
-      const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
-        select: { userId: true, status: true, total: true },
-      })
+    if (!booking || booking.userId !== user.id) {
+      return NextResponse.json({ error: '訂單不存在或無權限' }, { status: 404 })
+    }
 
-      if (!booking || booking.userId !== user.id) {
-        return NextResponse.json({ error: '訂單不存在或無權限' }, { status: 404 })
+    if (booking.status !== 'PENDING') {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: '訂單非待支付狀態',
+          status: booking.status,
+        },
+        { status: 400 }
+      )
+    }
+
+    // ===== LINE Pay 二次確認 =====
+    if (transactionId) {
+      const provider = getPaymentProvider('linepay')
+
+      if (!provider.confirm) {
+        return NextResponse.json(
+          { ok: false, reason: '該金流商不支持二次確認' },
+          { status: 400 }
+        )
       }
 
-      updatedBooking = await prisma.booking.update({
-        where: { id: bookingId },
-        data: {
-          status: 'PAID',
-          paidAt: new Date(),
-        },
-        include: { items: true, user: true },
+      const result = await provider.confirm({
+        transactionId,
+        amount: String(booking.total),
       })
 
-      // 建立付款記錄
+      if (!result.ok) {
+        // 記錄失敗但不阻斷輪詢（server-to-server 可能稍後成功）
+        console.error('[confirm] LINE Pay 確認失敗', {
+          bookingId,
+          transactionId,
+          reason: result.failReason,
+        })
+
+        return NextResponse.json({
+          ok: false,
+          reason: result.failReason,
+        })
+      }
+
+      // ===== 成功：記錄交易並更新訂單 =====
       await prisma.payment.create({
         data: {
           bookingId,
-          provider: 'mock',
-          method: paymentMethod as any,
-          amount,
+          provider: 'linepay',
+          method: 'LINE_PAY',
+          amount: booking.total,
           status: 'SUCCESS',
           providerRef: transactionId,
           paidAt: new Date(),
         },
       })
-    }
 
-    // 更新商品訂單
-    if (productOrderId) {
-      const order = await prisma.productOrder.findUnique({
-        where: { id: productOrderId },
-        select: { userId: true, status: true, total: true },
-      })
-
-      if (!order || order.userId !== user.id) {
-        return NextResponse.json({ error: '訂單不存在或無權限' }, { status: 404 })
-      }
-
-      updatedOrder = await prisma.productOrder.update({
-        where: { id: productOrderId },
+      await prisma.booking.update({
+        where: { id: bookingId },
         data: {
           status: 'PAID',
-          paymentStatus: 'SUCCESS',
           paidAt: new Date(),
-        },
-        include: {
-          items: { include: { product: true } },
-          user: true,
         },
       })
 
-      // 建立付款記錄
-      await prisma.productPayment.create({
-        data: {
-          orderId: productOrderId,
-          method: paymentMethod as any,
-          amount,
-          status: 'SUCCESS',
-          transactionId,
-          paidAt: new Date(),
-        },
-      })
+      // 此處可觸發 LINE 通知、發票等（已有現有邏輯）
+
+      return NextResponse.json({ ok: true, status: 'PAID' })
     }
 
-    // 返回成功響應
+    // ===== 無 transactionId 時僅查詢狀態 =====
     return NextResponse.json({
-      success: true,
-      transactionId,
-      booking: updatedBooking,
-      order: updatedOrder,
-      message: '支付成功，訂單已更新',
+      ok: true,
+      status: booking.status,
     })
   } catch (error) {
     console.error('[API] POST /payments/confirm error:', error)
-    return NextResponse.json({ error: '確認支付失敗' }, { status: 500 })
-  }
-}
-
-/**
- * GET /api/payments/status/:transactionId
- * 查詢支付狀態
- */
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const transactionId = searchParams.get('transactionId')
-
-    if (!transactionId) {
-      return NextResponse.json({ error: '缺少交易編號' }, { status: 400 })
-    }
-
-    // 查詢付款記錄
-    // 注意：此處應該根據 transactionId 在 Payment/ProductPayment 表中查詢
-    // 以下為示例，實際需要實作完整邏輯
-
-    return NextResponse.json({
-      transactionId,
-      status: 'PENDING', // 實際應查詢資料庫
-      message: '交易狀態查詢',
-    })
-  } catch (error) {
-    console.error('[API] GET /payments/status error:', error)
-    return NextResponse.json({ error: '查詢支付狀態失敗' }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, error: '確認支付失敗' },
+      { status: 500 }
+    )
   }
 }

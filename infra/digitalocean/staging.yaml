@@ -1,0 +1,81 @@
+# DigitalOcean App Platform：IoT 測試環境（staging）
+#   Gateway（記憶體版，重開會清空；平台推計畫時自動重建場館）＋ 雲端場館模擬器
+#
+#   https://<app>.ondigitalocean.app/          → Gateway（場館電腦與平台都打這裡）
+#   https://<app>.ondigitalocean.app/sim/      → 場館模擬器網頁（CONSOLE_PASSWORD）
+#
+# 模擬器走公開網址連 Gateway（跟真實場館電腦一樣從外面連進來），每次請求帶 x-sim-egress-ip
+# 宣告模擬的浮動 IP；Gateway 只對 siteId 結尾 -sim 的場館採信這個標頭。
+#
+# 建立：doctl apps create --spec infra/digitalocean/staging.yaml（或用 DO MCP apps-create-app-from-spec）
+# type: SECRET 的值第一次建立前要填入，之後 DO 會加密保存。
+name: gh-iot-staging
+region: sgp
+alerts:
+  - rule: DEPLOYMENT_FAILED
+services:
+  - name: gateway
+    github:
+      repo: hmaiecomm-cmd/pickle-heaven
+      branch: feat/iot-gateway
+      deploy_on_push: true
+    source_dir: /
+    dockerfile_path: services/iot-gateway/Dockerfile
+    http_port: 8080
+    instance_count: 1 # 記憶體版只能 1 台；改 Postgres＋Redis 後才能多台
+    instance_size_slug: apps-s-1vcpu-1gb
+    routes:
+      - path: /
+    health_check:
+      http_path: /healthz
+    envs:
+      - key: STORE
+        value: memory
+      - key: OFFLINE_AFTER_SEC
+        value: "30"
+      - key: RATE_LIMIT_PER_MIN
+        value: "600"
+      - key: SITE_MASTER_KEY
+        type: SECRET
+        value: "<至少 32 字元>"
+      - key: PLATFORM_SECRET
+        type: SECRET
+        value: "<與 Vercel IOT_PLATFORM_SECRET 相同>"
+      - key: DATA_KEY
+        type: SECRET
+        value: "<32 bytes base64>"
+      - key: WEBHOOK_URL
+        value: "<平台網址>/api/iot/webhook"
+      - key: WEBHOOK_SECRET
+        type: SECRET
+        value: "<與 Vercel IOT_WEBHOOK_SECRET 相同>"
+
+  - name: simulator
+    github:
+      repo: hmaiecomm-cmd/pickle-heaven
+      branch: feat/iot-gateway
+      deploy_on_push: true
+    source_dir: /
+    dockerfile_path: edge/simulator/Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-2gb # 6 路 ffmpeg 即時編碼
+    routes:
+      - path: /sim # DO 會去掉 /sim 前綴；模擬器網頁用相對路徑
+    health_check:
+      http_path: /healthz
+    envs:
+      - key: GATEWAY_URL
+        value: ${APP_URL}
+      - key: SITE_ID
+        value: xindian001-sim
+      - key: SITE_LABEL
+        value: 大新店（雲端模擬器）
+      - key: FLOATING_IP_EVERY_MIN
+        value: "30"
+      - key: PLATFORM_SECRET
+        type: SECRET
+        value: "<與 gateway 的 PLATFORM_SECRET 相同>"
+      - key: CONSOLE_PASSWORD
+        type: SECRET
+        value: "<模擬器網頁密碼>"

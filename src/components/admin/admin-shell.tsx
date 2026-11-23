@@ -159,27 +159,15 @@ function SidebarNav({ user }: { user: ShellUser }) {
     pro: 'PRO｜智慧無人營運',
   }
 
-  // 預設只展開目前所在分類；使用者手動展開／收合的狀態保留
+  // 首頁預設全部收合；其他頁面預設展開目前分類，使用者手動狀態保留。
   const [manual, setManual] = React.useState<Record<string, boolean>>({})
   React.useEffect(() => {
     try {
       setManual(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}'))
     } catch {}
   }, [])
-  // 進入某分類的頁面時（含重新整理、直接開網址），之前手動收合的該分類要重新展開，才看得到選取項目
-  React.useEffect(() => {
-    if (!activeGroup?.key) return
-    setManual((m) => {
-      if (m[activeGroup.key] !== false) return m
-      const next = { ...m }
-      delete next[activeGroup.key]
-      try {
-        localStorage.setItem(OPEN_KEY, JSON.stringify(next))
-      } catch {}
-      return next
-    })
-  }, [activeGroup, current])
-  const isOpen = (key: string) => manual[key] ?? key === activeGroup?.key
+  const isHome = pathname === '/admin'
+  const isOpen = (key: string) => isHome ? false : (manual[key] ?? key === activeGroup?.key)
   const toggle = (key: string) => {
     const next = { ...manual, [key]: !isOpen(key) }
     setManual(next)

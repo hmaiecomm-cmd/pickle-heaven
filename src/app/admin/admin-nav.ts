@@ -60,7 +60,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '訂場訂單', href: '/admin/bookings?tab=venue', permission: 'bookings' },
       { label: '活動訂單', href: '/admin/bookings?tab=activity', permission: 'bookings' },
-      { label: '商品訂單', href: '/admin/product-orders', permission: 'marketing' },
+      { label: '商品訂單', href: '/admin/product-orders', permission: 'marketing', notOpen: true },
       { label: '點數與票券', href: '/admin/bookings?tab=points', permission: 'members' },
     ],
   },
@@ -113,13 +113,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: 'AI 超級特助',
     icon: 'reports',
     section: 'pro',
-    subtitle: '智慧營運與成長管理',
     items: [
-      { label: '營收與會員成長洞察', href: '/admin/reports', permission: 'finance', exact: true },
-      { label: '會員經營與精準溝通', href: '/admin/reports/members', permission: 'finance' },
-      { label: 'AI 行銷活動策劃', href: '/admin/marketing', permission: 'activities' },
-      { label: '空場率與收益優化', href: '/admin/reports/utilization', permission: 'finance' },
-      { label: '動態定價', href: '/admin/pricing', permission: 'settings' },
+      { label: '營收與會員成長洞察', href: '/admin/reports', permission: 'finance', exact: true, notOpen: true },
+      { label: '會員經營與精準溝通', href: '/admin/reports/members', permission: 'finance', notOpen: true },
+      { label: 'AI 行銷活動策劃', href: '/admin/marketing', permission: 'activities', notOpen: true },
+      { label: '空場率與收益優化', href: '/admin/reports/utilization', permission: 'finance', notOpen: true },
+      { label: '動態定價', href: '/admin/pricing', permission: 'settings', notOpen: true },
     ],
   },
   {
@@ -128,9 +127,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     icon: 'devices',
     section: 'pro',
     items: [
-      { label: '語音廣播與音樂暖場', href: '/admin/ambience?tab=voice', permission: 'device' },
-      { label: '場景與燈光模式', href: '/admin/ambience?tab=lighting', permission: 'device' },
-      { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device' },
+      { label: '語音廣播與音樂暖場', href: '/admin/ambience?tab=voice', permission: 'device', notOpen: true },
+      { label: '場景與燈光模式', href: '/admin/ambience?tab=lighting', permission: 'device', notOpen: true },
+      { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device', notOpen: true },
     ],
   },
 
