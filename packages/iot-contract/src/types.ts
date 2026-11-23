@@ -113,6 +113,8 @@ export interface SitePlan {
   timeline: CircuitInterval[]
   overrides: CircuitOverride[]
   doorCodes: DoorCode[]
+  /** 攝影機列表 */
+  cameras?: CameraDef[]
   /** 營業時間（自午夜起分鐘，可 > 1440 表示跨日），供地端顯示與打烊判斷 */
   business: { openMinute: number; closeMinute: number }
   audio?: AudioCues
