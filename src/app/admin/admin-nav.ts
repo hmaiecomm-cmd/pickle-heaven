@@ -69,9 +69,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '財務報表',
     icon: 'reports',
     section: 'plus',
-    href: '/admin/finance',
     permission: 'finance',
-    exact: true,
+    items: [
+      { label: '實時報表', href: '/admin/finance', permission: 'finance', exact: true },
+      { label: '管理總覽預覽', href: '/admin/finance/overview', permission: 'finance' },
+    ],
   },
   {
     key: 'members',
