@@ -380,8 +380,8 @@ export interface TrafficEntry {
   at: string
   direction: 'up' | 'down'
   bytes: number
-  method?: string
-  path?: string
-  status?: number
+  method: string
+  path: string
+  status: number
   error?: string
 }
