@@ -374,6 +374,7 @@ export interface MediaSessionInfo {
   url?: string
   segments: number
   bytes: number
+  ended?: boolean
   endReason?: 'COMPLETED' | 'EXPIRED' | 'STOPPED'
 }
 
