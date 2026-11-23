@@ -372,6 +372,9 @@ export interface MediaSessionInfo {
   createdAt: string
   expiresAt: string
   url?: string
+  segments?: number
+  bytes?: number
+  endReason?: 'COMPLETED' | 'EXPIRED' | 'STOPPED'
 }
 
 // ─────────────────────────── 網絡流量紀錄 ───────────────────────────
