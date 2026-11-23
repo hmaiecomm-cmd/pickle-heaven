@@ -63,4 +63,8 @@ export const gateway = {
   mediaFile: (siteId: string, session: string, file: string) => send('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}/${encodeURIComponent(file)}`, undefined, 30_000),
   /** 取得指令詳情 */
   command: (id: string) => call<CommandRecord>('GET', `/internal/v1/commands/${encodeURIComponent(id)}`),
+  /** 取得媒體會話訊息 */
+  mediaInfo: (siteId: string, session: string) => call<any>('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}`),
+  /** 取得 NVR 索引 */
+  nvrIndex: (siteId: string, id: string) => call<any>('GET', `/internal/v1/sites/${siteId}/nvr/${encodeURIComponent(id)}`),
 }
