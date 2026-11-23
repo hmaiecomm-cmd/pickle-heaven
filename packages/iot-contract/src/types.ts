@@ -100,6 +100,14 @@ export interface AudioCues {
   doNotUseCourt?: string
 }
 
+/** 攝影機（NVR 通道）；court 有值時，位移偵測會對照該球場的預約 */
+export interface CameraDef {
+  /** 01–06 */
+  id: string
+  name: string
+  court?: string
+}
+
 export interface SitePlan {
   contract: typeof CONTRACT_VERSION
   siteId: string
@@ -113,11 +121,10 @@ export interface SitePlan {
   timeline: CircuitInterval[]
   overrides: CircuitOverride[]
   doorCodes: DoorCode[]
-  /** 攝影機列表 */
-  cameras?: CameraDef[]
   /** 營業時間（自午夜起分鐘，可 > 1440 表示跨日），供地端顯示與打烊判斷 */
   business: { openMinute: number; closeMinute: number }
   audio?: AudioCues
+  cameras?: CameraDef[]
 }
 
 // ─────────────────────────── 指令 ───────────────────────────
@@ -129,16 +136,24 @@ export type EdgeCommand =
   | { type: 'status.report' }
   | { type: 'plan.refresh' }
   | { type: 'audio.play'; file: string }
-  | { type: 'camera.live'; camera: string; session: string; seconds: number }
-  | { type: 'camera.stop'; session: string }
-  | { type: 'nvr.index'; cameras?: string[]; from: string; to: string }
-  | { type: 'nvr.clip'; camera: string; session: string; from: string; to: string }
   /** 調閱本機 log：篩選後以 PUT /edge/v1/logs/{指令 id} 上傳，再 ack */
   | { type: 'log.upload'; files: LogFile[]; from: string; to: string; minLevel?: LogLevel; maxBytes?: number }
-  /** 模擬器故障注入（工程測試用） */
-  | { type: 'sim.inject'; fault: string; [key: string]: unknown }
+  /** 即時影像：開始（或延長）把某支攝影機的 HLS 片段上傳到 session，seconds 秒後自動停止 */
+  | { type: 'camera.live'; camera: string; session: string; seconds: number; quality?: MediaQuality }
+  | { type: 'camera.stop'; session: string }
+  /** 查詢 NVR 錄影索引，結果以 PUT /edge/v1/media/nvr-index/{指令 id} 上傳 */
+  | { type: 'nvr.index'; cameras?: string[]; from: string; to: string }
+  /** 調閱 NVR 錄影片段（最長 10 分鐘），HLS 片段上傳到 session，最後呼叫 /end */
+  | { type: 'nvr.clip'; camera: string; session: string; from: string; to: string; quality?: MediaQuality }
+  /**
+   * 只給網頁模擬器：雲端「工程測試頁」用來在地端製造狀況（斷網、RS-485 斷線、繼電器卡住、時鐘偏差、輸入密碼、有人進場）。
+   * 實體場館電腦一律回 REJECTED。
+   */
+  | { type: 'sim.inject'; fault: SimFault; seconds?: number; channel?: number; value?: string }
 
 export type EdgeCommandType = EdgeCommand['type']
+
+export type SimFault = 'offline' | 'modbus' | 'door' | 'stuck' | 'skew' | 'code' | 'motion' | 'reset'
 
 export interface CommandEnvelope {
   id: string
@@ -172,11 +187,6 @@ export const LOG_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 /** Gateway 保存天數 */
 export const LOG_RETENTION_DAYS = 30
 
-/** NVR 錄影保存天數 */
-export const NVR_RETENTION_DAYS = 14
-/** 一次調閱的最長影片秒數（10 分鐘） */
-export const CLIP_MAX_SECONDS = 600
-
 export interface LogUploadFile {
   name: LogFile
   /** JSON Lines 原文（時間範圍與等級已篩選），每行一筆 */
@@ -205,6 +215,60 @@ export interface LogUploadSummary {
   minLevel: LogLevel | null
   error: string | null
   upload: { uploadedAt: string; bytes: number; files: { name: LogFile; lines: number; bytes: number; truncated: boolean }[] } | null
+}
+
+// ─────────────────────────── 影像（攝影機即時串流、NVR 錄影） ───────────────────────────
+
+export type MediaQuality = 'low' | 'high'
+export type MediaKind = 'live' | 'clip'
+
+/** NVR 保存天數（索引與調閱範圍） */
+export const NVR_RETENTION_DAYS = 14
+/** 單一 HLS 片段上限 */
+export const MEDIA_SEGMENT_MAX_BYTES = 4 * 1024 * 1024
+/** 即時串流單次最長秒數（要更久就再送一次 camera.live 延長） */
+export const LIVE_MAX_SECONDS = 300
+/** 錄影調閱單次最長秒數 */
+export const CLIP_MAX_SECONDS = 600
+/** session 編號格式（由雲端產生） */
+export const MEDIA_SESSION_PATTERN = /^[a-z0-9][a-z0-9-]{7,63}$/
+
+export interface NvrRecording {
+  camera: string
+  start: string
+  end: string
+  /** continuous＝連續錄影；motion＝位移觸發 */
+  kind: 'continuous' | 'motion'
+  bytes?: number
+}
+
+/** PUT /edge/v1/media/nvr-index/{commandId} */
+export interface NvrIndex {
+  from: string
+  to: string
+  /** NVR 實際保存的最早時間 */
+  oldest: string | null
+  recordings: NvrRecording[]
+  /** 硬碟用量（選填） */
+  disk?: { usedBytes: number; totalBytes: number }
+}
+
+export interface MediaSessionInfo {
+  session: string
+  siteId: string
+  kind: MediaKind
+  camera: string
+  createdAt: string
+  /** live：何時自動停止；clip：調閱的時間範圍 */
+  until: string | null
+  from: string | null
+  to: string | null
+  segments: number
+  bytes: number
+  lastSegmentAt: string | null
+  /** clip 已上傳完（或 live 已停止） */
+  ended: boolean
+  endReason: string | null
 }
 
 // ─────────────────────────── 地端回報 ───────────────────────────
@@ -275,6 +339,7 @@ export type WebhookPayload =
   | { kind: 'events'; siteId: string; events: EdgeEvent[] }
   | { kind: 'presence'; siteId: string; online: boolean; lastSeenAt: string | null; agentVersion?: string }
   | { kind: 'command.expired'; siteId: string; commandId: string; command: EdgeCommand }
+  | { kind: 'media.ended'; siteId: string; session: string; camera: string; mediaKind: MediaKind; segments: number; reason?: string }
   | { kind: 'log.uploaded'; siteId: string; commandId: string; bytes: number; files: { name: LogFile; lines: number; truncated: boolean }[]; requestedBy?: string }
 
 export interface WebhookEnvelope {
@@ -338,61 +403,57 @@ export interface CommandRecord {
   ack: CommandAck | null
 }
 
-export interface ApiError {
-  error: { code: string; message: string }
-}
-
-// ─────────────────────────── 攝影機與媒體 ───────────────────────────
-
-export type MediaQuality = 'low' | 'high'
-
-export interface CameraDef {
-  id: string
-  name: string
-  court?: string
-}
-
-export interface NvrIndex {
-  camera: string
-  from: string
-  to: string
-  segments: { start: string; end: string; hasMotion: boolean }[]
-}
-
-export interface NvrRecording {
-  camera: string
-  from: string
-  to: string
-  url: string
-}
-
-export interface MediaSessionInfo {
-  session: string
-  camera: string
-  live: boolean
-  kind: 'live' | 'clip' | 'index'
-  title: string
-  createdAt: string
-  expiresAt: string
-  url?: string
-  segments: number
-  bytes: number
-  from?: string
-  to?: string
-  ended?: boolean
-  endReason?: 'COMPLETED' | 'EXPIRED' | 'STOPPED'
-}
-
-// ─────────────────────────── 網絡流量紀錄 ───────────────────────────
-
+/** Gateway 記錄的每個場館最近請求（雲端看得到場館送了什麼、拿走了什麼） */
 export interface TrafficEntry {
   at: string
+  /** up＝場館送上來；down＝場館取走（計畫、指令） */
   dir: 'up' | 'down'
-  bytes: number
   method: string
   path: string
   status: number
+  bytes: number
   ms: number
   note?: string
-  error?: string
+}
+
+/** 場館連線來源（浮動 IP）變更紀錄 */
+export interface IpChange {
+  at: string
+  ip: string
+  prev: string | null
+  /** 模擬器宣告的 IP（x-sim-egress-ip，只對 -sim 場館採用） */
+  simulated: boolean
+}
+
+/** Gateway 收到的一次心跳 */
+export interface HeartbeatLog {
+  at: string
+  ip: string
+  /** 距上次心跳（毫秒）；第一次為 null */
+  gapMs: number | null
+  skewMs: number
+  uptimeSec: number
+  planRev: number | null
+  pendingEvents: number
+  agentVersion: string
+}
+
+/** 場館連線狀態：目前 IP、IP 變更歷史、最近心跳 */
+export interface SiteConnection {
+  siteId: string
+  online: boolean
+  lastSeenAt: string | null
+  offlineAfterSec: number
+  ip: string | null
+  ipSince: string | null
+  simulated: boolean
+  ipHistory: IpChange[]
+  heartbeats: HeartbeatLog[]
+}
+
+/** 模擬器專用標頭：模擬浮動 IP（真實場館電腦不送；Gateway 只對 siteId 結尾 -sim 的場館採用） */
+export const HEADER_SIM_EGRESS_IP = 'x-sim-egress-ip'
+
+export interface ApiError {
+  error: { code: string; message: string }
 }

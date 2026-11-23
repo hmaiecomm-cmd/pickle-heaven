@@ -28,7 +28,8 @@ export async function pushSitePlan(venueId: string): Promise<{ siteId: string; r
     // 第一次推送時 Gateway 尚未建立場館 → 建立後重試
     if (err instanceof GatewayError && err.status === 404) {
       const venue = await prisma.venue.findUnique({ where: { id: venueId }, select: { name: true } })
-      await gateway.upsertSite(plan.siteId, venue?.name ?? plan.siteId, venueId)
+      const name = venue?.name ?? plan.siteId
+      await gateway.upsertSite(plan.siteId, plan.siteId.endsWith('-sim') ? `${name}（模擬器）` : name, venueId)
       const r = await gateway.putPlan(plan)
       return { siteId: plan.siteId, ...r }
     }

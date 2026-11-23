@@ -24,7 +24,7 @@ export function sha256Hex(body: string | Uint8Array): string {
   return createHash('sha256').update(body).digest('hex')
 }
 
-export function canonicalString(method: string, pathWithQuery: string, ts: string, nonce: string, body: string): string {
+export function canonicalString(method: string, pathWithQuery: string, ts: string, nonce: string, body: string | Uint8Array): string {
   return [method.toUpperCase(), pathWithQuery, ts, nonce, sha256Hex(body)].join('\n')
 }
 
@@ -48,7 +48,8 @@ export function signRequest(opts: {
   secret: string
   method: string
   pathWithQuery: string
-  body?: string
+  /** 字串或二進位（影像片段）；簽的是實際送出的位元組 */
+  body?: string | Uint8Array
   now?: number
   nonce?: string
 }): Record<string, string> {
@@ -65,7 +66,7 @@ export function verifySignature(opts: {
   secret: string
   method: string
   pathWithQuery: string
-  body: string
+  body: string | Uint8Array
   headers: { ts?: string | null; nonce?: string | null; sig?: string | null }
   now?: number
 }): { ok: true } | { ok: false; reason: VerifyFailure } {

@@ -27,7 +27,7 @@ export async function startEmbeddedGateway(overrides: Partial<GatewayConfig> = {
   const deps = { cfg, store, rt }
   const app = createApp(deps)
   const workers = startWorkers(deps)
-  const server = serve({ fetch: app.fetch, port: cfg.port })
+  const server = serve({ fetch: app.fetch, port: cfg.port, hostname: '127.0.0.1' })
   await new Promise<void>((r) => (server.listening ? r() : server.once('listening', () => r())))
   const port = (server.address() as AddressInfo).port
   return {

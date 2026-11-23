@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { buildDemoPlan, hm, taipei } from './demo-plan'
 import { HttpStatusError, signedFetch } from './http'
 import { waitUntil, type Ctx } from './harness'
+import type { SiteConnection } from '../../../packages/iot-contract/src/index'
 
 /**
  * 情境劇本。每個情境都同時扮演「平台」（推計畫、下指令、收 webhook）與「場館」（模擬電腦＋硬體），
@@ -403,6 +404,110 @@ export const SCENARIOS: Scenario[] = [
       await waitUntil(async () => (await ctx.platform.command(cmd)).status === 'ACKED', 8_000)
       assert.equal(await put(cmd, [{ name: 'edge', content: '', lines: 0, truncated: false }]), '409 CONFLICT')
       assert.equal(await put('nope-12345678', [{ name: 'edge', content: '', lines: 0, truncated: false }]), '404 NOT_FOUND')
+    },
+  },
+  {
+    id: 'camera-live',
+    title: '攝影機即時串流：camera.live → ffmpeg 產生 HLS → 逐片上傳 → 平台取播放清單與片段 → camera.stop',
+    tags: ['camera', 'media'],
+    async run(ctx) {
+      ctx.clock.set(T(10))
+      const agent = await ctx.newSite('sim-cam', { media: true })
+      await ctx.platform.putPlan(buildDemoPlan({ siteId: 'sim-cam', day: DAY, generatedAt: ctx.clock.now(), bookings: [{ court: 'A', start: T(10), end: T(11), id: 'bk-cam' }] }))
+      agent.start()
+      await waitUntil(() => agent.planRev !== null, 5_000)
+      const session = `live-${randomUUID()}`
+      await ctx.platform.enqueue('sim-cam', `cmd-${randomUUID()}`, { type: 'camera.live', camera: '04', session, seconds: 30 })
+      await waitUntil(async () => (await ctx.platform.get(`/internal/v1/sites/sim-cam/media/${session}`)).segments >= 2, 20_000, '收到 2 個即時片段')
+      const m3u8 = (await ctx.platform.raw(`/internal/v1/sites/sim-cam/media/${session}/index.m3u8`)).text
+      assert.match(m3u8, /#EXTINF:[\d.]+,\n\d+\.ts/, '播放清單列出片段')
+      assert.ok(!m3u8.includes('#EXT-X-ENDLIST'), '即時串流不應有 ENDLIST')
+      const first = m3u8.split('\n').find((l) => l.endsWith('.ts'))!
+      const seg = await ctx.platform.raw(`/internal/v1/sites/sim-cam/media/${session}/${first}`)
+      assert.equal(seg.headers.get('content-type'), 'video/mp2t')
+      assert.equal(seg.text.charCodeAt(0), 0x47, 'MPEG-TS 同步位元組 0x47')
+      await ctx.platform.enqueue('sim-cam', `cmd-${randomUUID()}`, { type: 'camera.stop', session })
+      await waitUntil(() => agent.media!.jobs.size === 0, 8_000, '場館停止串流')
+      const info = await ctx.platform.get(`/internal/v1/sites/sim-cam/media/${session}`)
+      assert.equal(info.ended, true)
+      const bad = await ctx.platform.enqueue('sim-cam', `cmd-${randomUUID()}`, { type: 'camera.live', camera: '09', session: `live-${randomUUID()}`, seconds: 10 })
+      await waitUntil(async () => (await ctx.platform.command(bad.id)).status === 'REJECTED', 8_000, '不存在的攝影機回 REJECTED')
+    },
+  },
+  {
+    id: 'nvr-recordings',
+    title: 'NVR 14 天錄影：索引（連續＋位移）、調閱 2 分鐘片段（VOD）、超過 14 天拒絕',
+    tags: ['camera', 'media'],
+    async run(ctx) {
+      ctx.clock.set(T(15))
+      const agent = await ctx.newSite('sim-nvr', { media: true })
+      await ctx.platform.putPlan(buildDemoPlan({ siteId: 'sim-nvr', day: DAY, generatedAt: ctx.clock.now() }))
+      agent.start()
+      await waitUntil(() => agent.planRev !== null, 5_000)
+      const idx = `nvr-${randomUUID()}`
+      await ctx.platform.enqueue('sim-nvr', idx, { type: 'nvr.index', cameras: ['04', '06'], from: iso(T(15) - 14 * 86_400_000), to: iso(T(15)) }, 120)
+      await waitUntil(async () => ['ACKED', 'FAILED', 'REJECTED'].includes((await ctx.platform.command(idx)).status), 8_000, 'nvr.index ack')
+      assert.equal((await ctx.platform.command(idx)).status, 'ACKED', agent.logs.edge.filter((l) => l.includes('nvr')).join(' | '))
+      const index = await ctx.platform.get(`/internal/v1/sites/sim-nvr/nvr-index/${idx}`)
+      const cont = index.recordings.filter((r: any) => r.kind === 'continuous')
+      assert.equal(cont.length, 2 * 14 * 24, '2 支攝影機 × 14 天 × 24 小時的連續錄影')
+      assert.ok(index.recordings.some((r: any) => r.kind === 'motion'), '有位移事件')
+      const again = `nvr-${randomUUID()}`
+      await ctx.platform.enqueue('sim-nvr', again, { type: 'nvr.index', cameras: ['04', '06'], from: iso(T(15) - 14 * 86_400_000), to: iso(T(15)) }, 120)
+      await waitUntil(async () => (await ctx.platform.command(again)).status === 'ACKED', 8_000)
+      assert.deepEqual((await ctx.platform.get(`/internal/v1/sites/sim-nvr/nvr-index/${again}`)).recordings, index.recordings, '同一範圍查兩次結果相同')
+
+      const session = `clip-${randomUUID()}`
+      const from = T(15) - 3 * 86_400_000
+      await ctx.platform.enqueue('sim-nvr', `cmd-${randomUUID()}`, { type: 'nvr.clip', camera: '04', session, from: iso(from), to: iso(from + 2 * MIN) }, 120)
+      await waitUntil(async () => (await ctx.platform.get(`/internal/v1/sites/sim-nvr/media/${session}`)).ended, 60_000, '錄影片段傳完')
+      const m3u8 = (await ctx.platform.raw(`/internal/v1/sites/sim-nvr/media/${session}/index.m3u8`)).text
+      assert.ok(m3u8.includes('#EXT-X-PLAYLIST-TYPE:VOD') && m3u8.includes('#EXT-X-ENDLIST'), '錄影是 VOD')
+      const total = [...m3u8.matchAll(/#EXTINF:([\d.]+)/g)].reduce((n, m) => n + Number(m[1]), 0)
+      assert.ok(Math.abs(total - 120) < 3, `總長約 120 秒（實際 ${total}）`)
+      await waitUntil(() => ctx.sink.payloads('media.ended', 'sim-nvr').some((p) => p.session === session), 8_000, 'media.ended webhook')
+
+      const old = await ctx.platform.enqueue('sim-nvr', `cmd-${randomUUID()}`, { type: 'nvr.clip', camera: '04', session: `clip-${randomUUID()}`, from: iso(T(15) - 15 * 86_400_000), to: iso(T(15) - 15 * 86_400_000 + MIN) }, 120)
+      await waitUntil(async () => (await ctx.platform.command(old.id)).status === 'FAILED', 8_000, '超過 14 天回 FAILED')
+      assert.match((await ctx.platform.command(old.id)).ack?.error ?? '', /14 天/)
+    },
+  },
+  {
+    id: 'floating-ip',
+    title: '浮動 IP：換號斷線 → 雲端判定離線 → 新 IP 連回、心跳紀錄與 IP 歷史；非 -sim 場館不採信宣告的 IP',
+    tags: ['network', 'floating'],
+    async run(ctx) {
+      const agent = await ctx.newSite('fip-sim', { floatingIpEveryMin: 0 })
+      agent.start()
+      await waitUntil(() => agent.online, 5_000)
+      const conn = () => ctx.platform.get<SiteConnection>('/internal/v1/sites/fip-sim/connection')
+      const first = agent.floating!.ip
+      await waitUntil(async () => (await conn()).ip === first, 5_000)
+      let c = await conn()
+      if (!c.simulated) throw new Error('Gateway 應標示為模擬浮動 IP')
+      // 換號並斷線 4 秒（> Gateway 離線門檻 3 秒）
+      const rot = agent.rotateIp('情境測試', 4)
+      await waitUntil(async () => !(await conn()).online, 8_000)
+      await rot
+      const second = agent.floating!.ip
+      if (second === first) throw new Error('IP 沒有改變')
+      await waitUntil(async () => {
+        const x = await conn()
+        return x.online && x.ip === second
+      }, 5_000)
+      c = await conn()
+      if (c.ipHistory.length < 2 || c.ipHistory[0].prev !== first) throw new Error(`IP 歷史不對：${JSON.stringify(c.ipHistory.slice(0, 2))}`)
+      if (!c.heartbeats.some((h) => h.ip === second) || !c.heartbeats.some((h) => h.ip === first)) throw new Error('心跳紀錄缺少新舊 IP')
+      if (!c.heartbeats.some((h) => (h.gapMs ?? 0) >= 3_500)) throw new Error('心跳紀錄應有一段超過離線門檻的間隔')
+      // Gateway 端流量紀錄要註記 IP 變更
+      const traffic = await ctx.platform.get<{ traffic: { note?: string }[] }>('/internal/v1/sites/fip-sim/traffic?limit=200')
+      if (!traffic.traffic.some((t) => t.note?.includes(`來源 IP 變更 ${first} → ${second}`))) throw new Error('流量紀錄缺少 IP 變更註記')
+      // 真實場館（沒有 -sim）送這個標頭不採信
+      const real = await ctx.newSite('fip-real', { floatingIpEveryMin: 0 })
+      real.start()
+      await waitUntil(() => real.online, 5_000)
+      const rc = await ctx.platform.get<SiteConnection>('/internal/v1/sites/fip-real/connection')
+      if (rc.simulated || rc.ip === real.floating!.ip) throw new Error('非 -sim 場館不應採信 x-sim-egress-ip')
     },
   },
   {

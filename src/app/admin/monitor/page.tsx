@@ -4,12 +4,15 @@ import { can, type Permission } from '@/lib/admin-permissions'
 import { getMonitorSnapshot } from '@/server/monitor-service'
 import { listCameras, listCamerasForAdmin, listMonitorAudit, listMonitorEvents } from '@/server/camera-service'
 import { MonitorBoard } from '@/components/admin/monitor-board'
-import { DemoModeBanner, Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 import { RefreshButtonLight } from '../refresh-light'
 import { LiveView } from './live-view'
 import { PlaybackView } from './playback-view'
 import { EventsView } from './events-view'
 import { CamerasManager } from './cameras-manager'
+import { IotStatusBanner } from '@/components/admin/iot-status-banner'
+import { GatewayLive, GatewayPlayback } from '@/components/admin/gateway-cameras'
+import { iotGatewayConfig } from '@/server/iot/gateway-client'
 
 export const metadata: Metadata = {
   title: '即時監控',
@@ -36,8 +39,10 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-4">
       <PageTitle title="即時監控" desc="六路攝影機、場館平面圖、歷史回放與監控事件。" right={<RefreshButtonLight />} />
-      <DemoModeBanner what="攝影機與錄影主機（NVR）" />
+      <IotStatusBanner what="攝影機與錄影主機（NVR）" />
 
+      {iotGatewayConfig() && (tab === 'live' || tab === 'cameras') && <GatewayLive cameras={(await listCameras(ctx.role)).cameras.map((c) => ({ id: c.id, name: c.name }))} />}
+      {iotGatewayConfig() && tab === 'playback' && <GatewayPlayback cameras={(await listCameras(ctx.role)).cameras.map((c) => ({ id: c.id, name: c.name }))} />}
       {tab === 'live' && <LiveTab role={ctx.role} initialCameraId={initialCameraId} />}
       {tab === 'playback' && <PlaybackView cameras={(await listCameras(ctx.role)).cameras} initialCameraId={initialCameraId} canExport={can(ctx.role, 'camera.export')} />}
       {tab === 'events' && <EventsView events={await listMonitorEvents()} audit={await listMonitorAudit()} canHandle={can(ctx.role, 'monitor.events')} />}

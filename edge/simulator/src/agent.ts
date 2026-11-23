@@ -18,11 +18,14 @@ import {
   type LogFile,
   type LogLevel,
   type LogUploadFile,
+  type CameraDef,
   type OnOff,
   type SitePlan,
   type StatusReport,
 } from '../../../packages/iot-contract/src/index'
 import { FakeHardware } from './hardware'
+import { HEADER_SIM_EGRESS_IP } from '../../../packages/iot-contract/src/index'
+import { DEFAULT_SIM_CAMERAS, MediaEngine, findFfmpeg } from './media'
 import { HttpStatusError, NetworkDownError, signedFetch } from './http'
 
 /**
@@ -56,6 +59,70 @@ export interface AgentOptions {
   tickMs?: number
   pollWaitSec?: number
   log?: (msg: string) => void
+  /** 啟用模擬 NVR／攝影機（需要 ffmpeg） */
+  media?: boolean
+  /** 記錄每個請求的完整內容（模擬器網頁的流量檢視用） */
+  recordTraffic?: boolean
+  /** 模擬浮動 IP：每幾分鐘換一次對外 IP（0＝不自動換；未設定＝不模擬） */
+  floatingIpEveryMin?: number
+}
+
+/** 浮動 IP 模擬：台灣家用／企業動態 IP 常見網段 */
+const DYNAMIC_POOLS: [number, number, number][] = [
+  [1, 160, 175],
+  [36, 224, 239],
+  [114, 32, 47],
+  [118, 160, 169],
+  [111, 240, 255],
+  [61, 216, 231],
+]
+export function randomDynamicIp(): string {
+  const [a, lo, hi] = DYNAMIC_POOLS[Math.floor(Math.random() * DYNAMIC_POOLS.length)]
+  const r = (n: number) => Math.floor(Math.random() * n)
+  return `${a}.${lo + r(hi - lo + 1)}.${r(256)}.${1 + r(254)}`
+}
+
+export interface FloatingIpState {
+  enabled: boolean
+  ip: string
+  everyMin: number
+  /** 換 IP 時斷線幾秒（路由器重新撥接） */
+  reconnectSec: number
+  lastRotateAt: number
+  rotating: boolean
+  history: { at: string; ip: string; reason: string }[]
+}
+
+export interface HeartbeatRecord {
+  at: string
+  ok: boolean
+  ms: number
+  ip: string | null
+  skewMs?: number
+  serverPlanRev?: number
+  error?: string
+}
+
+/** 模擬器記錄的一筆往來（門禁明碼一律遮罩） */
+export interface TrafficRecord {
+  id: number
+  at: string
+  dir: 'up' | 'down'
+  method: string
+  path: string
+  status: number | null
+  ms: number
+  error?: string
+  /** 送出的內容（up）或收到的內容（down） */
+  request?: unknown
+  response?: unknown
+  bytes?: number
+}
+
+const maskCodes = (v: any): any => {
+  if (!v || typeof v !== 'object') return v
+  if (Array.isArray(v.doorCodes)) return { ...v, doorCodes: v.doorCodes.map((d: any) => ({ ...d, code: `****${String(d.code).slice(-2)}` })) }
+  return v
 }
 
 export interface NetworkFaults {
@@ -75,7 +142,12 @@ type LocalOverride = CircuitOverride & { createdAt: number }
 const LOG_KEEP_LINES = 20_000
 
 export class EdgeAgent {
-  readonly opts: Required<Omit<AgentOptions, 'log'>> & { log: (m: string) => void }
+  readonly opts: Required<Omit<AgentOptions, 'log' | 'floatingIpEveryMin'>> & { log: (m: string) => void; floatingIpEveryMin?: number }
+  readonly traffic: TrafficRecord[] = []
+  private trafficSeq = 0
+  media: MediaEngine | null = null
+  /** 球場有人（位移偵測）到何時為止，供攝影機畫面疊字 */
+  readonly occupied = new Map<string, number>()
   readonly hw: FakeHardware
   plan: SitePlan | null = null
   planRev: number | null = null
@@ -84,6 +156,9 @@ export class EdgeAgent {
   readonly logs: Record<LogFile, string[]> = { edge: [], audit: [], modbus: [] }
   readonly executed: { id: string; command: CommandEnvelope['command']; result: CommandAck['result']; at: number }[] = []
   net: NetworkFaults = {}
+  /** 浮動 IP（null＝不模擬，用實際連線 IP） */
+  floating: FloatingIpState | null = null
+  readonly heartbeats: HeartbeatRecord[] = []
   lastError: string | null = null
   online = false
   serverPlanRev = 0
@@ -106,10 +181,63 @@ export class EdgeAgent {
       flushMs: 2_000,
       tickMs: 1_000,
       pollWaitSec: 25,
+      media: false,
+      recordTraffic: false,
       ...o,
       log: o.log ?? (() => {}),
     }
     this.hw = this.opts.hardware
+    if (o.floatingIpEveryMin !== undefined) {
+      const ip = randomDynamicIp()
+      this.floating = { enabled: true, ip, everyMin: o.floatingIpEveryMin, reconnectSec: 5, lastRotateAt: Date.now(), rotating: false, history: [{ at: new Date().toISOString(), ip, reason: '開機撥接' }] }
+    }
+    if (this.opts.media) {
+      this.media = new MediaEngine({
+        ffmpeg: findFfmpeg() ?? 'ffmpeg',
+        cameras: () => this.cameras(),
+        scene: (cam) => this.scene(cam),
+        now: () => this.now(),
+        log: this.opts.log,
+        uploader: {
+          segment: async (session, seq, dur, data) => {
+            await this.call('PUT', `/edge/v1/media/${session}/segments/${seq}?dur=${dur.toFixed(3)}`, data)
+          },
+          end: async (session, segments, reason) => {
+            await this.call('POST', `/edge/v1/media/${session}/end`, { segments, reason })
+          },
+        },
+      })
+    }
+  }
+
+  cameras(): CameraDef[] {
+    return this.plan?.cameras?.length ? this.plan.cameras : DEFAULT_SIM_CAMERAS
+  }
+
+  /** 攝影機畫面下方的現場狀況 */
+  scene(cam: CameraDef): string {
+    const plan = this.plan
+    const t = this.now()
+    const parts: string[] = []
+    if (cam.court && plan) {
+      const defs = plan.circuits.filter((d) => d.court === cam.court)
+      for (const d of defs) parts.push(`${/fan|扇/i.test(d.name) ? 'FAN' : 'LIGHT'} ${this.hw.relays[d.channel]}`)
+      parts.push(bookedCourts(plan, t).includes(cam.court) ? 'BOOKED' : 'FREE')
+      if ((this.occupied.get(cam.court) ?? 0) > t) parts.push('PEOPLE ON COURT')
+    } else if (cam.id === '01' || cam.id === '02') {
+      parts.push(this.hw.doorLocked ? 'DOOR LOCKED' : 'DOOR OPEN')
+    } else if (plan) {
+      const biz = plan.circuits.filter((d) => d.kind === 'BUSINESS')
+      parts.push(biz.some((d) => this.hw.relays[d.channel] === 'ON') ? 'OPEN (BUSINESS POWER ON)' : 'CLOSED')
+    }
+    if (this.net.offline) parts.push('[NETWORK DOWN]')
+    return parts.join('  ') || 'NO PLAN'
+  }
+
+  private record(r: Omit<TrafficRecord, 'id'>) {
+    if (!this.opts.recordTraffic) return
+    this.traffic.push({ id: ++this.trafficSeq, ...r })
+    if (this.traffic.length > 1_000) this.traffic.splice(0, this.traffic.length - 1_000)
   }
 
   now() {
@@ -122,6 +250,24 @@ export class EdgeAgent {
   // ───────────── 網路 ─────────────
 
   private async call(method: string, path: string, body?: unknown, headers?: Record<string, string>, signal?: AbortSignal) {
+    const isSeg = body instanceof Uint8Array
+    const seg = path.match(/\/segments\/(\d+)/)
+    const sample = !seg || Number(seg[1]) % 15 === 0
+    const reqView = isSeg ? undefined : body
+    const dir: 'up' | 'down' = method === 'GET' ? 'down' : 'up'
+    const t0 = Date.now()
+    try {
+      const r = await this.rawCall(method, path, body, headers, signal)
+      if (sample) this.record({ at: new Date(t0).toISOString(), dir, method, path, status: r.status, ms: Date.now() - t0, request: reqView, response: maskCodes(r.json), bytes: isSeg ? (body as Uint8Array).byteLength : undefined })
+      return r
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError')
+        this.record({ at: new Date(t0).toISOString(), dir, method, path, status: e instanceof HttpStatusError ? e.status : null, ms: Date.now() - t0, request: reqView, error: (e as Error).message, bytes: isSeg ? (body as Uint8Array).byteLength : undefined })
+      throw e
+    }
+  }
+
+  private async rawCall(method: string, path: string, body?: unknown, headers?: Record<string, string>, signal?: AbortSignal) {
     if (this.net.offline) throw new NetworkDownError('offline')
     if (this.net.latencyMs) await new Promise((r) => setTimeout(r, this.net.latencyMs))
     if (this.net.offline) throw new NetworkDownError('offline')
@@ -134,7 +280,7 @@ export class EdgeAgent {
         method,
         path,
         body,
-        headers,
+        headers: this.floating?.enabled ? { ...headers, [HEADER_SIM_EGRESS_IP]: this.floating.ip } : headers,
         tamper: { badSignature: this.net.badSignature, skewMs: this.net.clockSkewMs },
         signal,
       })
@@ -157,15 +303,29 @@ export class EdgeAgent {
     if (buf.length > LOG_KEEP_LINES) buf.splice(0, buf.length - LOG_KEEP_LINES)
   }
 
+  private noteHeartbeat(h: HeartbeatRecord) {
+    this.heartbeats.push(h)
+    if (this.heartbeats.length > 200) this.heartbeats.splice(0, this.heartbeats.length - 200)
+  }
+
   async heartbeat(): Promise<HeartbeatResponse> {
-    const r = await this.call('POST', '/edge/v1/heartbeat', {
-      agentVersion: this.opts.agentVersion,
-      localTime: new Date(Date.now() + (this.net.clockSkewMs ?? 0)).toISOString(),
-      uptimeSec: Math.round((Date.now() - this.started) / 1000),
-      planRev: this.planRev,
-      pendingEvents: this.outbox.length,
-    })
+    const t0 = Date.now()
+    const ip = this.floating?.enabled ? this.floating.ip : null
+    let r
+    try {
+      r = await this.call('POST', '/edge/v1/heartbeat', {
+        agentVersion: this.opts.agentVersion,
+        localTime: new Date(Date.now() + (this.net.clockSkewMs ?? 0)).toISOString(),
+        uptimeSec: Math.round((Date.now() - this.started) / 1000),
+        planRev: this.planRev,
+        pendingEvents: this.outbox.length,
+      })
+    } catch (e) {
+      this.noteHeartbeat({ at: new Date(t0).toISOString(), ok: false, ms: Date.now() - t0, ip, error: (e as Error).message })
+      throw e
+    }
     const res = r.json as HeartbeatResponse
+    this.noteHeartbeat({ at: new Date(t0).toISOString(), ok: true, ms: Date.now() - t0, ip, skewMs: res.clockSkewMs, serverPlanRev: res.planRev })
     if (!this.online && this.everOffline) this.emit('agent.recovered', { pendingEvents: this.outbox.length })
     this.online = true
     this.serverPlanRev = res.planRev
@@ -218,7 +378,7 @@ export class EdgeAgent {
 
   async reportStatus(force = false) {
     const status = this.status()
-    const key = JSON.stringify(status.circuits) + status.planRev
+    const key = JSON.stringify(status.circuits) + status.planRev + JSON.stringify(status.hardware) + String(status.door?.locked)
     if (!force && key === this.lastPublished) return
     await this.call('PUT', '/edge/v1/status', status)
     this.lastPublished = key
@@ -251,6 +411,8 @@ export class EdgeAgent {
       ack = { result: 'EXPIRED', at: this.iso(at), error: '指令已過期，未執行' }
     } else if (env.command.type === 'log.upload') {
       ack = await this.uploadLogs(env.id, env.command, at)
+    } else if (env.command.type === 'camera.live' || env.command.type === 'camera.stop' || env.command.type === 'nvr.index' || env.command.type === 'nvr.clip') {
+      ack = await this.applyMedia(env.id, env.command, at)
     } else {
       ack = this.apply(env.command, at)
     }
@@ -302,8 +464,93 @@ export class EdgeAgent {
         this.hw.play(cmd.file, at)
         this.emit('audio.played', { file: cmd.file, by: 'remote' })
         return done()
+      case 'sim.inject':
+        return this.inject(cmd, at)
       case 'log.upload':
-        return { result: 'REJECTED', at: this.iso(at), error: 'log.upload 由 uploadLogs 處理' }
+      case 'camera.live':
+      case 'camera.stop':
+      case 'nvr.index':
+      case 'nvr.clip':
+        return { result: 'REJECTED', at: this.iso(at), error: `${cmd.type} 由專屬流程處理` }
+    }
+  }
+
+  /** 只有模擬器：雲端工程測試頁在地端製造狀況。先 ack，再生效（斷網、時鐘偏差才不會擋住 ack） */
+  private inject(cmd: Extract<CommandEnvelope['command'], { type: 'sim.inject' }>, at: number): CommandAck {
+    const sec = (cmd.seconds ?? 30) * 1000
+    const f = this.hw.faults
+    const later = (fn: () => void, ms = 400) => setTimeout(fn, ms).unref?.()
+    this.writeLog('edge', 'WARN', 'system', `sim.inject ${cmd.fault}`, { seconds: cmd.seconds, channel: cmd.channel, value: cmd.fault === 'code' ? '******' : cmd.value })
+    switch (cmd.fault) {
+      case 'offline':
+        later(() => this.setOffline(true))
+        later(() => this.setOffline(false), sec + 400)
+        break
+      case 'modbus':
+        f.modbusDown = true
+        later(() => ((f.modbusDown = false), this.tick()), sec)
+        break
+      case 'door':
+        f.doorControllerDown = true
+        later(() => (f.doorControllerDown = false), sec)
+        break
+      case 'stuck': {
+        if (!cmd.channel) return { result: 'REJECTED', at: this.iso(at), error: 'stuck 需要 channel' }
+        const ch = cmd.channel
+        f.stuckChannels = [...new Set([...(f.stuckChannels ?? []), ch])]
+        later(() => ((f.stuckChannels = (f.stuckChannels ?? []).filter((x) => x !== ch)), this.tick()), sec)
+        break
+      }
+      case 'skew':
+        later(() => (this.net.clockSkewMs = Number(cmd.value ?? 360_000)))
+        later(() => (this.net.clockSkewMs = 0), sec + 400)
+        break
+      case 'code': {
+        const okCode = this.enterCode(cmd.value ?? '')
+        return { result: 'OK', at: this.iso(at), error: okCode ? undefined : '密碼被拒（模擬器回報，不是錯誤）' }
+      }
+      case 'motion':
+        this.motion(cmd.value ?? 'A')
+        break
+      case 'reset':
+        this.hw.faults = {}
+        this.net = {}
+        this.tick()
+        break
+    }
+    return { result: 'OK', at: this.iso(at) }
+  }
+
+  /** 攝影機與 NVR 指令。串流與錄影在背景上傳，ack 代表「已開始」 */
+  private async applyMedia(id: string, cmd: Extract<CommandEnvelope['command'], { type: 'camera.live' | 'camera.stop' | 'nvr.index' | 'nvr.clip' }>, at: number): Promise<CommandAck> {
+    const ok = (): CommandAck => ({ result: 'OK', at: this.iso(at) })
+    const bad = (error: string, result: CommandAck['result'] = 'FAILED'): CommandAck => ({ result, at: this.iso(at), error })
+    if (!this.media) return bad('這台場館電腦沒有接 NVR', 'REJECTED')
+    const known = (c: string) => this.cameras().some((x) => x.id === c)
+    try {
+      switch (cmd.type) {
+        case 'camera.live':
+          if (!known(cmd.camera)) return bad(`沒有攝影機 ${cmd.camera}`, 'REJECTED')
+          this.media.live(cmd.camera, cmd.session, cmd.seconds, cmd.quality)
+          this.writeLog('edge', 'INFO', 'nvr', 'live stream started', { camera: cmd.camera, session: cmd.session, seconds: cmd.seconds })
+          return ok()
+        case 'camera.stop':
+          this.media.stop(cmd.session)
+          return ok()
+        case 'nvr.index': {
+          const idx = this.media.index(cmd.cameras, cmd.from, cmd.to)
+          await this.call('PUT', `/edge/v1/media/nvr-index/${encodeURIComponent(id)}`, idx)
+          return ok()
+        }
+        case 'nvr.clip':
+          if (!known(cmd.camera)) return bad(`沒有攝影機 ${cmd.camera}`, 'REJECTED')
+          await this.media.clip(cmd.camera, cmd.session, cmd.from, cmd.to, cmd.quality)
+          this.writeLog('edge', 'INFO', 'nvr', 'clip export started', { camera: cmd.camera, session: cmd.session, from: cmd.from, to: cmd.to })
+          return ok()
+      }
+    } catch (e) {
+      this.writeLog('edge', 'WARN', 'nvr', `${cmd.type} failed`, { error: (e as Error).message })
+      return bad((e as Error).message)
     }
   }
 
@@ -342,7 +589,8 @@ export class EdgeAgent {
 
   private async ack(id: string, ack: CommandAck) {
     try {
-      await this.call('POST', `/edge/v1/commands/${encodeURIComponent(id)}/ack`, ack)
+      // error 上限 500 字（協定規定），太長就截斷
+      await this.call('POST', `/edge/v1/commands/${encodeURIComponent(id)}/ack`, ack.error && ack.error.length > 480 ? { ...ack, error: `${ack.error.slice(0, 477)}…` } : ack)
     } catch {
       // ack 失敗：Gateway 會在 REDELIVER_AFTER_SEC 後重送，屆時用 executed 補 ack
     }
@@ -368,6 +616,8 @@ export class EdgeAgent {
 
   /** 依計畫計算每一路該有的狀態並寫入；也處理安全上限與廣播 */
   tick() {
+    const f = this.floating
+    if (f?.enabled && f.everyMin > 0 && !f.rotating && Date.now() - f.lastRotateAt > f.everyMin * 60_000) void this.rotateIp('定時換 IP（ISP 重新分配）')
     const plan = this.plan
     if (!plan) return
     const at = this.now()
@@ -426,6 +676,7 @@ export class EdgeAgent {
 
   /** 攝影機偵測到球場有人移動 */
   motion(court: string) {
+    this.occupied.set(court, this.now() + 60_000)
     if (!this.plan) return
     const booked = bookedCourts(this.plan, this.now())
     if (booked.includes(court)) return
@@ -439,6 +690,30 @@ export class EdgeAgent {
     const level: LogLevel = type === 'hardware.error' ? 'ERROR' : type === 'door.code_denied' || type === 'circuit.forced_off' ? 'WARN' : 'INFO'
     this.writeLog(type.startsWith('door.') ? 'audit' : 'edge', level, type.split('.')[0], type, { eventId, ...data })
     if (this.outbox.length > 10_000) this.outbox.splice(0, this.outbox.length - 10_000)
+  }
+
+  /**
+   * 浮動 IP 換號：路由器重新撥接 → 斷線 reconnectSec 秒 → 拿到新 IP → 立刻送心跳讓雲端知道新位址。
+   * 雲端從不主動連進來；換 IP 期間平台下的指令會排在 Gateway，恢復連線後才被取走。
+   */
+  async rotateIp(reason = '手動換 IP', reconnectSec?: number) {
+    const f = this.floating
+    if (!f || f.rotating) return
+    f.rotating = true
+    const sec = reconnectSec ?? f.reconnectSec
+    this.writeLog('edge', 'WARN', 'net', 'floating ip renew', { from: f.ip, reconnectSec: sec, reason })
+    this.setOffline(true)
+    await new Promise((r) => setTimeout(r, sec * 1000))
+    let ip = randomDynamicIp()
+    while (ip === f.ip) ip = randomDynamicIp()
+    f.ip = ip
+    f.lastRotateAt = Date.now()
+    f.history.unshift({ at: new Date().toISOString(), ip, reason })
+    if (f.history.length > 50) f.history.length = 50
+    f.rotating = false
+    this.setOffline(false)
+    this.writeLog('edge', 'INFO', 'net', 'floating ip assigned', { ip })
+    await this.heartbeat().catch(() => {})
   }
 
   /** 模擬斷網／恢復（會中斷進行中的長輪詢） */
@@ -489,6 +764,7 @@ export class EdgeAgent {
   }
 
   async stop() {
+    this.media?.stopAll()
     this.running = false
     this.abort.abort()
     await Promise.allSettled(this.loops)

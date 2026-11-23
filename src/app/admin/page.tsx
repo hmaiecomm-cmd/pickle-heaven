@@ -7,6 +7,9 @@ import { AccessQuickCard } from './access-quick-card'
 import { DoorMonitorCard } from './door-monitor-card'
 import { getDoorRemoteState } from '@/server/door-remote'
 import { listCameras } from '@/server/camera-service'
+import { iotGatewayConfig } from '@/server/iot/gateway-client'
+import { engineerVenues } from '@/server/iot/engineer'
+import { EngineerToggle } from './engineer-toggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,12 +36,16 @@ export default async function AdminDashboard() {
     canMonitor ? listCameras(ctx.role).catch(() => ({ cameras: [] })) : Promise.resolve({ cameras: [] }),
   ])
 
+  // 工程測試隱藏按鍵：有設備控制權限、Gateway 已設定、場館有場館代碼才出現
+  const engineerVenue = can(ctx.role, 'device.control') && iotGatewayConfig() ? (await engineerVenues(ctx).catch(() => []))[0] ?? null : null
+
   // 取得大門攝影機（預設為第一支攝影機）
   const doorCamera = camerasData.cameras?.[0] || null
 
   return (
     <div className="relative">
       <Hills className="pointer-events-none fixed bottom-0 right-0 hidden h-28 w-[calc(100%-15rem)] md:block" />
+      {engineerVenue && <EngineerToggle venueId={engineerVenue.id} target={engineerVenue.target} />}
       <div className="space-y-3 sm:space-y-3 lg:space-y-3">
         {/* 區塊 1：六宮格 3×2（桌面）/ 3×2（手機優先） */}
         <nav aria-label="後台功能" className="grid grid-cols-3 gap-2 sm:gap-2 md:gap-3 lg:grid-cols-3 lg:gap-4">

@@ -1,4 +1,5 @@
 import 'server-only'
+import { activeSiteIdOf } from '@/server/iot/site-id'
 import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/db'
 import { addMinutes, now } from '@/lib/time'
@@ -179,10 +180,11 @@ function afterResponse(fn: () => Promise<unknown>) {
   }
 }
 
+/** 目前的連線對象（實體場館電腦 siteCode，或網頁模擬器 siteCode-sim） */
 async function siteCodeOf(venueId: string): Promise<string> {
-  const v = await prisma.venue.findUnique({ where: { id: venueId }, select: { siteCode: true } })
-  if (!v?.siteCode) throw new CircuitCommandError('場館尚未設定 IoT 場館代碼（Venue.siteCode），無法下指令')
-  return v.siteCode
+  const id = await activeSiteIdOf(venueId)
+  if (!id) throw new CircuitCommandError('場館尚未設定 IoT 場館代碼（Venue.siteCode），無法下指令')
+  return id
 }
 
 /**

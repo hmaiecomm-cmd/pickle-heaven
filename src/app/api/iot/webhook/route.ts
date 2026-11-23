@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { HEADER_KEY, HEADER_NONCE, HEADER_SIG, HEADER_TS, verifySignature, type EdgeEvent, type WebhookEnvelope } from '@gh/iot-contract'
 import { mainPrisma as prisma } from '@/lib/db'
+import { venueForSiteId } from '@/server/iot/site-id'
 import { iotGatewayConfig } from '@/server/iot/gateway-client'
 
 export const dynamic = 'force-dynamic'
@@ -37,8 +38,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'BAD_JSON' }, { status: 400 })
   }
   const p = env.payload
-  const venue = await prisma.venue.findUnique({ where: { siteCode: p.siteId }, select: { id: true } })
-  if (!venue) return NextResponse.json({ ok: true, ignored: 'UNKNOWN_SITE' })
+  const resolved = await venueForSiteId(p.siteId)
+  if (!resolved) return NextResponse.json({ ok: true, ignored: 'UNKNOWN_SITE' })
+  // 實體／模擬器只採用目前的連線對象，避免兩邊的狀態互相覆蓋
+  if (!resolved.active) return NextResponse.json({ ok: true, ignored: 'INACTIVE_TARGET', target: resolved.target })
+  const venue = { id: resolved.venueId }
   const at = new Date()
 
   const circuitOf = (no: string) => prisma.circuit.findFirst({ where: { venueId: venue.id, circuitNumber: no } })

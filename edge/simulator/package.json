@@ -8,6 +8,9 @@
     "scenarios": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts scenarios",
     "load": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts load",
     "panel": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts panel",
+    "stack": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts stack",
+    "console": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts console",
+    "cloud": "node ../../services/iot-gateway/node_modules/tsx/dist/cli.mjs src/cli.ts cloud",
     "typecheck": "node ../../services/iot-gateway/node_modules/typescript/bin/tsc --noEmit -p ."
   }
 }

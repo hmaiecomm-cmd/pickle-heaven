@@ -290,8 +290,8 @@ model Venue {
   slug                 String  @unique
   /// IoT 場館代碼（場館電腦連 IoT Gateway 的身分，例如 xindian001）；未設定表示尚未接上場館電腦
   siteCode             String? @unique
-  /// IoT 目標環境：LIVE（實體場館電腦）或 SIMULATOR（模擬器）
-  iotTarget            String?
+  /// IoT 連線對象：LIVE＝實體場館電腦（siteCode）、SIMULATOR＝網頁模擬器（siteCode-sim）
+  iotTarget            String  @default("LIVE")
   name                 String
   address              String
   phone                String

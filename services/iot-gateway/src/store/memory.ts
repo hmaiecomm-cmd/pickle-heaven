@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { CommandAck, CommandRecord, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
+import type { MediaSessionInfo, NvrIndex, CommandAck, CommandRecord, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
 import { TERMINAL, type LogUploadMeta, type OutboxRow, type SiteRow, type Store } from './types'
 
 /** 單機記憶體版：開發、測試與模擬器使用。重啟即清空。 */
@@ -9,6 +9,9 @@ export class MemoryStore implements Store {
   private commands = new Map<string, CommandRecord>()
   private events = new Map<string, Set<string>>()
   private logs = new Map<string, { meta: LogUploadMeta; gz: Buffer }>()
+  private media = new Map<string, MediaSessionInfo>()
+  private segments = new Map<string, Map<number, { duration: number; contentType: string; data: Buffer; at: number }>>()
+  private nvr = new Map<string, { siteId: string; uploadedAt: Date; body: NvrIndex }>()
   private outbox = new Map<string, OutboxRow & { nextAt: number; done: boolean; claimedUntil: number }>()
 
   async getSite(siteId: string) {
@@ -151,6 +154,72 @@ export class MemoryStore implements Store {
   async purgeLogUploads(before: Date) {
     let n = 0
     for (const [id, r] of this.logs) if (r.meta.uploadedAt < before) (this.logs.delete(id), n++)
+    return n
+  }
+
+  async upsertMediaSession(m: Parameters<Store['upsertMediaSession']>[0]) {
+    const cur = this.media.get(m.session)
+    const iso = (d: Date | null) => (d ? d.toISOString() : null)
+    const row: MediaSessionInfo = cur
+      ? { ...cur, until: iso(m.until), ended: false, endReason: null }
+      : { session: m.session, siteId: m.siteId, kind: m.kind, camera: m.camera, createdAt: m.createdAt.toISOString(), until: iso(m.until), from: iso(m.from), to: iso(m.to), segments: 0, bytes: 0, lastSegmentAt: null, ended: false, endReason: null }
+    this.media.set(m.session, row)
+    return row
+  }
+  async getMediaSession(session: string) {
+    return this.media.get(session) ?? null
+  }
+  async listMediaSessions(siteId: string, limit: number) {
+    return [...this.media.values()].filter((m) => m.siteId === siteId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit)
+  }
+  async putSegment(session: string, seq: number, duration: number, contentType: string, data: Buffer, at: Date) {
+    const m = this.media.get(session)!
+    const segs = this.segments.get(session) ?? new Map()
+    this.segments.set(session, segs)
+    const prev = segs.get(seq)
+    segs.set(seq, { duration, contentType, data, at: at.getTime() })
+    m.segments = segs.size
+    m.bytes += data.length - (prev?.data.length ?? 0)
+    m.lastSegmentAt = at.toISOString()
+    return m
+  }
+  async listSegments(session: string) {
+    return [...(this.segments.get(session) ?? new Map()).entries()].sort((a, b) => a[0] - b[0]).map(([seq, s]) => ({ seq, duration: s.duration }))
+  }
+  async getSegment(session: string, seq: number) {
+    const s = this.segments.get(session)?.get(seq)
+    return s ? { contentType: s.contentType, data: s.data } : null
+  }
+  async endMediaSession(session: string, reason: string) {
+    const m = this.media.get(session)
+    if (!m) return null
+    m.ended = true
+    m.endReason = reason
+    return m
+  }
+  async purgeMedia(kind: 'live' | 'clip', before: Date) {
+    let n = 0
+    for (const [id, m] of this.media) {
+      if (m.kind !== kind) continue
+      const segs = this.segments.get(id)
+      if (segs) for (const [seq, s] of segs) if (s.at < before.getTime()) (segs.delete(seq), n++)
+      if ((!segs || segs.size === 0) && Date.parse(m.createdAt) < before.getTime()) {
+        this.media.delete(id)
+        this.segments.delete(id)
+      }
+    }
+    return n
+  }
+  async saveNvrIndex(id: string, siteId: string, body: NvrIndex, at: Date) {
+    this.nvr.set(id, { siteId, uploadedAt: at, body })
+  }
+  async getNvrIndex(siteId: string, id: string) {
+    const r = this.nvr.get(id)
+    return r && r.siteId === siteId ? { uploadedAt: r.uploadedAt, body: r.body } : null
+  }
+  async purgeNvrIndexes(before: Date) {
+    let n = 0
+    for (const [id, r] of this.nvr) if (r.uploadedAt < before) (this.nvr.delete(id), n++)
     return n
   }
 

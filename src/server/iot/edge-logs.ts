@@ -4,6 +4,7 @@ import { LOG_FILES, LOG_LEVELS, type LogFile, type LogLevel } from '@gh/iot-cont
 import type { AdminContext } from '@/lib/admin-auth'
 import { clientFor } from '@/lib/db'
 import { GatewayError, gateway, iotGatewayConfig } from './gateway-client'
+import { activeSiteId, normalizeTarget } from './site-id'
 
 /**
  * 調閱場館電腦（地端）本機 log：
@@ -27,10 +28,11 @@ export async function edgeSitesFor(ctx: AdminContext): Promise<EdgeSite[]> {
   const db = clientFor(ctx.tenant)
   const venues = await db.venue.findMany({
     where: { siteCode: { not: null }, ...(ctx.venueId ? { id: ctx.venueId } : {}) },
-    select: { id: true, name: true, siteCode: true },
+    select: { id: true, name: true, siteCode: true, iotTarget: true },
     orderBy: { name: 'asc' },
   })
-  return venues.map((v) => ({ venueId: v.id, name: v.name, siteCode: v.siteCode! }))
+  // siteCode 是目前連線對象的 Gateway 場館 ID（模擬器模式為 xxx-sim）
+  return venues.map((v) => ({ venueId: v.id, name: normalizeTarget(v.iotTarget) === 'SIMULATOR' ? `${v.name}（模擬器）` : v.name, siteCode: activeSiteId(v)! }))
 }
 
 export async function mustEdgeSite(ctx: AdminContext, siteCode: string | null): Promise<EdgeSite> {

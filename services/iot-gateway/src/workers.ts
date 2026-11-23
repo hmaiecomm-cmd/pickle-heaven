@@ -1,4 +1,4 @@
-import { LOG_RETENTION_DAYS, signRequest, type WebhookEnvelope } from '@gh/iot-contract'
+import { LOG_RETENTION_DAYS, NVR_RETENTION_DAYS, signRequest, type WebhookEnvelope } from '@gh/iot-contract'
 import type { Deps } from './app'
 
 /**
@@ -60,6 +60,14 @@ export function startWorkers({ cfg, store, rt, now = () => new Date() }: Deps, f
     if (n) console.log(`[gateway] purged ${n} log uploads`)
   }
 
+  async function purgeMedia() {
+    if (!(await rt.tryLock('media-purge', cfg.instanceId, 60_000))) return
+    const t = now().getTime()
+    await store.purgeMedia('live', new Date(t - 10 * 60_000))
+    await store.purgeMedia('clip', new Date(t - 24 * 3600_000))
+    await store.purgeNvrIndexes(new Date(t - NVR_RETENTION_DAYS * 86_400_000))
+  }
+
   const loop = (fn: () => Promise<void>, everyMs: number) => {
     const tick = async () => {
       if (stopped) return
@@ -76,6 +84,7 @@ export function startWorkers({ cfg, store, rt, now = () => new Date() }: Deps, f
   loop(sweepOffline, Math.max(1_000, Math.min(15_000, (cfg.offlineAfterSec * 1000) / 3)))
   loop(deliverWebhooks, 2_000)
   loop(purgeLogs, 3_600_000)
+  loop(purgeMedia, 60_000)
 
   return {
     stop() {

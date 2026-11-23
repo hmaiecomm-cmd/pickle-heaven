@@ -1,10 +1,12 @@
 import 'server-only'
-import { CONTRACT_VERSION, type CircuitDef, type CircuitInterval, type CircuitKind, type CircuitOverride, type DoorCode, type IntervalReason, type SitePlan } from '@gh/iot-contract'
+import { CONTRACT_VERSION, type CameraDef, type CircuitDef, type CircuitInterval, type CircuitKind, type CircuitOverride, type DoorCode, type IntervalReason, type SitePlan } from '@gh/iot-contract'
 import { prisma } from '@/lib/db'
 import { circuitCommandBlocker } from '@/lib/circuit-guard'
 import { CIRCUIT_DEFINITIONS, DEFAULT_CIRCUIT_CONFIG, type CircuitNumber } from '@/lib/control-types'
 import { addDays, now, taipeiDateString, taipeiToUtc, taipeiWeekday } from '@/lib/time'
 import { decryptCode } from '../slot-password-service'
+import { DEFAULT_CAMERAS } from '@/lib/camera-layout'
+import { activeSiteId } from './site-id'
 
 /**
  * 組出給場館電腦的「場館計畫」：未來 48 小時（台北時間今天 00:00 起）的
@@ -80,7 +82,8 @@ export async function buildSitePlan(venueId: string, at: Date = now()): Promise<
       courts: { where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true } },
     },
   })
-  if (!venue?.siteCode) return null
+  const siteId = venue ? activeSiteId(venue) : null
+  if (!venue || !siteId) return null
 
   const from = taipeiToUtc(taipeiDateString(at), 0)
   const to = new Date(from.getTime() + PLAN_HOURS * 3600_000)
@@ -178,7 +181,7 @@ export async function buildSitePlan(venueId: string, at: Date = now()): Promise<
 
   return {
     contract: CONTRACT_VERSION,
-    siteId: venue.siteCode,
+    siteId,
     generatedAt: at.toISOString(),
     timezone: venue.timezone,
     window: { from: from.toISOString(), to: to.toISOString() },
@@ -188,5 +191,18 @@ export async function buildSitePlan(venueId: string, at: Date = now()): Promise<
     doorCodes,
     business: { openMinute: venue.openMinute, closeMinute: venue.closeMinute },
     audio: { welcome: 'welcome.mp3', opening: 'opening.mp3', ending: 'ending.mp3', goodnight: 'goodnight.mp3', doNotUseCourt: 'do_not_use_court.mp3' },
+    cameras: await planCameras(),
   }
+}
+
+/** 6 支攝影機（NVR 通道）；球場攝影機標上球場，讓地端位移偵測對照預約 */
+async function planCameras(): Promise<CameraDef[]> {
+  const rows = await prisma.monitorCamera.findMany({ select: { id: true, name: true, zone: true, enabled: true } }).catch(() => [])
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  return DEFAULT_CAMERAS.filter((d) => byId.get(d.id)?.enabled !== false).map((d) => {
+    const r = byId.get(d.id)
+    const zone = r?.zone ?? d.zone
+    const court = zone === 'courtA' ? 'A' : zone === 'courtB' ? 'B' : undefined
+    return { id: d.id, name: r?.name ?? d.name, ...(court ? { court } : {}) }
+  })
 }

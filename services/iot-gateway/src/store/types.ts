@@ -1,4 +1,4 @@
-import type { LogFile, CommandAck, CommandRecord, CommandStatus, EdgeCommand, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
+import type { MediaSessionInfo, NvrIndex, LogFile, CommandAck, CommandRecord, CommandStatus, EdgeCommand, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
 
 /**
  * 持久層介面。正式用 Postgres，開發／測試用記憶體。
@@ -70,6 +70,24 @@ export interface Store {
   getLogUpload(siteId: string, id: string): Promise<{ meta: LogUploadMeta; gz: Buffer } | null>
   /** 刪除早於 before 的上傳，回傳筆數 */
   purgeLogUploads(before: Date): Promise<number>
+
+  // 影像 session 與 HLS 片段
+  upsertMediaSession(m: { session: string; siteId: string; kind: 'live' | 'clip'; camera: string; createdAt: Date; until: Date | null; from: Date | null; to: Date | null }): Promise<MediaSessionInfo>
+  getMediaSession(session: string): Promise<MediaSessionInfo | null>
+  listMediaSessions(siteId: string, limit: number): Promise<MediaSessionInfo[]>
+  /** 寫入片段（同 seq 重傳覆蓋）；回傳更新後的 session */
+  putSegment(session: string, seq: number, duration: number, contentType: string, data: Buffer, at: Date): Promise<MediaSessionInfo>
+  /** 片段清單（不含內容），seq 由小到大 */
+  listSegments(session: string): Promise<{ seq: number; duration: number }[]>
+  getSegment(session: string, seq: number): Promise<{ contentType: string; data: Buffer } | null>
+  endMediaSession(session: string, reason: string): Promise<MediaSessionInfo | null>
+  /** 刪除早於 before 的片段（依 kind），以及已沒有片段的舊 session */
+  purgeMedia(kind: 'live' | 'clip', before: Date): Promise<number>
+
+  // NVR 錄影索引
+  saveNvrIndex(id: string, siteId: string, body: NvrIndex, at: Date): Promise<void>
+  getNvrIndex(siteId: string, id: string): Promise<{ uploadedAt: Date; body: NvrIndex } | null>
+  purgeNvrIndexes(before: Date): Promise<number>
 
   // Webhook outbox
   enqueueWebhook(payload: WebhookPayload): Promise<void>

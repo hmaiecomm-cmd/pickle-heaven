@@ -17,7 +17,7 @@ services:
   - name: gateway
     github:
       repo: hmaiecomm-cmd/pickle-heaven
-      branch: feat/iot-gateway
+      branch: manual-production-only
       deploy_on_push: true
     source_dir: /
     dockerfile_path: services/iot-gateway/Dockerfile
@@ -53,7 +53,7 @@ services:
   - name: simulator
     github:
       repo: hmaiecomm-cmd/pickle-heaven
-      branch: feat/iot-gateway
+      branch: manual-production-only
       deploy_on_push: true
     source_dir: /
     dockerfile_path: edge/simulator/Dockerfile

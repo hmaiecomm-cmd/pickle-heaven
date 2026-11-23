@@ -28,7 +28,8 @@ export async function signedFetch(opts: {
   /** 成功時不解析 JSON（下載 log 原文用） */
   raw?: boolean
 }): Promise<{ status: number; json: any; text: string; headers: Headers }> {
-  const body = opts.body === undefined ? '' : JSON.stringify(opts.body)
+  const binary = opts.body instanceof Uint8Array
+  const body: string | Uint8Array = opts.body === undefined ? '' : binary ? (opts.body as Uint8Array) : JSON.stringify(opts.body)
   const h = signRequest({
     keyId: opts.keyId,
     secret: opts.tamper?.badSignature ? `${opts.secret}x` : opts.secret,
@@ -40,8 +41,8 @@ export async function signedFetch(opts: {
   })
   const res = await fetch(opts.baseUrl + opts.path, {
     method: opts.method,
-    headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...h, ...opts.headers },
-    body: body || undefined,
+    headers: { ...(binary ? { 'content-type': 'video/mp2t' } : body ? { 'content-type': 'application/json' } : {}), ...h, ...opts.headers },
+    body: binary ? (body as Uint8Array) : (body as string) || undefined,
     signal: opts.signal ?? AbortSignal.timeout(opts.timeoutMs ?? 40_000),
   })
   const text = res.status === 304 ? '' : await res.text()

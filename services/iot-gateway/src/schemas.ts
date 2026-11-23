@@ -1,4 +1,4 @@
-import { LOG_UPLOAD_MAX_BYTES } from '@gh/iot-contract'
+import { LIVE_MAX_SECONDS, LOG_UPLOAD_MAX_BYTES, MEDIA_SESSION_PATTERN } from '@gh/iot-contract'
 import { z } from 'zod'
 
 /** 對外輸入一律驗證（地端與平台送來的 JSON） */
@@ -8,6 +8,9 @@ const circuitNo = z.string().regex(/^(0[1-9]|1[0-6])$/, '迴路編號為 01–16
 const onOff = z.enum(['ON', 'OFF'])
 const circuitStates = z.record(circuitNo, onOff)
 
+const cameraId = z.string().regex(/^(0[1-9]|1[0-6])$/, '攝影機編號為 01–16')
+const session = z.string().regex(MEDIA_SESSION_PATTERN, 'session 格式：小寫英數與連字號 8–64 字')
+const quality = z.enum(['low', 'high'])
 const logFile = z.enum(['edge', 'audit', 'modbus'])
 const logLevel = z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR'])
 
@@ -28,6 +31,17 @@ export const edgeCommand = z.discriminatedUnion('type', [
     to: isoDate,
     minLevel: logLevel.optional(),
     maxBytes: z.number().int().min(1024).max(LOG_UPLOAD_MAX_BYTES).optional(),
+  }),
+  z.object({ type: z.literal('camera.live'), camera: cameraId, session, seconds: z.number().int().min(5).max(LIVE_MAX_SECONDS), quality: quality.optional() }),
+  z.object({ type: z.literal('camera.stop'), session }),
+  z.object({ type: z.literal('nvr.index'), cameras: z.array(cameraId).max(16).optional(), from: isoDate, to: isoDate }),
+  z.object({ type: z.literal('nvr.clip'), camera: cameraId, session, from: isoDate, to: isoDate, quality: quality.optional() }),
+  z.object({
+    type: z.literal('sim.inject'),
+    fault: z.enum(['offline', 'modbus', 'door', 'stuck', 'skew', 'code', 'motion', 'reset']),
+    seconds: z.number().int().min(1).max(600).optional(),
+    channel: z.number().int().min(1).max(16).optional(),
+    value: z.string().max(40).optional(),
   }),
 ])
 
@@ -135,6 +149,7 @@ export const sitePlan = z.object({
     .max(2000),
   business: z.object({ openMinute: z.number().int(), closeMinute: z.number().int() }),
   audio: z.record(z.string()).optional(),
+  cameras: z.array(z.object({ id: cameraId, name: z.string().max(80), court: z.string().max(20).optional() })).max(16).optional(),
 })
 
 export const logUpload = z.object({
@@ -145,3 +160,15 @@ export const logUpload = z.object({
     .min(1)
     .max(3),
 })
+
+export const nvrIndex = z.object({
+  from: isoDate,
+  to: isoDate,
+  oldest: isoDate.nullable(),
+  recordings: z
+    .array(z.object({ camera: cameraId, start: isoDate, end: isoDate, kind: z.enum(['continuous', 'motion']), bytes: z.number().int().nonnegative().optional() }))
+    .max(20_000),
+  disk: z.object({ usedBytes: z.number().nonnegative(), totalBytes: z.number().nonnegative() }).optional(),
+})
+
+export const mediaEnd = z.object({ segments: z.number().int().nonnegative(), reason: z.string().max(200).optional() })

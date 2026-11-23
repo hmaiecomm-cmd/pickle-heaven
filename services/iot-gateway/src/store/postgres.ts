@@ -1,5 +1,5 @@
 import postgres from 'postgres'
-import type { CommandAck, CommandRecord, EdgeCommand, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
+import type { MediaSessionInfo, NvrIndex, CommandAck, CommandRecord, EdgeCommand, EdgeEvent, StatusReport, WebhookPayload } from '@gh/iot-contract'
 import type { LogUploadMeta, OutboxRow, SiteRow, Store } from './types'
 
 type Sql = postgres.Sql
@@ -39,6 +39,24 @@ function toCommand(r: Record<string, any>): CommandRecord {
 
 function toLogMeta(r: Record<string, any>): LogUploadMeta {
   return { id: r.id, siteId: r.site_id, uploadedAt: new Date(r.uploaded_at), bytes: r.bytes, files: r.files }
+}
+
+function toMedia(r: Record<string, any>): MediaSessionInfo {
+  return {
+    session: r.session,
+    siteId: r.site_id,
+    kind: r.kind,
+    camera: r.camera,
+    createdAt: iso(r.created_at)!,
+    until: iso(r.until_at),
+    from: iso(r.from_at),
+    to: iso(r.to_at),
+    segments: r.segments,
+    bytes: Number(r.bytes),
+    lastSegmentAt: iso(r.last_segment_at),
+    ended: r.ended,
+    endReason: r.end_reason,
+  }
 }
 
 /** 正式版：DigitalOcean Managed Postgres。多台 Gateway 同時運作靠交易與 FOR UPDATE SKIP LOCKED。 */
@@ -202,6 +220,63 @@ export class PostgresStore implements Store {
   async purgeLogUploads(before: Date) {
     const r = await this.sql`DELETE FROM log_uploads WHERE uploaded_at < ${before}`
     return r.count
+  }
+
+  async upsertMediaSession(m: Parameters<Store['upsertMediaSession']>[0]) {
+    const [r] = await this.sql`
+      INSERT INTO media_sessions (session, site_id, kind, camera, created_at, until_at, from_at, to_at)
+      VALUES (${m.session}, ${m.siteId}, ${m.kind}, ${m.camera}, ${m.createdAt}, ${m.until}, ${m.from}, ${m.to})
+      ON CONFLICT (session) DO UPDATE SET until_at = EXCLUDED.until_at, ended = false, end_reason = NULL
+      RETURNING *`
+    return toMedia(r)
+  }
+  async getMediaSession(session: string) {
+    const [r] = await this.sql`SELECT * FROM media_sessions WHERE session = ${session}`
+    return r ? toMedia(r) : null
+  }
+  async listMediaSessions(siteId: string, limit: number) {
+    return (await this.sql`SELECT * FROM media_sessions WHERE site_id = ${siteId} ORDER BY created_at DESC LIMIT ${limit}`).map(toMedia)
+  }
+  async putSegment(session: string, seq: number, duration: number, contentType: string, data: Buffer, at: Date) {
+    return (await this.sql.begin(async (tx) => {
+      const [prev] = await tx`SELECT octet_length(data) AS n FROM media_segments WHERE session = ${session} AND seq = ${seq}`
+      await tx`
+        INSERT INTO media_segments (session, seq, duration, content_type, data, created_at)
+        VALUES (${session}, ${seq}, ${duration}, ${contentType}, ${data}, ${at})
+        ON CONFLICT (session, seq) DO UPDATE SET duration = EXCLUDED.duration, content_type = EXCLUDED.content_type, data = EXCLUDED.data, created_at = EXCLUDED.created_at`
+      const [r] = await tx`
+        UPDATE media_sessions SET segments = segments + ${prev ? 0 : 1}, bytes = bytes + ${data.length - Number(prev?.n ?? 0)}, last_segment_at = ${at}
+        WHERE session = ${session} RETURNING *`
+      return toMedia(r)
+    })) as MediaSessionInfo
+  }
+  async listSegments(session: string) {
+    return (await this.sql`SELECT seq, duration FROM media_segments WHERE session = ${session} ORDER BY seq`).map((r) => ({ seq: r.seq as number, duration: Number(r.duration) }))
+  }
+  async getSegment(session: string, seq: number) {
+    const [r] = await this.sql`SELECT content_type, data FROM media_segments WHERE session = ${session} AND seq = ${seq}`
+    return r ? { contentType: r.content_type as string, data: Buffer.from(r.data) } : null
+  }
+  async endMediaSession(session: string, reason: string) {
+    const [r] = await this.sql`UPDATE media_sessions SET ended = true, end_reason = ${reason} WHERE session = ${session} RETURNING *`
+    return r ? toMedia(r) : null
+  }
+  async purgeMedia(kind: 'live' | 'clip', before: Date) {
+    const r = await this.sql`DELETE FROM media_segments s USING media_sessions m WHERE s.session = m.session AND m.kind = ${kind} AND s.created_at < ${before}`
+    await this.sql`DELETE FROM media_sessions m WHERE m.kind = ${kind} AND m.created_at < ${before} AND NOT EXISTS (SELECT 1 FROM media_segments s WHERE s.session = m.session)`
+    return r.count
+  }
+  async saveNvrIndex(id: string, siteId: string, body: NvrIndex, at: Date) {
+    await this.sql`
+      INSERT INTO nvr_indexes (id, site_id, uploaded_at, body) VALUES (${id}, ${siteId}, ${at}, ${this.sql.json(body as any)})
+      ON CONFLICT (id) DO UPDATE SET uploaded_at = EXCLUDED.uploaded_at, body = EXCLUDED.body`
+  }
+  async getNvrIndex(siteId: string, id: string) {
+    const [r] = await this.sql`SELECT uploaded_at, body FROM nvr_indexes WHERE site_id = ${siteId} AND id = ${id}`
+    return r ? { uploadedAt: new Date(r.uploaded_at), body: r.body as NvrIndex } : null
+  }
+  async purgeNvrIndexes(before: Date) {
+    return (await this.sql`DELETE FROM nvr_indexes WHERE uploaded_at < ${before}`).count
   }
 
   async enqueueWebhook(payload: WebhookPayload) {

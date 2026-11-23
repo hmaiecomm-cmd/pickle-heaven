@@ -18,3 +18,5 @@ tsconfig.tsbuildinfo
 
 # IoT Gateway 建置輸出
 services/iot-gateway/dist
+# IoT 本機互動測試（金鑰）
+.iot-dev/

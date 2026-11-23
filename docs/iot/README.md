@@ -30,7 +30,9 @@ IoT Gateway（DigitalOcean App Platform，services/iot-gateway/）
 | `src/server/iot/` | 平台端：組計畫、推送、Gateway client | Vercel |
 | `src/app/api/iot/webhook/` | 平台端：接收 Gateway 回報 | Vercel |
 | `src/app/api/admin/iot/logs/`、`src/app/admin/logs/edge-logs-panel.tsx` | 平台端：調閱、列表、檢視／下載場館 log | Vercel |
-| `edge/simulator/` | 場館模擬器：參考實作、19 個情境、壓力測試、即時面板 | 不部署 |
+| `edge/simulator/` | 場館模擬器：參考實作、23 個情境、壓力測試、模擬器網頁（含浮動 IP） | 本機，或 DO staging（`edge/simulator/Dockerfile`） |
+| `src/app/admin/engineer_testmode/` | 後台「系統設定 → 地端 IoT（工程測試）」：切換實體／模擬器、下行參數、流量、錯誤、測試台、攝影機、浮動 IP 與心跳 | Vercel |
+| `infra/digitalocean/staging.yaml` | DO 測試環境：Gateway（記憶體版）＋雲端模擬器 | DigitalOcean |
 | `infra/digitalocean/` | App Platform 規格、環境變數範本 | — |
 | `scripts/verify-iot-e2e.mts` | 平台真實程式 → Gateway → 模擬場館的端到端驗證 | 不部署 |
 
@@ -42,7 +44,7 @@ IoT Gateway（DigitalOcean App Platform，services/iot-gateway/）
 # 場館模擬器（內建記憶體版 Gateway）
 cd services/iot-gateway && npm install
 cd ../../edge/simulator
-npm run scenarios                 # 全部 20 個情境
+npm run scenarios                 # 全部 23 個情境
 npm run scenarios -- network      # 只跑某個標籤：schedule / door / command / network / hardware / safety / security / camera / logs / scale
 npm run load -- --sites 200       # 多場館壓力測試
 npm run panel                     # http://127.0.0.1:4310 即時面板（可切斷網、硬體故障、輸入密碼）
@@ -50,6 +52,21 @@ npm run panel                     # http://127.0.0.1:4310 即時面板（可切�
 # 平台端到端（暫存 SQLite，不會連 Turso）
 npm run verify:iot
 ```
+
+## 互動測試環境（平台 ↔ 模擬器）
+
+- 本機：雙擊 `edge/simulator/start-simulator.cmd`（或 `npm run iot:stack`）→ 本機 Gateway :8787＋模擬器網頁 :4310，並把 `IOT_*` 寫進 `.env.development.local`。平台 `npm run dev` 後到 `/admin/engineer_testmode`。
+- 雲端（DO staging）：`infra/digitalocean/staging.yaml` 一個 App 兩個元件。`/` 是 Gateway，`/sim/` 是模擬器網頁（`CONSOLE_PASSWORD`，HTTP Basic，帳號任意）。模擬器啟動後自動向 Gateway 開通 `xindian001-sim`；Gateway 重開（記憶體版清空）時會自動重新開通。
+- 後台首頁右下角隱藏圓點可一鍵把整個後台切到模擬器（`Venue.iotTarget`＝`SIMULATOR`，Gateway 場館 ID 加 `-sim`），橫幅會一直提示，可一鍵切回實體。
+
+### 浮動 IP 與心跳
+
+真實場館電腦在浮動 IP／NAT 後面，雲端**不能**主動連進去。雲端「呼叫場館」＝把指令排進 Gateway，場館下次長輪詢（連出）時取走、執行、ack。
+
+- Gateway 記錄每個場館的來源 IP（DO 的 `do-connecting-ip`／`x-forwarded-for`）。IP 改變時寫進 IP 歷史（50 筆），流量紀錄註記「來源 IP 變更 A → B」。
+- 每次心跳記錄時間、IP、與上次心跳的間隔、時差、待送事件（120 筆）。超過 `OFFLINE_AFTER_SEC`（staging 設 30 秒）沒心跳判定離線並 webhook 平台。
+- 內部 API `GET /internal/v1/sites/:id/connection` 回傳上述資料。工程測試頁「場館鏡像」分頁顯示目前 IP、IP 歷史、心跳間隔圖，以及「從雲端呼叫場館」（量測排入 → 取走 → 回覆的秒數）。
+- 模擬器：每個請求帶 `x-sim-egress-ip` 宣告模擬的浮動 IP（台灣動態 IP 網段）。Gateway **只對 siteId 結尾 `-sim` 的場館採信**，真實場館送了也不理。預設每 30 分鐘換號一次（`FLOATING_IP_EVERY_MIN`／`--floating-ip-min`，0＝不自動）。換號時斷線幾秒（可調），之後新 IP 立即送心跳。模擬器網頁可手動換號、改頻率、改斷線秒數。
 
 ## 上線步驟
 

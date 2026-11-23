@@ -8,7 +8,8 @@ import { CIRCUIT_DEFINITIONS } from '@/lib/control-types'
 import { CATEGORY_INFO, CIRCUIT_NUMBERS, circuitLocation } from '@/lib/venue-layout'
 import { getMonitorSnapshot, recentCommands, ACTIONS_BY_TYPE } from '@/server/monitor-service'
 import { recentCircuitCommands } from '@/server/circuit-control'
-import { DemoModeBanner, Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { Forbidden, PageTitle } from '@/components/admin/page-bits'
+import { IotStatusBanner } from '@/components/admin/iot-status-banner'
 import { ControlClient } from './control-client'
 import { CircuitPanel, type CircuitRow } from './circuit-panel'
 
@@ -75,9 +76,9 @@ export default async function ControlPage() {
         title="控制中心"
         desc="燈光、風扇與電力迴路的指令都要先看操作預覽，由有權限的人員確認。送出不等於完成：收到設備回報才顯示「設備已確認」。"
       />
-      {/* 目前只有「未串接」與「展示環境模擬」兩種模式，都不是真實硬體 */}
+      {/* 已設定 IoT Gateway 時顯示目前連線對象（實體 IoT PC／網頁模擬器）；否則維持 Demo Mode 說明 */}
       <div className="mb-4">
-        <DemoModeBanner what="電力迴路、燈控與設備硬體" />
+        <IotStatusBanner what="電力迴路、燈控與設備硬體" />
       </div>
       <ControlClient
         integration={snap.integration}

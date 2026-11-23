@@ -66,6 +66,12 @@ export class PlatformClient {
   logFile(siteId: string, id: string, file: string) {
     return signedFetch({ baseUrl: this.baseUrl, keyId: 'platform', secret: this.secret, method: 'GET', path: `/internal/v1/sites/${siteId}/logs/${id}?file=${file}`, raw: true }).then((r) => r.text)
   }
+  get<T = any>(path: string) {
+    return this.req<T>('GET', path)
+  }
+  raw(path: string) {
+    return signedFetch({ baseUrl: this.baseUrl, keyId: 'platform', secret: this.secret, method: 'GET', path, raw: true })
+  }
   disable(siteId: string) {
     return this.req('POST', `/internal/v1/sites/${siteId}/disable`)
   }

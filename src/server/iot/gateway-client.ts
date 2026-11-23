@@ -1,5 +1,6 @@
 import 'server-only'
-import { signRequest, type CommandRecord, type EdgeCommand, type LogFile, type LogUploadSummary, type ProvisionResponse, type PutPlanResponse, type SitePlan, type SiteSummary } from '@gh/iot-contract'
+import { signRequest, type CommandRecord, type EdgeCommand, type LogFile, type LogUploadSummary, type MediaSessionInfo, type NvrIndex, type TrafficEntry,
+  type SiteConnection, type ProvisionResponse, type PutPlanResponse, type SitePlan, type SiteSummary } from '@gh/iot-contract'
 
 /**
  * 平台 → IoT Gateway（DigitalOcean）內部 API。
@@ -56,22 +57,16 @@ export const gateway = {
   putPlan: (plan: SitePlan) => call<PutPlanResponse>('PUT', `/internal/v1/sites/${plan.siteId}/plan`, plan),
   enqueue: (siteId: string, id: string, command: EdgeCommand, requestedBy: string, ttlSec?: number) =>
     call<CommandRecord>('POST', `/internal/v1/sites/${siteId}/commands`, { id, command, requestedBy, ttlSec }),
-  commands: (siteId: string, limit = 20) => call<{ commands: CommandRecord[] }>('GET', `/internal/v1/sites/${siteId}/commands?limit=${limit}`),
+  commands: (siteId: string, limit = 50) => call<{ commands: CommandRecord[] }>('GET', `/internal/v1/sites/${siteId}/commands?limit=${limit}`),
+  command: (id: string) => call<CommandRecord>('GET', `/internal/v1/commands/${encodeURIComponent(id)}`),
+  connection: (siteId: string) => call<SiteConnection>('GET', `/internal/v1/sites/${siteId}/connection`),
+  traffic: (siteId: string, limit = 150) => call<{ traffic: TrafficEntry[] }>('GET', `/internal/v1/sites/${siteId}/traffic?limit=${limit}`),
+  media: (siteId: string, limit = 30) => call<{ sessions: MediaSessionInfo[] }>('GET', `/internal/v1/sites/${siteId}/media?limit=${limit}`),
+  mediaInfo: (siteId: string, session: string) => call<MediaSessionInfo>('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}`),
+  /** 播放清單或片段原始回應（給平台代理給瀏覽器播放） */
+  mediaFile: (siteId: string, session: string, file: string) => send('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}/${encodeURIComponent(file)}`, undefined, 20_000),
+  nvrIndex: (siteId: string, id: string) => call<NvrIndex & { uploadedAt: string }>('GET', `/internal/v1/sites/${siteId}/nvr-index/${encodeURIComponent(id)}`),
   logs: (siteId: string, limit = 20) => call<{ logs: LogUploadSummary[] }>('GET', `/internal/v1/sites/${siteId}/logs?limit=${limit}`),
   /** 下載一個 log 檔的 JSON Lines 原文（串流回傳，不在記憶體組字串） */
   logFile: (siteId: string, id: string, file: LogFile) => send('GET', `/internal/v1/sites/${siteId}/logs/${encodeURIComponent(id)}?file=${file}`, undefined, 30_000),
-  /** 下載媒體檔案（HLS 片段）（串流回傳） */
-  mediaFile: (siteId: string, session: string, file: string) => send('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}/${encodeURIComponent(file)}`, undefined, 30_000),
-  /** 取得指令詳情 */
-  command: (id: string) => call<CommandRecord>('GET', `/internal/v1/commands/${encodeURIComponent(id)}`),
-  /** 取得媒體會話訊息 */
-  mediaInfo: (siteId: string, session: string) => call<any>('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}`),
-  /** 取得 NVR 索引 */
-  nvrIndex: (siteId: string, id: string) => call<any>('GET', `/internal/v1/sites/${siteId}/nvr/${encodeURIComponent(id)}`),
-  /** 取得連線狀態 */
-  connection: (siteId: string) => call<any>('GET', `/internal/v1/sites/${siteId}/connection`),
-  /** 取得流量統計 */
-  traffic: (siteId: string, limit = 20) => call<any>('GET', `/internal/v1/sites/${siteId}/traffic?limit=${limit}`),
-  /** 取得媒體會話列表 */
-  media: (siteId: string) => call<any>('GET', `/internal/v1/sites/${siteId}/media`),
 }

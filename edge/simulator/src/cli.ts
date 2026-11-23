@@ -3,6 +3,7 @@ import { buildDemoPlan, hm, taipei } from './demo-plan'
 import { createContext } from './harness'
 import { runLoad } from './load'
 import { startPanel } from './panel'
+import { runCloud, runConsole, runStack } from './stack'
 import { DAY, SCENARIOS } from './scenarios'
 
 /**
@@ -11,6 +12,9 @@ import { DAY, SCENARIOS } from './scenarios'
  *   npm run scenarios -- door-codes security  指定情境 ID 或標籤（door、network、safety…）
  *   npm run scenarios -- --verbose
  *   npm run load -- --sites 200               多場館壓力測試
+ *   npm run stack                             互動測試：本機 Gateway＋場館模擬器網頁（平台 npm run dev 連過來）
+ *   npm run console -- --gateway <url> --site <id> --platform-secret <s>   模擬器網頁連既有 Gateway（staging）
+ *   npm run cloud                             雲端部署用（環境變數 GATEWAY_URL、PLATFORM_SECRET、CONSOLE_PASSWORD…）
  *   npm run panel                             單一場館＋即時面板（內建 Gateway、示範計畫）
  *   npm run panel -- --url https://gw.example.com --site xindian001 --secret <場館金鑰>
  *                                              連到真正的 Gateway，當作一台場館電腦
@@ -87,7 +91,32 @@ async function panel() {
 }
 
 const cmd = positional[0] ?? 'scenarios'
-const run = cmd === 'load' ? () => runLoad({ sites: Number(flag('sites') ?? 50), gatewayUrl: flag('gateway'), platformSecret: flag('platform-secret') }) : cmd === 'panel' ? panel : scenarios
+const stack = () =>
+  runStack({
+    site: flag('site') ?? 'xindian001-sim',
+    platformUrl: flag('platform-url') ?? 'http://127.0.0.1:3100',
+    gatewayPort: Number(flag('gateway-port') ?? 8787),
+    consolePort: Number(flag('port') ?? 4310),
+    label: flag('label') ?? '大新店（網頁模擬器）',
+    floatingIpEveryMin: flag('floating-ip-min') ? Number(flag('floating-ip-min')) : undefined,
+  })
+const consoleOnly = () => {
+  const gateway = flag('gateway')
+  if (!gateway) throw new Error('需要 --gateway <Gateway 網址>')
+  return runConsole({ gateway, site: flag('site') ?? 'xindian001-sim', secret: flag('secret') ?? process.env.SITE_SECRET, platformSecret: flag('platform-secret') ?? process.env.PLATFORM_SECRET, consolePort: Number(flag('port') ?? 4310), label: flag('label') ?? '網頁模擬器', floatingIpEveryMin: flag('floating-ip-min') ? Number(flag('floating-ip-min')) : undefined })
+}
+const run =
+  cmd === 'load'
+    ? () => runLoad({ sites: Number(flag('sites') ?? 50), gatewayUrl: flag('gateway'), platformSecret: flag('platform-secret') })
+    : cmd === 'panel'
+      ? panel
+      : cmd === 'stack'
+        ? stack
+        : cmd === 'console'
+          ? consoleOnly
+          : cmd === 'cloud'
+            ? () => runCloud()
+            : scenarios
 run().catch((e) => {
   console.error(e)
   process.exit(1)

@@ -1,3 +1,4 @@
+import type { TrafficEntry } from '@gh/iot-contract'
 import { Redis } from 'ioredis'
 
 /**
@@ -17,8 +18,18 @@ export interface Realtime {
   isPresent(siteId: string): Promise<boolean>
   /** 背景工作（離線偵測、webhook）只讓一台 Gateway 跑 */
   tryLock(name: string, owner: string, ttlMs: number): Promise<boolean>
+  /** 每個場館最近的請求紀錄（環狀，最多 TRAFFIC_KEEP 筆，保留 1 天） */
+  pushTraffic(siteId: string, entry: TrafficEntry): Promise<void>
+  getTraffic(siteId: string, limit: number): Promise<TrafficEntry[]>
+  /** 設定字串值並回傳舊值（連線 IP 用） */
+  swap(key: string, value: string, ttlMs: number): Promise<string | null>
+  /** 環狀清單：新的在前，保留 keep 筆 */
+  pushList(key: string, entry: unknown, keep: number, ttlMs: number): Promise<void>
+  getList<T>(key: string, limit: number): Promise<T[]>
   close(): Promise<void>
 }
+
+export const TRAFFIC_KEEP = 500
 
 export class MemoryRealtime implements Realtime {
   private waiters = new Map<string, Set<() => void>>()
@@ -82,6 +93,32 @@ export class MemoryRealtime implements Realtime {
     this.locks.set(name, { owner, until: t + ttlMs })
     return true
   }
+  private traffic = new Map<string, TrafficEntry[]>()
+  async pushTraffic(siteId: string, entry: TrafficEntry) {
+    const list = this.traffic.get(siteId) ?? []
+    list.unshift(entry)
+    if (list.length > TRAFFIC_KEEP) list.length = TRAFFIC_KEEP
+    this.traffic.set(siteId, list)
+  }
+  async getTraffic(siteId: string, limit: number) {
+    return (this.traffic.get(siteId) ?? []).slice(0, limit)
+  }
+  private kv = new Map<string, { v: string; until: number }>()
+  async swap(key: string, value: string, ttlMs: number) {
+    const old = this.kv.get(key)
+    this.kv.set(key, { v: value, until: Date.now() + ttlMs })
+    return old && old.until > Date.now() ? old.v : null
+  }
+  private lists = new Map<string, unknown[]>()
+  async pushList(key: string, entry: unknown, keep: number) {
+    const list = this.lists.get(key) ?? []
+    list.unshift(entry)
+    if (list.length > keep) list.length = keep
+    this.lists.set(key, list)
+  }
+  async getList<T>(key: string, limit: number) {
+    return (this.lists.get(key) ?? []).slice(0, limit) as T[]
+  }
   async close() {
     for (const set of this.waiters.values()) for (const fn of set) fn()
     this.waiters.clear()
@@ -132,6 +169,25 @@ export class RedisRealtime implements Realtime {
       return true
     }
     return false
+  }
+  async pushTraffic(siteId: string, entry: TrafficEntry) {
+    const k = `gh:traffic:${siteId}`
+    await this.cmd.multi().lpush(k, JSON.stringify(entry)).ltrim(k, 0, TRAFFIC_KEEP - 1).expire(k, 86_400).exec()
+  }
+  async getTraffic(siteId: string, limit: number) {
+    return (await this.cmd.lrange(`gh:traffic:${siteId}`, 0, limit - 1)).map((s) => JSON.parse(s) as TrafficEntry)
+  }
+  async swap(key: string, value: string, ttlMs: number) {
+    const k = `gh:kv:${key}`
+    const [[, old]] = (await this.cmd.multi().get(k).set(k, value, 'PX', ttlMs).exec()) as [[unknown, string | null], unknown]
+    return old ?? null
+  }
+  async pushList(key: string, entry: unknown, keep: number, ttlMs: number) {
+    const k = `gh:list:${key}`
+    await this.cmd.multi().lpush(k, JSON.stringify(entry)).ltrim(k, 0, keep - 1).pexpire(k, ttlMs).exec()
+  }
+  async getList<T>(key: string, limit: number) {
+    return (await this.cmd.lrange(`gh:list:${key}`, 0, limit - 1)).map((s) => JSON.parse(s) as T)
   }
   async close() {
     await this.local.close()
