@@ -72,4 +72,6 @@ export const gateway = {
   connection: (siteId: string) => call<any>('GET', `/internal/v1/sites/${siteId}/connection`),
   /** 取得流量統計 */
   traffic: (siteId: string, limit = 20) => call<any>('GET', `/internal/v1/sites/${siteId}/traffic?limit=${limit}`),
+  /** 取得媒體會話列表 */
+  media: (siteId: string) => call<any>('GET', `/internal/v1/sites/${siteId}/media`),
 }
