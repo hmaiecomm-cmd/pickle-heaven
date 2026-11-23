@@ -68,4 +68,8 @@ export const gateway = {
   mediaInfo: (siteId: string, session: string) => call<any>('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}`),
   /** 取得 NVR 索引 */
   nvrIndex: (siteId: string, id: string) => call<any>('GET', `/internal/v1/sites/${siteId}/nvr/${encodeURIComponent(id)}`),
+  /** 取得連線狀態 */
+  connection: (siteId: string) => call<any>('GET', `/internal/v1/sites/${siteId}/connection`),
+  /** 取得流量統計 */
+  traffic: (siteId: string, limit = 20) => call<any>('GET', `/internal/v1/sites/${siteId}/traffic?limit=${limit}`),
 }
