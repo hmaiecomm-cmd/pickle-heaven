@@ -59,4 +59,6 @@ export const gateway = {
   logs: (siteId: string, limit = 20) => call<{ logs: LogUploadSummary[] }>('GET', `/internal/v1/sites/${siteId}/logs?limit=${limit}`),
   /** 下載一個 log 檔的 JSON Lines 原文（串流回傳，不在記憶體組字串） */
   logFile: (siteId: string, id: string, file: LogFile) => send('GET', `/internal/v1/sites/${siteId}/logs/${encodeURIComponent(id)}?file=${file}`, undefined, 30_000),
+  /** 下載媒體檔案（HLS 片段）（串流回傳） */
+  mediaFile: (siteId: string, session: string, file: string) => send('GET', `/internal/v1/sites/${siteId}/media/${encodeURIComponent(session)}/${encodeURIComponent(file)}`, undefined, 30_000),
 }
