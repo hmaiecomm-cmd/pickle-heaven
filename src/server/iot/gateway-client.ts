@@ -56,6 +56,7 @@ export const gateway = {
   putPlan: (plan: SitePlan) => call<PutPlanResponse>('PUT', `/internal/v1/sites/${plan.siteId}/plan`, plan),
   enqueue: (siteId: string, id: string, command: EdgeCommand, requestedBy: string, ttlSec?: number) =>
     call<CommandRecord>('POST', `/internal/v1/sites/${siteId}/commands`, { id, command, requestedBy, ttlSec }),
+  commands: (siteId: string, limit = 20) => call<{ commands: CommandRecord[] }>('GET', `/internal/v1/sites/${siteId}/commands?limit=${limit}`),
   logs: (siteId: string, limit = 20) => call<{ logs: LogUploadSummary[] }>('GET', `/internal/v1/sites/${siteId}/logs?limit=${limit}`),
   /** 下載一個 log 檔的 JSON Lines 原文（串流回傳，不在記憶體組字串） */
   logFile: (siteId: string, id: string, file: LogFile) => send('GET', `/internal/v1/sites/${siteId}/logs/${encodeURIComponent(id)}?file=${file}`, undefined, 30_000),
