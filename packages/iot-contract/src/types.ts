@@ -368,12 +368,15 @@ export interface MediaSessionInfo {
   session: string
   camera: string
   live: boolean
+  kind: 'live' | 'clip' | 'index'
   title: string
   createdAt: string
   expiresAt: string
   url?: string
   segments: number
   bytes: number
+  from?: string
+  to?: string
   ended?: boolean
   endReason?: 'COMPLETED' | 'EXPIRED' | 'STOPPED'
 }
