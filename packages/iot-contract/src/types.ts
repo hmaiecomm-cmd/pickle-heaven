@@ -382,7 +382,7 @@ export interface MediaSessionInfo {
 
 export interface TrafficEntry {
   at: string
-  direction: 'up' | 'down'
+  dir: 'up' | 'down'
   bytes: number
   method: string
   path: string
