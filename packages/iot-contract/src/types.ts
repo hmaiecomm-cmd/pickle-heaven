@@ -372,8 +372,8 @@ export interface MediaSessionInfo {
   createdAt: string
   expiresAt: string
   url?: string
-  segments?: number
-  bytes?: number
+  segments: number
+  bytes: number
   endReason?: 'COMPLETED' | 'EXPIRED' | 'STOPPED'
 }
 
