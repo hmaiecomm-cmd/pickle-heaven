@@ -387,6 +387,7 @@ export interface TrafficEntry {
   method: string
   path: string
   status: number
+  ms: number
   note?: string
   error?: string
 }
