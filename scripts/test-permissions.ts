@@ -10,7 +10,7 @@ import { mainPrisma } from '../src/lib/db'
 import { hashPassword } from '../src/lib/admin-auth'
 import { ALL_PERMISSIONS, ASSIGNABLE_ROLES, can, canDo, permissionsOf, ROLE_PERMISSIONS, type Permission } from '../src/lib/admin-permissions'
 import { maskOrderDetailAmounts, maskOrderListAmounts, type OrderDetail, type OrderListResult } from '../src/server/admin-orders'
-import { countOtherActiveOwners } from '../src/server/staff-actions'
+import { countOtherActiveSuperAdmins } from '../src/server/staff-actions'
 
 const results: { name: string; ok: boolean; detail: string }[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -22,24 +22,18 @@ async function main() {
   const all = (r: string, ps: Permission[]) => ps.every((p) => can(r, p))
   const none = (r: string, ps: Permission[]) => ps.every((p) => !can(r, p))
   const sensitive: Permission[] = ['staff', 'refund', 'camera.export', 'access.grant', 'access.remote', 'device.control', 'device.automation']
-  const five = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER'] as const
-  check('擁有者擁有全部權限', all('OWNER', ALL_PERMISSIONS))
-  check('管理員可管理預約、設備、門禁授權、訂單財務（含退款核准與匯出）、報表、系統設定', all('MANAGER', ['bookings.manage', 'device.control', 'device.automation', 'access.grant', 'finance', 'refund', 'finance.export', 'reports', 'settings']))
-  check('管理員不能邀請管理員或變更角色', !can('MANAGER', 'staff'))
-  check('營運人員可管理預約、看監控、遠端控制設備', all('OPERATOR', ['bookings.manage', 'courts.manage', 'checkin', 'monitor', 'device', 'device.control']))
-  check('營運人員門禁只能看、不能授權或遠端開門', can('OPERATOR', 'access') && none('OPERATOR', ['access.grant', 'access.remote']))
-  check('營運人員不碰財務、報表、設定、帳號', none('OPERATOR', ['finance', 'refund', 'finance.export', 'reports', 'settings', 'staff']))
-  check('櫃台人員可新增／修改預約、報到、查會員', all('FRONTDESK', ['bookings', 'bookings.manage', 'checkin', 'members', 'activities.view']))
-  check('櫃台人員不碰監控、設備、門禁、財務、報表、設定', none('FRONTDESK', ['monitor', 'device', 'device.control', 'access', 'access.grant', 'finance', 'refund', 'reports', 'settings', 'staff']))
-  check('只讀人員各區可查看', all('VIEWER', ['bookings', 'courts', 'monitor', 'device', 'access', 'finance', 'reports']))
-  check('只讀人員不能新增、修改、匯出、控制、授權或使用 AI', none('VIEWER', ['bookings.manage', 'courts.manage', 'checkin', 'activities', 'device.control', 'access.grant', 'finance.export', 'reports.export', 'camera.export', 'expenses.own', 'ai', 'settings', 'staff']))
-  check('敏感操作：除擁有者與管理員外，只有營運人員能遠端控制設備', ASSIGNABLE_ROLES.filter((r) => r !== 'MANAGER').every((r) => sensitive.every((p) => !can(r, p) || (r === 'OPERATOR' && p === 'device.control'))))
-  check('展示帳號不能邀請管理員或變更角色', !can('DEMO', 'staff'))
-  check('可指派角色不含擁有者與展示帳號', !ASSIGNABLE_ROLES.includes('OWNER') && !ASSIGNABLE_ROLES.includes('DEMO'))
-  check('門禁授權 = 門禁權限模組的「門禁授權」動作', five.every((r) => can(r, 'access.grant') === canDo(r, 'access', 'door')))
-  check('退款核准 = 訂單財務模組的「審核」動作', five.every((r) => can(r, 'refund') === canDo(r, 'finance', 'approve')))
-  check('未知角色字串退回只讀人員權限', permissionsOf('HACKER').join() === ROLE_PERMISSIONS.VIEWER.join())
-  check('舊的 STAFF 角色不再有任何修改權限', none('STAFF', ['bookings.manage', 'device.control', 'access.grant', 'refund', 'staff']))
+  const three = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER'] as const
+  check('高級管理者擁有全部權限', all('SUPER_ADMIN', ALL_PERMISSIONS))
+  check('一般管理者可查看場地預約、訂單紀錄', all('MANAGER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'checkin', 'members', 'activities.view', 'finance', 'reports']))
+  check('一般管理者不能訪問無人營運管理、AI 即時監控、系統設定', none('MANAGER', ['monitor', 'device', 'access', 'settings', 'staff', 'audit']))
+  check('工程管理者可訪問無人營運管理、AI 即時監控', all('ENGINEER', ['monitor', 'device', 'access', 'camera.playback', 'device.control', 'access.grant']))
+  check('工程管理者不能訪問場地預約、財務報表、系統設定', none('ENGINEER', ['bookings.manage', 'finance', 'settings', 'staff', 'audit']))
+  check('系統設定只有高級管理者可訪問', can('SUPER_ADMIN', 'settings') && can('SUPER_ADMIN', 'staff') && can('SUPER_ADMIN', 'audit') && none('MANAGER', ['settings', 'staff', 'audit']) && none('ENGINEER', ['settings', 'staff', 'audit']))
+  check('敏感操作：只有高級管理者能執行', three.filter((r) => r !== 'SUPER_ADMIN').every((r) => sensitive.every((p) => !can(r, p))))
+  check('可指派角色不含高級管理者', !ASSIGNABLE_ROLES.includes('SUPER_ADMIN'))
+  check('門禁授權 = 門禁權限模組的「門禁授權」動作', three.every((r) => can(r, 'access.grant') === canDo(r, 'access', 'door')))
+  check('退款核准 = 訂單財務模組的「審核」動作', three.every((r) => can(r, 'refund') === canDo(r, 'finance', 'approve')))
+  check('未知角色字串退回一般管理者權限', permissionsOf('HACKER').join() === ROLE_PERMISSIONS.MANAGER.join())
   // 5. 金額遮罩
   const list = { query: {}, total: 1, pages: 1, queriedAt: '', amountsHidden: false, rows: [{ id: 'x', total: 1200, refundedAmount: 300 }] } as unknown as OrderListResult
   const masked = maskOrderListAmounts(list)
@@ -56,15 +50,15 @@ async function main() {
   } as unknown as OrderDetail
   const md = maskOrderDetailAmounts(detail)
   check('訂單明細遮罩：所有金額、卡號、交易編號、點數清除', md.amountsHidden && md.amounts.total === 0 && md.courtItems[0].price === 0 && md.activityItems[0].amount === 0 && md.payments[0].amount === 0 && md.payments[0].card === null && md.payments[0].providerRef === null && md.refunds[0].cashAmount === 0 && md.invoices[0].amount === 0 && md.customer.points === 0)
-  // 6. 最後一位擁有者保護（計數）
+  // 6. 最後一位高級管理者保護（計數）
   await cleanup()
   const pw = await hashPassword('TEST_perm_password_12345')
-  const o1 = await mainPrisma.adminAccount.create({ data: { username: 'TEST_perm_owner1', usernameKey: 'test_perm_owner1', displayName: 'o1', passwordHash: pw, role: 'OWNER', tenant: 'main' } })
-  const o2 = await mainPrisma.adminAccount.create({ data: { username: 'TEST_perm_owner2', usernameKey: 'test_perm_owner2', displayName: 'o2', passwordHash: pw, role: 'OWNER', tenant: 'main', active: false } })
-  const realOwners = await mainPrisma.adminAccount.count({ where: { role: 'OWNER', active: true, tenant: 'main', id: { notIn: [o1.id, o2.id] } } })
-  const others = await countOtherActiveOwners(o1.id)
-  check('停用的擁有者不計入「其他有效擁有者」', others === realOwners, `others=${others}, real=${realOwners}`)
-  const stored = await mainPrisma.adminAccount.findUniqueOrThrow({ where: { id: o1.id } })
+  const s1 = await mainPrisma.adminAccount.create({ data: { username: 'TEST_perm_superadmin1', usernameKey: 'test_perm_superadmin1', displayName: 's1', passwordHash: pw, role: 'SUPER_ADMIN', tenant: 'main' } })
+  const s2 = await mainPrisma.adminAccount.create({ data: { username: 'TEST_perm_superadmin2', usernameKey: 'test_perm_superadmin2', displayName: 's2', passwordHash: pw, role: 'SUPER_ADMIN', tenant: 'main', active: false } })
+  const realSuperAdmins = await mainPrisma.adminAccount.count({ where: { role: 'SUPER_ADMIN', active: true, tenant: 'main', id: { notIn: [s1.id, s2.id] } } })
+  const others = await countOtherActiveSuperAdmins(s1.id)
+  check('停用的高級管理者不計入「其他有效高級管理者」', others === realSuperAdmins, `others=${others}, real=${realSuperAdmins}`)
+  const stored = await mainPrisma.adminAccount.findUniqueOrThrow({ where: { id: s1.id } })
   check('密碼以 scrypt 雜湊保存，不含明文', stored.passwordHash.startsWith('scrypt$') && !stored.passwordHash.includes('TEST_perm_password'))
   check('新帳號預設 mustChangePassword 可由建立流程設定', stored.mustChangePassword === false)
 }
