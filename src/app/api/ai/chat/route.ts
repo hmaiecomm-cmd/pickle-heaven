@@ -110,7 +110,7 @@ export async function POST(req: Request) {
           }
 
           // 建立 OpenAI 串流（包含對話歷史和頁面上下文）
-          const response = await openai.chat.completions.create({
+          const response = await openai!.chat.completions.create({
             model: DEFAULT_MODEL,
             messages: [
               {
