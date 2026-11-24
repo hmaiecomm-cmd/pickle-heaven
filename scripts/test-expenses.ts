@@ -65,7 +65,7 @@ async function main() {
   check('重複提醒：同單據號碼／同商家＋日期＋金額 → 提醒；僅金額相同 → 不提醒', h1.length === 1 && h1[0].reason === '相同單據號碼' && h2.length === 1 && h3.length === 0)
   // 6. 可見性：他人看不到；高級管理者看得到
   check('沒有審核權的其他人看不到別人的申請（404）', (await errCode(() => updateExpense(c1.expense.id, { amount: 1 }, engineer))) === 404)
-  check('一般管理者有費用審核權，工程管理者與其他人沒有', permissionsOf('MANAGER').includes('expenses.review') && !permissionsOf('ENGINEER').includes('expenses.review') && !permissionsOf('SUPER_ADMIN').includes('expenses.review'))
+  check('費用審核權限只有高級管理者有', permissionsOf('SUPER_ADMIN').includes('expenses.review') && !permissionsOf('MANAGER').includes('expenses.review') && !permissionsOf('ENGINEER').includes('expenses.review'))
   // 7. 狀態：非高級管理者不能核准；高級管理者退回需原因；退回後本人可改回草稿並修改（留歷史）
   check('一般管理者不能核准（403）', (await errCode(() => setExpenseStatus(c1.expense.id, 'APPROVED', manager))) === 403)
   check('退回未填原因被拒', (await errCode(() => setExpenseStatus(c1.expense.id, 'REJECTED', superAdmin, ''))) === 400)

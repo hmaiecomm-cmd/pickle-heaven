@@ -21,7 +21,7 @@ const check = (name: string, ok: boolean, detail = '') => {
 async function main() {
   const all = (r: string, ps: Permission[]) => ps.every((p) => can(r, p))
   const none = (r: string, ps: Permission[]) => ps.every((p) => !can(r, p))
-  const sensitive: Permission[] = ['staff', 'refund', 'camera.export', 'access.grant', 'access.remote', 'device.control', 'device.automation']
+  const sensitive: Permission[] = ['staff', 'refund', 'settings', 'audit']
   const three = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER'] as const
   check('高級管理者擁有全部權限', all('SUPER_ADMIN', ALL_PERMISSIONS))
   check('一般管理者可查看場地預約、訂單紀錄', all('MANAGER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'checkin', 'members', 'activities.view', 'finance', 'reports']))

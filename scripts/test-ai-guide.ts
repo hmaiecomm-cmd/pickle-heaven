@@ -46,8 +46,8 @@ async function main() {
   check('球場數由場館設定即時查詢並標示', courts.mode === 'quick' && courts.label === '即時查詢' && /共 \d+ 面/.test(courts.reply) && Boolean(courts.queriedAt))
   const courtsDemo = await renderGuide(GUIDES.find((g) => g.id === 'courts')!, 'MANAGER', 'demo')
   check('展示資料範圍標示為展示範例', courtsDemo.label.startsWith('展示範例') && courtsDemo.demo)
-  const finance = await renderGuide(GUIDES.find((g) => g.id === 'finance_hidden')!, 'MANAGER', 'main')
-  check('櫃台人員問財務報表：說明看不到帳務，不給帳務連結', finance.reply.includes('櫃台人員看不到帳務') && finance.sources.every((s) => s.href !== '/admin/reports'))
+  const finance = await renderGuide(GUIDES.find((g) => g.id === 'finance_hidden')!, 'ENGINEER', 'main')
+  check('工程管理者問財務報表：說明看不到帳務，不給帳務連結', finance.reply.includes('櫃台人員看不到帳務') && finance.sources.every((s) => s.href !== '/admin/reports'))
 }
 
 main()
