@@ -30,7 +30,7 @@ const TABS = [
   { key: 'devices', label: '門禁設備', icon: DoorClosed },
   { key: 'logs', label: '進出紀錄', icon: ListChecks },
   { key: 'alerts', label: '異常事件', icon: ShieldAlert },
-  { key: 'audit', label: '管理者操作紀錄', icon: History },
+  { key: 'audit', label: '開門與授權紀錄', icon: History },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -344,10 +344,10 @@ async function AlertsTab() {
 
 async function AuditTab() {
   const rows = await listDoorAudit()
-  if (rows.length === 0) return <Empty title="尚無操作紀錄" desc="建立、更新或撤銷門禁授權與遠端開門時，系統與管理者的每一次操作都會記錄在這裡。" />
+  if (rows.length === 0) return <Empty title="尚無開門與授權紀錄" desc="建立、更新或撤銷門禁授權與遠端開門時，系統與管理者的每一次操作都會記錄在這裡。" />
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white">
-      <h2 className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold">管理者操作紀錄（最近 100 筆）</h2>
+      <h2 className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold">開門與授權紀錄｜誰在什麼時間授權誰進場（最近 100 筆）</h2>
       <ul className="divide-y divide-zinc-100">
         {rows.map((r) => {
           const d = (r.detail ?? {}) as Record<string, unknown>

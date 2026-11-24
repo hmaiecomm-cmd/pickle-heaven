@@ -1,0 +1,138 @@
+@media print {
+  /* 隐藏不需要列印的元素 */
+  .admin-sidebar,
+  .operations-toolbar,
+  .no-print,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* 页面基础样式 */
+  body {
+    background: white;
+    color: #000;
+    margin: 0;
+    padding: 0;
+  }
+
+  .operations-report-print {
+    max-width: 100%;
+    margin: 0;
+    padding: 20mm;
+  }
+
+  /* 分页控制 */
+  .chart,
+  .metrics-cards,
+  .summary-section,
+  .alerts-section,
+  .alert-card,
+  .metric-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* 标题样式 */
+  h1,
+  h2,
+  h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+
+  /* 卡片样式 */
+  .bg-white {
+    background: white;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+
+  /* 颜色转换为灰度 */
+  .bg-gradient-to-br {
+    background: white;
+  }
+
+  /* 移除不需要列印的按钮和交互元素 */
+  button,
+  .button,
+  input[type='button'],
+  input[type='submit'] {
+    display: none !important;
+  }
+
+  /* 表格样式 */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  td,
+  th {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+
+  /* 图表容器 */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+
+  /* 避免孤立行 */
+  p {
+    orphans: 2;
+    widows: 2;
+  }
+
+  /* 链接样式 */
+  a {
+    text-decoration: underline;
+    color: #000;
+  }
+
+  /* 移除阴影和背景渐变 */
+  .shadow-sm,
+  .shadow,
+  [class*='shadow'] {
+    box-shadow: none !important;
+  }
+
+  /* 确保文本清晰 */
+  .text-muted {
+    color: #666;
+  }
+
+  .text-xs {
+    font-size: 10pt;
+  }
+
+  .text-sm {
+    font-size: 11pt;
+  }
+
+  .text-base {
+    font-size: 12pt;
+  }
+
+  /* 页边距 */
+  @page {
+    margin: 20mm;
+  }
+
+  /* 避免在标题之后立即换页 */
+  h1::after,
+  h2::after,
+  h3::after {
+    display: block;
+    content: '';
+    page-break-after: avoid;
+  }
+}
+
+/* 预览模式 - 不是列印时的样式 */
+@media screen {
+  .print-only {
+    display: none;
+  }
+}
