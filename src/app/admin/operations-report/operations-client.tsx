@@ -114,86 +114,91 @@ export function OperationsReportClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* 工具列 */}
-      <div className="bg-white rounded-xl border border-[#e3e8dc] p-4 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          {/* 日期選擇 */}
-          <div className="flex flex-wrap gap-2">
+      <div className="bg-white rounded-xl border border-[#e3e8dc] p-3 md:p-4 shadow-sm">
+        {/* 日期選擇 */}
+        <div className="mb-3 md:mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[7, 30, 90].map((days) => (
               <button
                 key={days}
                 onClick={() => handlePeriodChange(days)}
                 className={cn(
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+                  'px-2.5 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap h-10',
                   selectedDays === days
                     ? 'bg-[#7cb342] text-white'
                     : 'bg-white/80 text-[#1f4d34] hover:bg-white border border-[#e3e8dc]'
                 )}
               >
-                最近{days}天
+                <span className="hidden md:inline">最近</span>{days}<span className="hidden md:inline">天</span><span className="md:hidden">天</span>
               </button>
             ))}
             <button
               onClick={() => handlePeriodChange(0)}
               className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2',
+                'px-2.5 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap col-span-2 md:col-span-auto h-10 flex items-center justify-center gap-1 md:gap-2',
                 !selectedDays || selectedDays === 0
                   ? 'bg-[#7cb342] text-white'
                   : 'bg-white/80 text-[#1f4d34] hover:bg-white border border-[#e3e8dc]'
               )}
             >
-              <Calendar className="h-4 w-4" />
-              自訂日期
-            </button>
-          </div>
-
-          {/* 操作按鈕 */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="px-4 py-2 rounded-lg bg-[#7cb342] text-white text-sm font-medium hover:bg-[#689b34] disabled:opacity-50 flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              下載報表
-            </button>
-            <button
-              onClick={handlePrint}
-              disabled={isPrinting}
-              className="px-4 py-2 rounded-lg border border-[#e3e8dc] text-[#1f4d34] text-sm font-medium hover:bg-[#f0f4ed] disabled:opacity-50 flex items-center gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              列印
-            </button>
-            <button
-              onClick={() => router.refresh()}
-              className="px-4 py-2 rounded-lg border border-[#e3e8dc] text-[#1f4d34] text-sm font-medium hover:bg-[#f0f4ed] flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              重新整理
+              <Calendar className="h-3.5 md:h-4 w-3.5 md:w-4 shrink-0" />
+              <span>自訂</span>
             </button>
           </div>
         </div>
 
+        {/* 操作按鈕 */}
+        <div className="grid grid-cols-2 md:flex gap-2 md:gap-2">
+          <button
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="px-2.5 md:px-4 py-2 md:py-2.5 rounded-lg bg-[#7cb342] text-white text-xs md:text-sm font-medium hover:bg-[#689b34] disabled:opacity-50 flex items-center justify-center gap-1 md:gap-2 h-10 col-span-1"
+          >
+            <Download className="h-3.5 md:h-4 w-3.5 md:w-4 shrink-0" />
+            <span className="hidden sm:inline">下載報表</span>
+            <span className="sm:hidden">下載</span>
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={isPrinting}
+            className="px-2.5 md:px-4 py-2 md:py-2.5 rounded-lg border border-[#e3e8dc] text-[#1f4d34] text-xs md:text-sm font-medium hover:bg-[#f0f4ed] disabled:opacity-50 flex items-center justify-center gap-1 md:gap-2 h-10 col-span-1"
+          >
+            <Printer className="h-3.5 md:h-4 w-3.5 md:w-4 shrink-0" />
+            <span className="hidden sm:inline">列印</span>
+            <span className="sm:hidden">列</span>
+          </button>
+          <button
+            onClick={() => router.refresh()}
+            className="px-2.5 md:px-4 py-2 md:py-2.5 rounded-lg border border-[#e3e8dc] text-[#1f4d34] text-xs md:text-sm font-medium hover:bg-[#f0f4ed] flex items-center justify-center gap-1 md:gap-2 h-10 col-span-2 md:col-span-1"
+          >
+            <RefreshCw className="h-3.5 md:h-4 w-3.5 md:w-4 shrink-0" />
+            重新整理
+          </button>
+        </div>
+
         {/* 日期範圍顯示 */}
-        <div className="mt-3 text-xs text-muted">
-          統計區間：{fromDate} 至 {toDate}
+        <div className="mt-3 text-xs text-muted break-words">
+          📅 {fromDate} 至 {toDate}
         </div>
       </div>
 
       {/* 主要統計卡片 */}
       <MetricsCards metrics={metrics} />
 
+      {/* 異常提示 - 移到圖表前面 */}
+      {alerts.length > 0 && <AlertsSection alerts={alerts} />}
+
       {/* 圖表區域 */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-2">
         {/* 每日營運趨勢圖 */}
         {trends.length > 0 ? (
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2 lg:col-span-2">
             <DailyTrendsChart trends={trends} />
           </div>
         ) : (
-          <div className="lg:col-span-2 bg-white rounded-xl border border-[#e3e8dc] p-6 text-center text-muted">
+          <div className="md:col-span-2 lg:col-span-2 bg-white rounded-xl border border-[#e3e8dc] p-4 md:p-6 text-center text-muted text-sm">
             無每日趨勢資料
           </div>
         )}
@@ -202,7 +207,7 @@ export function OperationsReportClient({
         {timeSlots.length > 0 ? (
           <TimeSlotChart timeSlots={timeSlots} />
         ) : (
-          <div className="bg-white rounded-xl border border-[#e3e8dc] p-6 text-center text-muted">
+          <div className="bg-white rounded-xl border border-[#e3e8dc] p-4 md:p-6 text-center text-muted text-sm">
             無時段分布資料
           </div>
         )}
@@ -211,7 +216,7 @@ export function OperationsReportClient({
         {courts.length > 0 ? (
           <CourtComparisonChart courts={courts} />
         ) : (
-          <div className="bg-white rounded-xl border border-[#e3e8dc] p-6 text-center text-muted">
+          <div className="bg-white rounded-xl border border-[#e3e8dc] p-4 md:p-6 text-center text-muted text-sm">
             無場地資料
           </div>
         )}
@@ -220,7 +225,7 @@ export function OperationsReportClient({
         {weekday.length > 0 ? (
           <WeekdayComparisonChart weekday={weekday} />
         ) : (
-          <div className="bg-white rounded-xl border border-[#e3e8dc] p-6 text-center text-muted">
+          <div className="bg-white rounded-xl border border-[#e3e8dc] p-4 md:p-6 text-center text-muted text-sm">
             無平日假日資料
           </div>
         )}
@@ -231,9 +236,6 @@ export function OperationsReportClient({
         {/* 門禁與進出紀錄 */}
         <DoorAccessCard doorAccess={metrics.doorAccess} />
       </div>
-
-      {/* 異常提示 */}
-      {alerts.length > 0 && <AlertsSection alerts={alerts} />}
 
       {/* 營運狀況說明 */}
       <SummarySection summary={summary} />
