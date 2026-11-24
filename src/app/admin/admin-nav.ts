@@ -56,8 +56,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '官網頁面管理', href: '/admin/home', permission: 'settings', group: '設定' },
       { label: '後台操作紀錄', href: '/admin/audit', permission: 'audit', group: '紀錄' },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings', group: '設定' },
-      { label: '設備串接', href: '/admin/settings/devices', permission: 'device', group: '無人營運' },
-      { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device', group: '無人營運' },
     ],
   },
 
