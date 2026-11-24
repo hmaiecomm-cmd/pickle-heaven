@@ -1,6 +1,7 @@
 import { pagePermission, getAdminContext } from '@/lib/admin-auth'
 import { openai, DEFAULT_MODEL, MAX_TOKENS, INPUT_MAX_LENGTH } from '@/lib/openai'
 import { getSystemPrompt } from '@/lib/ai-system-prompts'
+import { getOrCreateConversation, getConversationHistory, addMessageToConversation } from '@/server/ai-conversation-service'
 import type { UserRole } from '@/lib/ai-system-prompts'
 
 export const runtime = 'nodejs'
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // 解析請求
-    const { message, pageName } = await req.json()
+    const { message, pageName, conversationId: providedConversationId } = await req.json()
 
     // 驗證輸入
     if (!message || typeof message !== 'string') {
@@ -50,6 +51,12 @@ export async function POST(req: Request) {
       )
     }
 
+    // 取得或建立對話
+    const conversationId = providedConversationId || await getOrCreateConversation(ctx.username)
+
+    // 取得對話歷史
+    const history = await getConversationHistory(conversationId, ctx.username)
+
     // 取得用戶角色
     const userRole: UserRole = (ctx.role as UserRole) || 'ADMIN'
 
@@ -58,7 +65,9 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // 建立 OpenAI 串流
+          let buffer = ''
+
+          // 建立 OpenAI 串流（包含對話歷史）
           const response = await openai.chat.completions.create({
             model: DEFAULT_MODEL,
             messages: [
@@ -66,6 +75,7 @@ export async function POST(req: Request) {
                 role: 'system',
                 content: getSystemPrompt(userRole, pageName)
               },
+              ...history,
               {
                 role: 'user',
                 content: trimmedMessage
@@ -80,13 +90,21 @@ export async function POST(req: Request) {
           for await (const chunk of response) {
             const delta = chunk.choices[0]?.delta?.content
             if (delta) {
+              buffer += delta
               const event = `data: ${JSON.stringify({ content: delta })}\n\n`
               controller.enqueue(encoder.encode(event))
             }
           }
 
+          // 保存用戶訊息和 AI 回應到資料庫
+          if (buffer) {
+            await addMessageToConversation(conversationId, ctx.username, 'user', trimmedMessage)
+            await addMessageToConversation(conversationId, ctx.username, 'assistant', buffer)
+          }
+
           // 完成信號
-          controller.enqueue(encoder.encode('data: {"done": true}\n\n'))
+          const completeEvent = JSON.stringify({ done: true, conversationId })
+          controller.enqueue(encoder.encode(`data: ${completeEvent}\n\n`))
           controller.close()
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '未知錯誤'
