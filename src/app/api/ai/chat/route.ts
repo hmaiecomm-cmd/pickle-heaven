@@ -2,6 +2,7 @@ import { pagePermission, getAdminContext } from '@/lib/admin-auth'
 import { openai, DEFAULT_MODEL, MAX_TOKENS, INPUT_MAX_LENGTH } from '@/lib/openai'
 import { getSystemPrompt } from '@/lib/ai-system-prompts'
 import { getOrCreateConversation, getConversationHistory, addMessageToConversation } from '@/server/ai-conversation-service'
+import { extractPageContext } from '@/server/ai-page-context'
 import type { UserRole } from '@/lib/ai-system-prompts'
 
 export const runtime = 'nodejs'
@@ -60,6 +61,9 @@ export async function POST(req: Request) {
     // 取得用戶角色
     const userRole: UserRole = (ctx.role as UserRole) || 'ADMIN'
 
+    // 提取頁面上下文（Phase 3）
+    const pageContext = extractPageContext(pageName || '未知頁面', '', userRole, ctx.permissions)
+
     // 設置 SSE 頭部
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
@@ -67,13 +71,17 @@ export async function POST(req: Request) {
         try {
           let buffer = ''
 
-          // 建立 OpenAI 串流（包含對話歷史）
+          // 構建包含頁面上下文的系統提示
+          let systemPrompt = getSystemPrompt(userRole, pageName)
+          systemPrompt += `\n\n【頁面上下文】\n${pageContext.contextSummary}`
+
+          // 建立 OpenAI 串流（包含對話歷史和頁面上下文）
           const response = await openai.chat.completions.create({
             model: DEFAULT_MODEL,
             messages: [
               {
                 role: 'system',
-                content: getSystemPrompt(userRole, pageName)
+                content: systemPrompt
               },
               ...history,
               {
