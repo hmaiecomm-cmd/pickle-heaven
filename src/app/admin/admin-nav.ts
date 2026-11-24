@@ -80,9 +80,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     section: 'plus',
     permission: 'finance',
     items: [
-      { label: '營運狀況報表', href: '/admin/operations-report', permission: 'finance', exact: true },
       { label: '實時報表', href: '/admin/finance', permission: 'finance', exact: true },
-      { label: '管理總覽預覽', href: '/admin/finance/overview', permission: 'finance' },
+      { label: '營運報表下載列印', href: '/admin/finance/overview', permission: 'finance' },
     ],
   },
   {
@@ -167,6 +166,8 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/invoices': '/admin/finance',
   '/admin/expenses': '/admin/finance',
   '/admin/finance/daily': '/admin/finance',
+  // 營運報表相容性：舊 operations-report 路由導向新 finance 實時報表
+  '/admin/operations-report': '/admin/finance',
   // 會員與教練導航別名
   '/admin/members/history': '/admin/members',
   // 移除的系統設定頁面重定向到球館基本資料

@@ -3,7 +3,7 @@ import { PageTitle } from '@/components/admin/page-bits'
 import type { Metadata } from 'next'
 import { FinanceOverviewClient } from './overview-client'
 
-export const metadata: Metadata = { title: '財務報表 - 管理總覽' }
+export const metadata: Metadata = { title: '營運報表下載列印' }
 export const dynamic = 'force-dynamic'
 
 export default async function FinanceOverviewPage() {
@@ -12,8 +12,8 @@ export default async function FinanceOverviewPage() {
   return (
     <div className="space-y-6">
       <PageTitle
-        title="管理總覽"
-        desc="財務報表預覽版本，展示後台報表樣式與內容"
+        title="營運報表下載列印"
+        desc="選擇日期區間與報表類型，下載、列印或預覽運營報表"
       />
       <FinanceOverviewClient />
     </div>
