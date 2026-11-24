@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if ((ctx as any).role !== 'OWNER' && (ctx as any).role !== 'MANAGER') {
+  if ((ctx as any).role !== 'SUPER_ADMIN' && (ctx as any).role !== 'ENGINEER') {
     return NextResponse.json({ error: '無權限創建規則' }, { status: 403 })
   }
 

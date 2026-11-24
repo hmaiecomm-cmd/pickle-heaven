@@ -32,7 +32,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if ((ctx as any).role !== 'OWNER' && (ctx as any).role !== 'MANAGER') {
+  if ((ctx as any).role !== 'SUPER_ADMIN' && (ctx as any).role !== 'ENGINEER') {
     return NextResponse.json({ error: '無權限修改規則' }, { status: 403 })
   }
 
@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if ((ctx as any).role !== 'OWNER' && (ctx as any).role !== 'MANAGER') {
+  if ((ctx as any).role !== 'SUPER_ADMIN' && (ctx as any).role !== 'ENGINEER') {
     return NextResponse.json({ error: '無權限刪除規則' }, { status: 403 })
   }
 

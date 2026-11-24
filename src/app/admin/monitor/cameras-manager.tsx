@@ -12,9 +12,8 @@ import { CameraPlan } from '@/components/admin/monitor/camera-plan'
 import { testCameraAction, updateCameraAction } from './actions'
 
 const VIEW_ROLES = [
-  ['MANAGER', '管理員'],
-  ['OPERATOR', '營運人員'],
-  ['VIEWER', '只讀人員'],
+  ['SUPER_ADMIN', '高級管理者'],
+  ['ENGINEER', '工程管理者'],
 ] as const
 type ViewRole = (typeof VIEW_ROLES)[number][0]
 

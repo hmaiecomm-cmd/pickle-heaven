@@ -16,7 +16,7 @@ export class CameraError extends Error {}
 
 const MONITOR_EVENT_TYPES = ['DEVICE_OFFLINE', 'DEVICE_STALE', 'OCCUPANCY_CONFLICT']
 const CAMERA_AUDIT_ACTIONS = ['CAMERA_UPDATE', 'CAMERA_TEST', 'CAMERA_SNAPSHOT', 'INCIDENT_ACKED', 'INCIDENT_RESOLVED']
-const ASSIGNABLE_VIEW_ROLES = ['MANAGER', 'OPERATOR', 'VIEWER'] as const
+const ASSIGNABLE_VIEW_ROLES = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER'] as const
 
 export type CameraState = 'NOT_CONNECTED' | 'DISABLED'
 
@@ -92,7 +92,7 @@ async function loadRows(): Promise<{ rows: Row[]; storage: CameraStorage }> {
         port: null,
         channel: null,
         credentialEnv: null,
-        viewRoles: 'OWNER,MANAGER,OPERATOR,VIEWER',
+        viewRoles: 'SUPER_ADMIN,ENGINEER',
         lastTestAt: null,
         lastTestResult: null,
         updatedBy: null,
@@ -103,8 +103,8 @@ async function loadRows(): Promise<{ rows: Row[]; storage: CameraStorage }> {
 }
 
 const rolesOf = (r: Row) => r.viewRoles.split(',').map((s) => s.trim()).filter(Boolean)
-/** 擁有者一律可看；其他角色依攝影機的觀看權限 */
-const canSee = (r: Row, role: string) => role === 'OWNER' || role === 'DEMO' || rolesOf(r).includes(role)
+/** 高級管理者一律可看；其他角色依攝影機的觀看權限 */
+const canSee = (r: Row, role: string) => role === 'SUPER_ADMIN' || rolesOf(r).includes(role)
 
 function toView(r: Row): CameraView {
   const id = r.id as CameraId

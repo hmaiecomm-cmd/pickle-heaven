@@ -8,22 +8,22 @@ import { clientFor, isDemoConfigured, mainPrisma } from '@/lib/db'
 import { seedDemoData } from './demo-seed'
 
 /**
- * 後台帳號與權限（只有擁有者、且在正式資料範圍內才能操作）。
+ * 後台帳號與權限（只有高級管理者、且在正式資料範圍內才能操作）。
  * 帳號存在正式資料庫；展示帳號看不到也改不到。
  * 密碼一律雜湊保存，重設或建立後不會再顯示；停用與降權會立即撤銷該帳號的 session。
  */
 
 type R = { ok: true; message?: string } | { ok: false; error: string }
 
-async function owner() {
+async function superAdmin() {
   const ctx = await getAdminContext()
   if (!ctx || ctx.tenant !== 'main' || !can(ctx.role, 'staff')) return null
   return ctx
 }
 
-/** 最後一位有效擁有者不能被停用或降權 */
-export async function countOtherActiveOwners(exceptAccountId: string): Promise<number> {
-  return mainPrisma.adminAccount.count({ where: { role: 'OWNER', active: true, tenant: 'main', id: { not: exceptAccountId } } })
+/** 最後一位有效高級管理者不能被停用或降權 */
+export async function countOtherActiveSuperAdmins(exceptAccountId: string): Promise<number> {
+  return mainPrisma.adminAccount.count({ where: { role: 'SUPER_ADMIN', active: true, tenant: 'main', id: { not: exceptAccountId } } })
 }
 
 const createSchema = z.object({
@@ -35,8 +35,8 @@ const createSchema = z.object({
 })
 
 export async function createStaffAction(input: z.infer<typeof createSchema>): Promise<R> {
-  const ctx = await owner()
-  if (!ctx) return { ok: false, error: '只有擁有者可以管理後台帳號' }
+  const ctx = await superAdmin()
+  if (!ctx) return { ok: false, error: '只有高級管理者可以管理後台帳號' }
   const parsed = createSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0]?.message ?? '輸入資料有誤' }
   const v = parsed.data
@@ -67,12 +67,12 @@ export async function createStaffAction(input: z.infer<typeof createSchema>): Pr
 }
 
 export async function setStaffActiveAction(accountId: string, active: boolean): Promise<R> {
-  const ctx = await owner()
-  if (!ctx) return { ok: false, error: '只有擁有者可以管理後台帳號' }
+  const ctx = await superAdmin()
+  if (!ctx) return { ok: false, error: '只有高級管理者可以管理後台帳號' }
   if (accountId === ctx.accountId) return { ok: false, error: '不能停用自己的帳號' }
   const target = await mainPrisma.adminAccount.findUnique({ where: { id: accountId } })
   if (!target || target.tenant !== 'main') return { ok: false, error: '找不到帳號' }
-  if (!active && target.role === 'OWNER' && (await countOtherActiveOwners(accountId)) === 0) return { ok: false, error: '不能停用最後一位有效的擁有者' }
+  if (!active && target.role === 'SUPER_ADMIN' && (await countOtherActiveSuperAdmins(accountId)) === 0) return { ok: false, error: '不能停用最後一位有效的高級管理者' }
   const acc = await mainPrisma.adminAccount.update({ where: { id: accountId }, data: { active } })
   // 停用時立即登出該帳號的所有 session（下一次請求即失效）
   if (!active) await mainPrisma.adminSession.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: new Date() } })
@@ -81,30 +81,30 @@ export async function setStaffActiveAction(accountId: string, active: boolean): 
   return { ok: true, message: active ? '已啟用' : '已停用，該帳號的登入即刻失效' }
 }
 
-/** 指派角色：擁有者可將帳號設為可指派的角色，或轉移擁有者；不能改自己的角色 */
+/** 指派角色：高級管理者可將帳號設為可指派的角色，或轉移高級管理者；不能改自己的角色 */
 export async function setStaffRoleAction(accountId: string, role: AdminRole): Promise<R> {
-  const ctx = await owner()
-  if (!ctx || ctx.role !== 'OWNER') return { ok: false, error: '只有擁有者可以指派角色' }
+  const ctx = await superAdmin()
+  if (!ctx || ctx.role !== 'SUPER_ADMIN') return { ok: false, error: '只有高級管理者可以指派角色' }
   // 角色由瀏覽器送來，必須在伺服器端白名單檢查（不能指派展示帳號或不存在的角色）
-  if (role !== 'OWNER' && !ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: '角色不正確' }
-  if (accountId === ctx.accountId) return { ok: false, error: '不能修改自己的角色；請由另一位擁有者操作' }
+  if (role !== 'SUPER_ADMIN' && !ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: '角色不正確' }
+  if (accountId === ctx.accountId) return { ok: false, error: '不能修改自己的角色；請由另一位高級管理者操作' }
   const target = await mainPrisma.adminAccount.findUnique({ where: { id: accountId } })
   if (!target || target.tenant !== 'main') return { ok: false, error: '找不到帳號' }
   if (target.role === role) return { ok: true, message: '角色未變更' }
-  if (target.role === 'OWNER' && role !== 'OWNER' && target.active && (await countOtherActiveOwners(accountId)) === 0) {
-    return { ok: false, error: '不能降低最後一位有效擁有者的角色' }
+  if (target.role === 'SUPER_ADMIN' && role !== 'SUPER_ADMIN' && target.active && (await countOtherActiveSuperAdmins(accountId)) === 0) {
+    return { ok: false, error: '不能降低最後一位有效高級管理者的角色' }
   }
   await mainPrisma.adminAccount.update({ where: { id: accountId }, data: { role } })
   // 權限變動：撤銷既有 session，下一次請求即以新角色（或需重新登入）生效
   await mainPrisma.adminSession.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: new Date() } })
-  await mainPrisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: role === 'OWNER' ? 'STAFF_OWNER_TRANSFER' : 'STAFF_ROLE', target: target.username, detail: { from: target.role, to: role } } })
+  await mainPrisma.auditLog.create({ data: { actor: `admin:${ctx.username}`, action: role === 'SUPER_ADMIN' ? 'STAFF_SUPER_ADMIN_TRANSFER' : 'STAFF_ROLE', target: target.username, detail: { from: target.role, to: role } } })
   revalidatePath('/admin/settings/staff')
-  return { ok: true, message: role === 'OWNER' ? '已指派為擁有者；對方需重新登入' : '已更新角色；對方需重新登入' }
+  return { ok: true, message: role === 'SUPER_ADMIN' ? '已指派為高級管理者；對方需重新登入' : '已更新角色；對方需重新登入' }
 }
 
 export async function resetStaffPasswordAction(accountId: string, password: string): Promise<R> {
-  const ctx = await owner()
-  if (!ctx) return { ok: false, error: '只有擁有者可以管理後台帳號' }
+  const ctx = await superAdmin()
+  if (!ctx) return { ok: false, error: '只有高級管理者可以管理後台帳號' }
   if (password.length < 10) return { ok: false, error: '新密碼至少 10 個字' }
   const target = await mainPrisma.adminAccount.findUnique({ where: { id: accountId } })
   if (!target || target.tenant !== 'main') return { ok: false, error: '找不到帳號' }
@@ -134,8 +134,8 @@ export async function changeOwnPasswordAction(input: { current: string; next: st
 
 /** 重置展示資料：只影響展示資料庫，不碰正式資料 */
 export async function resetDemoDataAction(): Promise<R> {
-  const ctx = await owner()
-  if (!ctx || ctx.role !== 'OWNER') return { ok: false, error: '只有擁有者可以重置展示資料' }
+  const ctx = await superAdmin()
+  if (!ctx || ctx.role !== 'SUPER_ADMIN') return { ok: false, error: '只有高級管理者可以重置展示資料' }
   if (!isDemoConfigured()) return { ok: false, error: '展示資料庫尚未設定' }
   await seedDemoData(clientFor('demo'))
   // 展示帳號的 session 全部登出，避免畫面停在已不存在的資料

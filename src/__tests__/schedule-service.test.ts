@@ -41,24 +41,24 @@ describe('排程服務 - Phase 6 測試', () => {
   })
 
   describe('權限檢查', () => {
-    it('access.schedule 權限應在 OWNER 角色中可用', () => {
+    it('access.schedule 權限應在 SUPER_ADMIN 角色中可用', () => {
       // 根據 admin-permissions.ts 的 ROLE_MATRIX
-      // OWNER 應有 ALL 權限，包括 access.schedule
-      const ownerAccess = ['view', 'door', 'remote', 'schedule']
-      expect(ownerAccess).toContain('schedule')
+      // SUPER_ADMIN 應有 ALL 權限，包括 access.schedule
+      const superAdminAccess = ['view', 'door', 'remote', 'schedule']
+      expect(superAdminAccess).toContain('schedule')
     })
 
-    it('access.schedule 權限應在 MANAGER 角色中可用', () => {
+    it('access.schedule 權限應在 ENGINEER 角色中可用', () => {
       // 根據 admin-permissions.ts 的 ROLE_MATRIX
-      // MANAGER 的 access 應包含 schedule
-      const managerAccess = ['view', 'door', 'remote', 'schedule']
-      expect(managerAccess).toContain('schedule')
+      // ENGINEER 的 access 應包含 schedule
+      const engineerAccess = ['view', 'door', 'remote', 'schedule']
+      expect(engineerAccess).toContain('schedule')
     })
 
-    it('access.schedule 權限應不在 OPERATOR 角色中', () => {
-      // OPERATOR 的 access 應只有 view
-      const operatorAccess = ['view']
-      expect(operatorAccess).not.toContain('schedule')
+    it('access.schedule 權限應不在 MANAGER 角色中', () => {
+      // MANAGER 的 access 應只有 view 和 create、edit、delete、approve
+      const managerAccess = ['view', 'create', 'edit', 'delete', 'approve']
+      expect(managerAccess).not.toContain('schedule')
     })
   })
 

@@ -98,11 +98,9 @@ export async function sendInvitationEmail(
  */
 function translateRole(role: string): string {
   const roleMap: Record<string, string> = {
-    OWNER: '擁有者',
-    MANAGER: '經理',
-    STAFF: '現場人員',
-    FINANCE: '財務',
-    MAINTENANCE: '設備維護',
+    SUPER_ADMIN: '高級管理者',
+    MANAGER: '一般管理者',
+    ENGINEER: '工程管理者',
   }
   return roleMap[role] || role
 }

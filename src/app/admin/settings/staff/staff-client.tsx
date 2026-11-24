@@ -22,10 +22,10 @@ interface Account {
 
 const input = 'h-10 rounded-lg border border-zinc-300 px-2 text-sm'
 
-export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners, venues }: { accounts: Account[]; selfId: string; isOwner: boolean; demoReady: boolean; activeOwners: number; venues: { id: string; name: string }[] }) {
+export function StaffClient({ accounts, selfId, isSuperAdmin, demoReady, activeSuperAdmins, venues }: { accounts: Account[]; selfId: string; isSuperAdmin: boolean; demoReady: boolean; activeSuperAdmins: number; venues: { id: string; name: string }[] }) {
   const router = useRouter()
   const { toast } = useToast()
-  const [form, setForm] = React.useState({ username: '', displayName: '', role: 'FRONTDESK' as AdminRole, password: '', venueId: venues[0]?.id ?? '' })
+  const [form, setForm] = React.useState({ username: '', displayName: '', role: 'MANAGER' as AdminRole, password: '', venueId: venues[0]?.id ?? '' })
   const [busy, setBusy] = React.useState(false)
 
   const done = (res: { ok: boolean; message?: string; error?: string }) => {
@@ -41,7 +41,7 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
       <section className="rounded-2xl border border-zinc-200 bg-white">
         <ul className="divide-y divide-zinc-100 text-sm">
           {accounts.map((a) => {
-            const lastOwner = a.role === 'OWNER' && a.active && activeOwners <= 1
+            const lastSuperAdmin = a.role === 'SUPER_ADMIN' && a.active && activeSuperAdmins <= 1
             return (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                 <span>
@@ -53,7 +53,7 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                 <span className="flex flex-wrap items-center gap-1.5">
                   {a.tenant === 'demo' ? (
                     <Pill tone="amber">{a.roleLabel}・展示資料</Pill>
-                  ) : isOwner && a.id !== selfId ? (
+                  ) : isSuperAdmin && a.id !== selfId ? (
                     <select
                       value={a.role}
                       onChange={async (e) => {
@@ -61,8 +61,8 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                         if (!window.confirm(`將 ${a.username} 的角色改為「${ROLE_LABEL[role]}」？對方既有登入會立即失效。`)) return
                         done(await setStaffRoleAction(a.id, role))
                       }}
-                      disabled={lastOwner}
-                      title={lastOwner ? '最後一位有效擁有者不能降權' : '指派角色'}
+                      disabled={lastSuperAdmin}
+                      title={lastSuperAdmin ? '最後一位有效高級管理者不能降權' : '指派角色'}
                       className="h-8 rounded-lg border border-zinc-300 px-2 text-xs disabled:opacity-60"
                       aria-label={`${a.username} 的角色`}
                     >
@@ -80,8 +80,8 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
                     <>
                       <button
                         type="button"
-                        disabled={a.active && lastOwner}
-                        title={a.active && lastOwner ? '最後一位有效擁有者不能停用' : undefined}
+                        disabled={a.active && lastSuperAdmin}
+                        title={a.active && lastSuperAdmin ? '最後一位有效高級管理者不能停用' : undefined}
                         onClick={async () => {
                           if (a.active && !window.confirm(`停用 ${a.username}？對方的登入會立即失效。`)) return
                           done(await setStaffActiveAction(a.id, !a.active))
@@ -111,10 +111,10 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold">新增後台帳號</h2>
-        <p className="text-xs text-muted">可建立擁有者、管理員、營運人員、櫃台人員或只讀人員，並設定初始密碼；對方首次登入必須更換密碼。</p>
-        {form.role === 'OWNER' && (
+        <p className="text-xs text-muted">可建立高級管理者、一般管理者或工程管理者，並設定初始密碼；對方首次登入必須更換密碼。</p>
+        {form.role === 'SUPER_ADMIN' && (
           <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
-            <span className="font-semibold">擁有者</span>擁有完整後台權限，包含帳號建立、角色管理、權限管理、財務、設備、門禁及系統設定。多位擁有者可同時存在並擁有相同權限。
+            <span className="font-semibold">高級管理者</span>擁有完整後台權限，包含帳號建立、角色管理、權限管理、財務、設備、門禁及系統設定。多位高級管理者可同時存在並擁有相同權限。
           </p>
         )}
         <div className="mt-2 grid gap-2 sm:grid-cols-5">
@@ -149,7 +149,7 @@ export function StaffClient({ accounts, selfId, isOwner, demoReady, activeOwners
         </button>
       </section>
 
-      {isOwner && (
+      {isSuperAdmin && (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
           <h2 className="font-semibold text-amber-900">展示資料</h2>
           <p className="mt-1 text-amber-900">展示帳號 DEMO 只能讀寫獨立的展示資料庫。重置會清空展示資料並重新產生虛構資料，不會影響正式資料。</p>

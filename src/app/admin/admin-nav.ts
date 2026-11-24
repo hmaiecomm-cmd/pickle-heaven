@@ -40,6 +40,23 @@ export interface AdminNavGroup {
 export const ADMIN_NAV: AdminNavGroup[] = [
   { key: 'home', label: '首頁', icon: 'home', href: '/admin', permission: 'dashboard' },
 
+  // 系統設定（放在首頁下方，作為第一個主要導覽區塊）
+  {
+    key: 'settings',
+    label: '系統設定',
+    icon: 'settings',
+    section: 'settings',
+    items: [
+      { label: '管理者設定', href: '/admin/settings/staff', permission: 'staff', group: '管理' },
+      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true, group: '設定' },
+      { label: '官網頁面管理', href: '/admin/home', permission: 'settings', group: '設定' },
+      { label: '後台操作紀錄', href: '/admin/audit', permission: 'audit', group: '紀錄' },
+      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings', group: '設定' },
+      { label: '設備串接', href: '/admin/settings/devices', permission: 'device', group: '無人營運' },
+      { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device', group: '無人營運' },
+    ],
+  },
+
   // PLUS｜基礎營運
   {
     key: 'courts',
@@ -97,6 +114,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '門禁設備與授權', href: '/admin/access', permission: 'access' },
       { label: '電力及環控排程', href: '/admin/devices', permission: 'device' },
       { label: '球場狀態與遠端控制', href: '/admin/control', permission: 'device' },
+      { label: '設備串接', href: '/admin/settings/devices', permission: 'device' },
+      { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device' },
     ],
   },
   {
@@ -135,23 +154,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device' },
     ],
   },
-
-  // 系統設定
-  {
-    key: 'settings',
-    label: '系統設定',
-    icon: 'settings',
-    section: 'settings',
-    items: [
-      { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true },
-      { label: '官網頁面管理', href: '/admin/home', permission: 'settings' },
-      { label: '後台帳號與權限', href: '/admin/settings/staff', permission: 'staff' },
-      { label: '操作紀錄', href: '/admin/audit', permission: 'audit' },
-      { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings' },
-      { label: '設備串接', href: '/admin/settings/devices', permission: 'settings' },
-      { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device' },
-    ],
-  },
 ]
 
 /** 相關但不在側欄的頁面，歸屬到哪個選單項目（用來標示選中） */
@@ -175,6 +177,9 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/members/history': '/admin/members',
   // 移除的系統設定頁面重定向到球館基本資料
   '/admin/settings/topup': '/admin/settings',
+  // 設備相關頁面歸到無人營運管理
+  '/admin/settings/devices': '/admin/devices',
+  '/admin/engineer_testmode': '/admin/devices',
   // 舊活動相關頁面重定向到行銷
   '/admin/activities': '/admin/marketing',
   '/admin/sessions': '/admin/marketing',

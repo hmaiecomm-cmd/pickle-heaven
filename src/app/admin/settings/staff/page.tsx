@@ -19,13 +19,13 @@ import { isDemoConfigured, mainPrisma } from '@/lib/db'
 import { Forbidden, PageTitle, Pill } from '@/components/admin/page-bits'
 import { StaffClient } from './staff-client'
 
-export const metadata: Metadata = { title: '後台帳號與權限' }
+export const metadata: Metadata = { title: '管理者設定' }
 export const dynamic = 'force-dynamic'
 
 
 /**
- * 後台帳號與權限：只有擁有者（正式資料範圍）可操作。
- * 權限由後端強制；此頁的鎖頭矩陣只是說明各角色的差異。
+ * 管理者設定：只有高級管理者（正式資料範圍）可操作。
+ * 權限由後端強制；此頁的矩陣只是說明各角色的差異。
  */
 export default async function StaffPage() {
   const ctx = await getAdminContext()
@@ -35,17 +35,17 @@ export default async function StaffPage() {
     mainPrisma.venue.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ])
   const venueName = new Map(venues.map((v) => [v.id, v.name]))
-  const activeOwners = accounts.filter((a) => a.role === 'OWNER' && a.active && a.tenant === 'main').length
+  const activeSuperAdmins = accounts.filter((a) => a.role === 'SUPER_ADMIN' && a.active && a.tenant === 'main').length
 
   return (
     <div className="space-y-4">
-      <PageTitle title="後台帳號與權限" desc="後台帳號與前台會員分開管理。擁有者建立帳號並指派角色；對方首次登入必須更換初始密碼。停用或變更角色會立即撤銷既有登入。" />
+      <PageTitle title="管理者設定" desc="所有管理者帳號與權限配置。高級管理者可建立帳號並指派角色；對方首次登入必須更換初始密碼。停用或變更角色會立即撤銷既有登入。" />
 
       <StaffClient
         selfId={ctx.accountId}
-        isOwner={ctx.role === 'OWNER'}
+        isSuperAdmin={ctx.role === 'SUPER_ADMIN'}
         demoReady={isDemoConfigured()}
-        activeOwners={activeOwners}
+        activeSuperAdmins={activeSuperAdmins}
         venues={venues}
         accounts={accounts.map((a) => ({
           id: a.id,

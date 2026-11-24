@@ -88,7 +88,7 @@ export async function ensureBootstrapAccounts(): Promise<{ created: string[] }> 
     const exists = await mainPrisma.adminAccount.findUnique({ where: { usernameKey: key }, select: { id: true } })
     if (!exists) {
       await mainPrisma.adminAccount
-        .create({ data: { username: owner, usernameKey: key, displayName: owner, passwordHash: ownerHash, role: 'OWNER', tenant: 'main', createdBy: 'bootstrap:env' } })
+        .create({ data: { username: owner, usernameKey: key, displayName: owner, passwordHash: ownerHash, role: 'SUPER_ADMIN', tenant: 'main', createdBy: 'bootstrap:env' } })
         .then(() => created.push(owner))
         .catch(() => {}) // 同時建立時唯一鍵擋下，視為已存在
     }
@@ -104,7 +104,7 @@ export async function ensureBootstrapAccounts(): Promise<{ created: string[] }> 
             usernameKey: 'demo',
             displayName: '展示帳號',
             passwordHash: await hashPassword(demoPassword),
-            role: 'DEMO',
+            role: 'SUPER_ADMIN',
             tenant: 'demo',
             createdBy: 'bootstrap:env',
           },

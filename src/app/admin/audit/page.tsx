@@ -4,7 +4,7 @@ import { pagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
 import { Forbidden, PageTitle } from '@/components/admin/page-bits'
 
-export const metadata: Metadata = { title: '操作紀錄' }
+export const metadata: Metadata = { title: '後台操作紀錄' }
 export const dynamic = 'force-dynamic'
 
 const PAGE = 50
@@ -22,7 +22,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const pages = Math.max(1, Math.ceil(total / PAGE))
   return (
     <div>
-      <PageTitle title="操作紀錄" desc="後台與系統的重要操作：退款、發票、設備指令、會員限制、活動異動、登入帳號變更等。" />
+      <PageTitle title="後台操作紀錄" desc="後台與系統的重要操作：退款、發票、設備指令、會員限制、活動異動、登入帳號變更等。" />
       <form className="mb-3 flex gap-2" action="/admin/audit">
         <input name="q" defaultValue={q} placeholder="操作者、動作或對象" className="h-10 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 text-sm" aria-label="搜尋操作紀錄" />
         <button type="submit" className="h-10 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white">搜尋</button>

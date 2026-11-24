@@ -5,12 +5,13 @@
  * 唯一來源是 ROLE_MATRIX（模組 × 動作）。各頁面與 API 使用的細項權限（Permission）
  * 全部由 PERMISSION_RULES 從矩陣推導，不會出現兩份互相矛盾的設定。
  *
- * 角色（依最終版設計）：擁有者、管理員、營運人員、櫃台人員、只讀人員；展示帳號（DEMO）只在展示資料庫內體驗。
- * 敏感操作（管理員邀請、角色變更、退款核准、影像匯出、門禁授權、遠端開門、設備控制、自動化規則發布）
- * 各自對應一個細項權限，在後端逐一檢查。
+ * 角色：高級管理者、一般管理者、工程管理者
+ * - 高級管理者：完整功能，包含所有管理與敏感操作
+ * - 一般管理者：只能查看場地預約與訂單紀錄
+ * - 工程管理者：只能查看無人營運管理與 AI 即時監控
  */
 
-export type AdminRole = 'OWNER' | 'MANAGER' | 'OPERATOR' | 'FRONTDESK' | 'VIEWER' | 'DEMO'
+export type AdminRole = 'SUPER_ADMIN' | 'MANAGER' | 'ENGINEER'
 
 export type AdminModule = 'booking' | 'monitor' | 'device' | 'access' | 'finance' | 'reports' | 'settings'
 export type AdminAction = 'view' | 'playback' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'remote' | 'door' | 'schedule'
@@ -76,39 +77,21 @@ type Matrix = Partial<Record<AdminModule, AdminAction[]>>
 const ALL: Matrix = MODULE_ACTIONS
 
 export const ROLE_MATRIX: Record<AdminRole, Matrix> = {
-  OWNER: ALL,
+  SUPER_ADMIN: ALL,
   MANAGER: {
     booking: ['view', 'create', 'edit', 'delete', 'approve'],
+    reports: ['view', 'export'],
+  },
+  ENGINEER: {
+    booking: ['view'],
     monitor: ['view', 'playback', 'edit', 'approve', 'export'],
     device: ['view', 'edit', 'approve', 'remote'],
     access: ['view', 'door', 'remote', 'schedule'],
-    finance: ['view', 'create', 'edit', 'approve', 'export'],
-    reports: ['view', 'export'],
-    settings: ['view', 'edit'],
   },
-  OPERATOR: {
-    booking: ['view', 'create', 'edit'],
-    monitor: ['view', 'playback', 'approve'],
-    device: ['view', 'remote'],
-    access: ['view'],
-  },
-  FRONTDESK: {
-    booking: ['view', 'create', 'edit'],
-  },
-  VIEWER: {
-    booking: ['view'],
-    monitor: ['view'],
-    device: ['view'],
-    access: ['view'],
-    finance: ['view'],
-    reports: ['view'],
-  },
-  // 展示帳號：可體驗全部功能，但只在展示資料庫內；不能邀請管理員或變更角色
-  DEMO: { ...ALL, settings: ['view', 'edit'] },
 }
 
 export function canDo(role: string, module: AdminModule, action: AdminAction): boolean {
-  const r: AdminRole = role in ROLE_MATRIX ? (role as AdminRole) : 'VIEWER'
+  const r: AdminRole = role in ROLE_MATRIX ? (role as AdminRole) : 'MANAGER'
   return ROLE_MATRIX[r][module]?.includes(action) ?? false
 }
 
@@ -147,15 +130,16 @@ export type Permission =
   | 'expenses.review' // 查看全部費用並核准或退回
   | 'reports' // 非財務營運報表
   | 'reports.export' // 報表匯出
-  | 'settings' // 球館、營業時間、價格、金流、發票、系統設定
-  | 'staff' // 邀請管理員、建立帳號、指派角色
-  | 'audit' // 操作紀錄
+  | 'settings' // 球館、營業時間、價格、金流、發票、系統設定（限高級管理者）
+  | 'staff' // 邀請管理員、建立帳號、指派角色（限高級管理者）
+  | 'audit' // 後台操作紀錄（限高級管理者）
 
 const has = (m: Matrix, mod: AdminModule, act: AdminAction) => m[mod]?.includes(act) ?? false
 const anyCreate = (m: Matrix) => MODULES.some((mod) => has(m, mod, 'create'))
+const isSuperAdmin = (m: Matrix) => m === ROLE_MATRIX['SUPER_ADMIN']
 
 /** 細項權限 ← 矩陣（唯一推導規則） */
-const PERMISSION_RULES: Record<Permission, (m: Matrix) => boolean> = {
+const PERMISSION_RULES: Record<Permission, (m: Matrix, role?: AdminRole) => boolean> = {
   dashboard: () => true,
   ai: (m) => anyCreate(m),
   monitor: (m) => has(m, 'monitor', 'view'),
@@ -190,33 +174,27 @@ const PERMISSION_RULES: Record<Permission, (m: Matrix) => boolean> = {
   'expenses.review': (m) => has(m, 'finance', 'approve'),
   reports: (m) => has(m, 'reports', 'view'),
   'reports.export': (m) => has(m, 'reports', 'export'),
-  settings: (m) => has(m, 'settings', 'edit'),
-  staff: (m) => has(m, 'settings', 'approve'),
-  audit: (m) => has(m, 'settings', 'view'),
+  settings: (m, role?: AdminRole) => role === 'SUPER_ADMIN' && has(m, 'settings', 'edit'),
+  staff: (m, role?: AdminRole) => role === 'SUPER_ADMIN' && has(m, 'settings', 'approve'),
+  audit: (m, role?: AdminRole) => role === 'SUPER_ADMIN' && has(m, 'settings', 'view'),
 }
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_RULES) as Permission[]
 
 export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = Object.fromEntries(
-  (Object.keys(ROLE_MATRIX) as AdminRole[]).map((r) => [r, ALL_PERMISSIONS.filter((p) => PERMISSION_RULES[p](ROLE_MATRIX[r]))]),
+  (Object.keys(ROLE_MATRIX) as AdminRole[]).map((r) => [r, ALL_PERMISSIONS.filter((p) => PERMISSION_RULES[p](ROLE_MATRIX[r], r))]),
 ) as Record<AdminRole, Permission[]>
 
 export const ROLE_LABEL: Record<AdminRole, string> = {
-  OWNER: '擁有者',
-  MANAGER: '管理員',
-  OPERATOR: '營運人員',
-  FRONTDESK: '櫃台人員',
-  VIEWER: '只讀人員',
-  DEMO: '展示帳號',
+  SUPER_ADMIN: '高級管理者',
+  MANAGER: '一般管理者',
+  ENGINEER: '工程管理者',
 }
 
 export const ROLE_SUMMARY: Record<AdminRole, string> = {
-  OWNER: '完整功能，包含管理員邀請、角色變更與所有敏感操作。',
-  MANAGER: '預約、監控、設備、門禁、訂單財務、報表與系統設定；不能邀請管理員或變更角色。',
-  OPERATOR: '預約管理、即時監控與回放、處理監控事件、設備遠端控制；門禁只能查看，不碰財務與設定。',
-  FRONTDESK: '預約與報到、會員服務、活動場次；不碰財務、設備、門禁與設定。',
-  VIEWER: '各區只能查看，不能新增、修改、匯出或控制任何設備。',
-  DEMO: '展示資料庫內的完整體驗，所有外部服務一律模擬。',
+  SUPER_ADMIN: '完整功能，包含所有後台頁面與敏感操作。',
+  MANAGER: '只能查看場地預約與訂單紀錄；不能訪問無人營運管理、AI 即時監控、會員與教練、財務報表及系統設定。',
+  ENGINEER: '只能查看無人營運管理與 AI 即時監控；不能訪問場地預約、訂單紀錄、財務報表及系統設定。',
 }
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
@@ -259,16 +237,17 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   audit: '操作紀錄',
 }
 
-export function permissionsOf(role: string): Permission[] {
-  return ROLE_PERMISSIONS[role in ROLE_PERMISSIONS ? (role as AdminRole) : 'VIEWER']
+export function permissionsOf(role: string, roleObj?: AdminRole): Permission[] {
+  const r = roleObj || (role in ROLE_PERMISSIONS ? (role as AdminRole) : 'MANAGER')
+  return ROLE_PERMISSIONS[r]
 }
 
 export function can(role: string, p: Permission): boolean {
   return permissionsOf(role).includes(p)
 }
 
-/** 可由擁有者指派給其他人的角色；擁有者可以建立新擁有者或轉移既有擁有者；展示帳號不可指派 */
-export const ASSIGNABLE_ROLES: AdminRole[] = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER']
+/** 可由高級管理者指派給其他人的角色 */
+export const ASSIGNABLE_ROLES: AdminRole[] = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER']
 
 /** 權限頁顯示的角色順序 */
-export const MATRIX_ROLES: AdminRole[] = ['OWNER', 'MANAGER', 'OPERATOR', 'FRONTDESK', 'VIEWER']
+export const MATRIX_ROLES: AdminRole[] = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER']
