@@ -3,6 +3,7 @@ import { openai, DEFAULT_MODEL, MAX_TOKENS, INPUT_MAX_LENGTH } from '@/lib/opena
 import { getSystemPrompt } from '@/lib/ai-system-prompts'
 import { getOrCreateConversation, getConversationHistory, addMessageToConversation } from '@/server/ai-conversation-service'
 import { extractPageContext } from '@/server/ai-page-context'
+import { queryRecentBookings, queryVenueSummary, queryMemberStats } from '@/server/ai-data-queries'
 import type { UserRole } from '@/lib/ai-system-prompts'
 
 export const runtime = 'nodejs'
@@ -74,6 +75,31 @@ export async function POST(req: Request) {
           // 構建包含頁面上下文的系統提示
           let systemPrompt = getSystemPrompt(userRole, pageName)
           systemPrompt += `\n\n【頁面上下文】\n${pageContext.contextSummary}`
+
+          // Phase 3 擴展：加入實時資料查詢（如果頁面支持）
+          let contextData = ''
+          if (pageContext.permissions.includes('bookings') && pageName?.includes('booking')) {
+            const bookingData = await queryRecentBookings('', 5, true)
+            if (bookingData.success) {
+              contextData += `\n\n【最近預約】\n${JSON.stringify(bookingData.data, null, 2)}`
+            }
+          }
+          if (pageContext.permissions.includes('dashboard')) {
+            const summaryData = await queryVenueSummary('', true)
+            if (summaryData.success) {
+              contextData += `\n\n【場館摘要】\n${JSON.stringify(summaryData.data, null, 2)}`
+            }
+          }
+          if (pageContext.permissions.includes('members')) {
+            const memberData = await queryMemberStats('', true)
+            if (memberData.success) {
+              contextData += `\n\n【會員統計】\n${JSON.stringify(memberData.data, null, 2)}`
+            }
+          }
+
+          if (contextData) {
+            systemPrompt += contextData
+          }
 
           // 建立 OpenAI 串流（包含對話歷史和頁面上下文）
           const response = await openai.chat.completions.create({
