@@ -154,38 +154,46 @@ function SidebarNav({ user }: { user: ShellUser }) {
   )
   const activeGroup = groups.find((g) => g.items?.some((i) => i.href === current)) || groups.find((g) => g.href === current)
 
-  const sectionLabels: Record<string, string> = {
-    plus: 'PLUS｜基礎營運',
-    pro: 'PRO｜智慧無人營運',
+  // 展開/收合狀態：使用 localStorage 保存使用者的手動設定，同時根據 URL 自動展開當前分類
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}')
+    } catch {
+      return {}
+    }
+  })
+
+  // 當 activeGroup 變化時，自動展開當前分類（若未被手動收合）
+  React.useEffect(() => {
+    if (!activeGroup?.key || !activeGroup.items?.length) return
+    setExpanded((prev) => {
+      // 如果該分組沒有手動設定，則預設展開（表示自動展開）
+      if (prev[activeGroup.key] === undefined) {
+        return { ...prev, [activeGroup.key]: true }
+      }
+      return prev
+    })
+  }, [activeGroup?.key])
+
+  const isOpen = (key: string) => {
+    // 如果有子項目且當前分組在該組中，預設展開
+    const hasItems = groups.find((g) => g.key === key)?.items?.length ?? 0 > 0
+    if (!hasItems) return false
+    // 使用者有明確設定時用使用者的設定，否則根據是否為當前分組判斷
+    return expanded[key] ?? key === activeGroup?.key
   }
 
-  // 預設只展開目前所在分類；使用者手動展開／收合的狀態保留
-  const [manual, setManual] = React.useState<Record<string, boolean>>({})
-  React.useEffect(() => {
-    try {
-      setManual(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}'))
-    } catch {}
-  }, [])
-  // 進入某分類的頁面時（含重新整理、直接開網址），之前手動收合的該分類要重新展開，才看得到選取項目
-  React.useEffect(() => {
-    if (!activeGroup?.key) return
-    setManual((m) => {
-      if (m[activeGroup.key] !== false) return m
-      const next = { ...m }
-      delete next[activeGroup.key]
+  const toggle = (key: string) => {
+    setExpanded((prev) => {
+      const next = { ...prev, [key]: !isOpen(key) }
       try {
         localStorage.setItem(OPEN_KEY, JSON.stringify(next))
-      } catch {}
+      } catch {
+        // localStorage 損壞時仍可正常使用
+      }
       return next
     })
-  }, [activeGroup, current])
-  const isOpen = (key: string) => manual[key] ?? key === activeGroup?.key
-  const toggle = (key: string) => {
-    const next = { ...manual, [key]: !isOpen(key) }
-    setManual(next)
-    try {
-      localStorage.setItem(OPEN_KEY, JSON.stringify(next))
-    } catch {}
   }
 
   return (
@@ -228,14 +236,6 @@ function SidebarNav({ user }: { user: ShellUser }) {
 
             return (
               <React.Fragment key={section}>
-                {/* Section 標籤 */}
-                {section !== 'settings' && (
-                  <div className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{sectionLabels[section]}</div>
-                )}
-                {section === 'settings' && (
-                  <div className="mb-2 mt-4 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">系統設定</div>
-                )}
-
                 {/* Section 內的分組 */}
                 {sectionGroups.map((g) => {
                   const Icon = NAV_ICON[g.icon]

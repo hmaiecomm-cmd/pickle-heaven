@@ -101,7 +101,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '門禁設備與授權', href: '/admin/access', permission: 'access' },
       { label: '電力及環控排程', href: '/admin/devices', permission: 'device' },
       { label: '球場狀態與遠端控制', href: '/admin/control', permission: 'device' },
-      { label: '設備串接', href: '/admin/settings/devices', permission: 'device' },
+      { label: '設備串接（工程測試）', href: '/admin/settings/devices', permission: 'device' },
       { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device' },
     ],
   },
