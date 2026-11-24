@@ -78,11 +78,11 @@ async function main() {
   check('高級管理者核准（有附件可不填說明）', approved.status === 'APPROVED' && approved.approvedBy === 'admin:TEST_exp_superadmin')
   // 8. 已核准：本人不能改；高級管理者更正留歷史，狀態維持已核准
   check('已核准的申請本人不能修改', (await errCode(() => updateExpense(c1.expense.id, { amount: 1 }, manager))) === 400)
-  const corrected = await updateExpense(c1.expense.id, { amount: 870, note: '收據金額為 870' }, owner)
-  check('擁有者更正已核准資料：留存前後值與說明、狀態仍已核准', corrected.status === 'APPROVED' && corrected.amount === 870 && corrected.revisions.length === 2 && corrected.revisions[0].note === '收據金額為 870' && (corrected.revisions[0].before as { amount: number }).amount === 880)
+  const corrected = await updateExpense(c1.expense.id, { amount: 870, note: '收據金額為 870' }, superAdmin)
+  check('高級管理者更正已核准資料：留存前後值與說明、狀態仍已核准', corrected.status === 'APPROVED' && corrected.amount === 870 && corrected.revisions.length === 2 && corrected.revisions[0].note === '收據金額為 870' && (corrected.revisions[0].before as { amount: number }).amount === 880)
   // 9. 沒附件的費用核准需說明
-  const c3 = await createExpense({ category: 'OTHER', amount: 100, description: 'TEST_exp_無附件', status: 'SUBMITTED', idempotencyKey: `${key}-d` }, staff)
-  check('沒有附件核准時未填說明被拒', (await errCode(() => setExpenseStatus(c3.expense.id, 'APPROVED', owner))) === 400 && (await setExpenseStatus(c3.expense.id, 'APPROVED', owner, '已核對紙本')).status === 'APPROVED')
+  const c3 = await createExpense({ category: 'OTHER', amount: 100, description: 'TEST_exp_無附件', status: 'SUBMITTED', idempotencyKey: `${key}-d` }, manager)
+  check('沒有附件核准時未填說明被拒', (await errCode(() => setExpenseStatus(c3.expense.id, 'APPROVED', superAdmin))) === 400 && (await setExpenseStatus(c3.expense.id, 'APPROVED', superAdmin, '已核對紙本')).status === 'APPROVED')
 }
 
 async function cleanup() {
