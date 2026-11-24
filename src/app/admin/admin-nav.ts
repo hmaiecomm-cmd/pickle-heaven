@@ -57,33 +57,21 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
 
-  // PLUS｜基礎營運
   {
     key: 'courts',
-    label: '場地預約',
+    label: '場地預約 Plus',
     icon: 'courts',
     section: 'plus',
     items: [
       { label: '預約行事曆', href: '/admin/schedule', permission: 'courts' },
       { label: '場地設定', href: '/admin/courts', permission: 'courts' },
       { label: '維護與封場', href: '/admin/maintenance', permission: 'courts' },
-    ],
-  },
-  {
-    key: 'orders',
-    label: '訂單紀錄',
-    icon: 'orders',
-    section: 'plus',
-    items: [
-      { label: '訂場訂單', href: '/admin/bookings?tab=venue', permission: 'bookings' },
-      { label: '活動訂單', href: '/admin/bookings?tab=activity', permission: 'bookings' },
-      { label: '商品訂單', href: '/admin/product-orders', permission: 'marketing' },
-      { label: '點數與票券', href: '/admin/bookings?tab=points', permission: 'members' },
+      { label: '訂單紀錄', href: '/admin/bookings', permission: 'bookings' },
     ],
   },
   {
     key: 'finance',
-    label: '財務報表',
+    label: '財務報表 Plus',
     icon: 'reports',
     section: 'plus',
     permission: 'finance',
@@ -94,7 +82,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'members',
-    label: '會員與教練',
+    label: '會員與教練 Plus',
     icon: 'members',
     section: 'plus',
     items: [
@@ -104,10 +92,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
 
-  // PRO｜智慧無人營運
   {
     key: 'operations',
-    label: '無人營運管理',
+    label: '無人營運管理 Pro',
     icon: 'devices',
     section: 'pro',
     items: [
@@ -120,7 +107,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'monitoring',
-    label: 'AI 即時監控',
+    label: 'AI 即時監控 Pro',
     icon: 'monitor',
     section: 'pro',
     items: [
@@ -131,10 +118,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'assistant',
-    label: 'AI 超級特助',
+    label: 'AI 超級特助 Pro',
     icon: 'reports',
     section: 'pro',
-    subtitle: '智慧營運與成長管理',
     items: [
       { label: '營收與會員成長洞察', href: '/admin/reports', permission: 'finance', exact: true },
       { label: '會員經營與精準溝通', href: '/admin/reports/members', permission: 'finance' },
@@ -145,7 +131,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   },
   {
     key: 'ambience',
-    label: 'AI 情境營造',
+    label: 'AI 情境營造 Pro',
     icon: 'devices',
     section: 'pro',
     items: [
@@ -164,6 +150,9 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/templates': '/admin/marketing',
   '/admin/incidents': '/admin/monitor?tab=events',
   '/admin/automation': '/admin/devices', // 無人營運管理／電力及環控排程
+  // 訂單紀錄相關別名 - 全部歸到 /admin/bookings（場地預約下的訂單紀錄）
+  '/admin/bookings/products': '/admin/bookings',
+  '/admin/product-orders': '/admin/bookings',
   // 財務相關別名 - 全部歸到 /admin/finance
   '/admin/finance/payments': '/admin/finance',
   '/admin/refunds': '/admin/finance',
@@ -172,7 +161,6 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/invoices': '/admin/finance',
   '/admin/expenses': '/admin/finance',
   '/admin/finance/daily': '/admin/finance',
-  '/admin/bookings/products': '/admin/finance',
   // 會員與教練導航別名
   '/admin/members/history': '/admin/members',
   // 移除的系統設定頁面重定向到球館基本資料

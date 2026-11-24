@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { pagePermission } from '@/lib/admin-auth'
 import { can } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
@@ -10,8 +11,15 @@ import { TransactionsClient } from './transactions-client'
 import { ActivityOrdersContainer } from './activity-orders-container'
 import { SessionDetailPanel } from './session-detail-panel'
 
-export const metadata: Metadata = { title: '訂單記錄' }
+export const metadata: Metadata = { title: '訂單紀錄' }
 export const dynamic = 'force-dynamic'
+
+const TAB_CONFIG = [
+  { label: '場地訂單', value: 'venue' },
+  { label: '活動訂單', value: 'activity' },
+  { label: '商品訂單', value: 'products' },
+  { label: '點數與票券', value: 'points' },
+] as const
 
 export default async function AdminBookingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const ctx = await pagePermission('bookings')
@@ -26,7 +34,23 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
 
     return (
       <div>
-        <PageTitle title="活動訂單" desc="查看活動報名與付款狀態" />
+        <PageTitle title="訂單紀錄" desc="管理所有訂單類型" />
+        {/* 水平分頁導航 */}
+        <div className="mb-6 flex gap-1 border-b border-zinc-200">
+          {TAB_CONFIG.map((t) => (
+            <Link
+              key={t.value}
+              href={`/admin/bookings?tab=${t.value}`}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                tab === t.value
+                  ? 'border-b-2 border-green-600 text-green-600'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
         <ActivityOrdersContainer
           stats={stats}
           rows={list.rows}
@@ -81,17 +105,31 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
 
   // 根據 tab 設定標題和描述
   const titleConfig = {
-    venue: { title: '訂場訂單', desc: '查看與管理顧客的場地預約訂單。' },
+    venue: { title: '場地訂單', desc: '查看與管理顧客的場地預約訂單。' },
     activity: { title: '活動訂單', desc: '查看與管理顧客的活動報名訂單。' },
     products: { title: '商品訂單', desc: '查看與管理顧客的商品訂單。' },
     points: { title: '點數與票券', desc: '查看顧客的點數交易與票券記錄。' },
   } as const
 
-  const { title, desc } = titleConfig[tab as keyof typeof titleConfig]
-
   return (
     <div>
-      <PageTitle title={title} desc={desc} />
+      <PageTitle title="訂單紀錄" desc="管理所有訂單類型" />
+      {/* 水平分頁導航 */}
+      <div className="mb-6 flex gap-1 border-b border-zinc-200">
+        {TAB_CONFIG.map((t) => (
+          <Link
+            key={t.value}
+            href={`/admin/bookings?tab=${t.value}`}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              tab === t.value
+                ? 'border-b-2 border-green-600 text-green-600'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
       <TransactionsClient
         key={tab}
         initial={initial}
