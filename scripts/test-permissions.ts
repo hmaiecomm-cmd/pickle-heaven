@@ -33,7 +33,7 @@ async function main() {
   check('工程管理者不能訪問場地預約、訂單紀錄、財務報表、會員與教練、系統設定', none('ENGINEER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'activities.view', 'checkin', 'finance', 'reports', 'members', 'settings', 'staff', 'audit']))
   check('系統設定只有高級管理者可訪問', can('SUPER_ADMIN', 'settings') && can('SUPER_ADMIN', 'staff') && can('SUPER_ADMIN', 'audit') && none('MANAGER', ['settings', 'staff', 'audit']) && none('ENGINEER', ['settings', 'staff', 'audit']))
   check('敏感操作：只有高級管理者能執行', three.filter((r) => r !== 'SUPER_ADMIN').every((r) => sensitive.every((p) => !can(r, p))))
-  check('可指派角色不含高級管理者', !ASSIGNABLE_ROLES.includes('SUPER_ADMIN'))
+  check('可指派角色包含高級管理者、一般管理者、工程管理者', ASSIGNABLE_ROLES.includes('SUPER_ADMIN') && ASSIGNABLE_ROLES.includes('MANAGER') && ASSIGNABLE_ROLES.includes('ENGINEER') && ASSIGNABLE_ROLES.length === 3)
   check('門禁授權 = 門禁權限模組的「門禁授權」動作', three.every((r) => can(r, 'access.grant') === canDo(r, 'access', 'door')))
   check('門禁異常事件處理 = 門禁權限模組的「異常事件」動作', three.every((r) => can(r, 'access.alerts') === canDo(r, 'access', 'approve')))
   check('退款核准 = 訂單財務模組的「審核」動作', three.every((r) => can(r, 'refund') === canDo(r, 'finance', 'approve')))

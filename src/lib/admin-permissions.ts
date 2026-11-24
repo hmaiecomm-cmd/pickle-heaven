@@ -253,7 +253,7 @@ export function can(role: string, p: Permission): boolean {
 }
 
 /** 可由高級管理者指派給其他人的角色 */
-export const ASSIGNABLE_ROLES: AdminRole[] = ['MANAGER', 'ENGINEER']
+export const ASSIGNABLE_ROLES: AdminRole[] = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER']
 
 /** 權限頁顯示的角色順序 */
 export const MATRIX_ROLES: AdminRole[] = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER']
