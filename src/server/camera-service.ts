@@ -201,7 +201,7 @@ export async function updateCamera(id: string, input: CameraUpdateInput, actor: 
   if (!(CAMERA_IDS as readonly string[]).includes(id)) throw new CameraError('攝影機編號不正確')
   const data = cameraUpdateSchema.parse(input)
   const before = (await loadRows()).rows.find((r) => r.id === id)!
-  const viewRoles = ['OWNER', ...data.viewRoles].join(',')
+  const viewRoles = ['SUPER_ADMIN', ...data.viewRoles].join(',')
   const values = { ...data, coverage: data.coverage || null, viewRoles, updatedBy: actor }
   let saved: Row
   try {

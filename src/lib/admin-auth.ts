@@ -352,7 +352,7 @@ const V4_PERMISSION_MAP: Record<string, Permission> = {
 }
 
 export function hasPermission(role: string, permission: string): boolean {
-  const mapped = V4_PERMISSION_MAP[permission] ?? (permissionsOf('OWNER').includes(permission as Permission) ? (permission as Permission) : null)
+  const mapped = V4_PERMISSION_MAP[permission] ?? (permissionsOf('SUPER_ADMIN').includes(permission as Permission) ? (permission as Permission) : null)
   return mapped ? can(role, mapped) : false
 }
 
