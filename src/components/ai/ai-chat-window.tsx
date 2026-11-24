@@ -60,54 +60,79 @@ export function AIChatWindow() {
       // 關閉前一個 EventSource
       eventSourceRef.current?.close()
 
-      // 建立 SSE 連接
-      const eventSource = new EventSource(
-        `/api/ai/chat?${new URLSearchParams({
+      // 建立連接
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           message: userMessage,
-          pageName: document.title || 'Unknown'
-        })}`
-      )
-
-      let buffer = ''
-
-      eventSource.addEventListener('message', (event) => {
-        try {
-          const data = JSON.parse(event.data)
-
-          if (data.done) {
-            eventSource.close()
-            setIsLoading(false)
-            return
-          }
-
-          if (data.error) {
-            setError(data.error)
-            eventSource.close()
-            setIsLoading(false)
-            return
-          }
-
-          if (data.content) {
-            buffer += data.content
-            // 更新 AI 回應
-            setMessages(prev => prev.map(msg =>
-              msg.id === assistantId ? { ...msg, content: buffer } : msg
-            ))
-          }
-        } catch (e) {
-          console.error('Parse error:', e)
-        }
+          pageName: document.title || 'Unknown',
+        }),
       })
 
-      eventSource.addEventListener('error', () => {
-        eventSource.close()
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.error || '連接失敗')
         setIsLoading(false)
-        if (buffer === '') {
-          setError('連接失敗，請重試')
-        }
-      })
+        return
+      }
 
-      eventSourceRef.current = eventSource
+      const reader = response.body?.getReader()
+      if (!reader) {
+        setError('無法連接到服務器')
+        setIsLoading(false)
+        return
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let done = false
+
+      while (!done) {
+        const { value, done: streamDone } = await reader.read()
+        done = streamDone
+
+        if (value) {
+          const chunk = decoder.decode(value, { stream: !done })
+          buffer += chunk
+
+          // 處理 SSE 事件
+          const lines = buffer.split('\n')
+          buffer = lines[lines.length - 1]
+
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim()
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+
+                if (data.done) {
+                  setIsLoading(false)
+                  return
+                }
+
+                if (data.error) {
+                  setError(data.error)
+                  setIsLoading(false)
+                  return
+                }
+
+                if (data.content) {
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === assistantId ? { ...msg, content: msg.content + data.content } : msg
+                  ))
+                }
+              } catch (e) {
+                console.error('Parse error:', e)
+              }
+            }
+          }
+        }
+      }
+
+      setIsLoading(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : '發生錯誤')
       setIsLoading(false)
