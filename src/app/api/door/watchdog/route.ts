@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('access.grant'))) return unauthorized()
+    if (!(await requireAdminApi('access.alerts'))) return unauthorized()
 
     const body = await request.json().catch(() => ({}))
     const venueId = body.venueId
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!(await requireAdminApi('access.grant'))) return unauthorized()
+    if (!(await requireAdminApi('access'))) return unauthorized()
 
     const url = new URL(request.url)
     const venueId = url.searchParams.get('venueId')

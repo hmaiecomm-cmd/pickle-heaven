@@ -6,9 +6,9 @@
  * 全部由 PERMISSION_RULES 從矩陣推導，不會出現兩份互相矛盾的設定。
  *
  * 角色：高級管理者、一般管理者、工程管理者
- * - 高級管理者：完整功能，包含所有管理與敏感操作
- * - 一般管理者：只能查看場地預約與訂單紀錄
- * - 工程管理者：只能查看無人營運管理與 AI 即時監控
+ * - 高級管理者：完整功能，包含所有後台頁面與敏感操作
+ * - 一般管理者：只能查看場地預約與訂單紀錄；門禁設備與授權僅能查看狀態摘要；不能訪問會員與教練、財務報表、AI 超級特助及系統設定
+ * - 工程管理者：只能查看無人營運管理與 AI 即時監控；不能訪問場地預約、訂單紀錄、財務報表及系統設定
  */
 
 export type AdminRole = 'SUPER_ADMIN' | 'MANAGER' | 'ENGINEER'
@@ -47,7 +47,7 @@ export const MODULE_ACTIONS: Record<AdminModule, AdminAction[]> = {
   booking: ['view', 'create', 'edit', 'delete', 'approve'],
   monitor: ['view', 'playback', 'edit', 'approve', 'export'],
   device: ['view', 'edit', 'approve', 'remote'],
-  access: ['view', 'door', 'remote', 'schedule'],
+  access: ['view', 'door', 'remote', 'schedule', 'approve'],
   finance: ['view', 'create', 'edit', 'approve', 'export'],
   reports: ['view', 'export'],
   settings: ['view', 'edit', 'approve'],
@@ -68,6 +68,7 @@ export const ACTION_MEANING: Partial<Record<`${AdminModule}.${AdminAction}`, str
   'access.door': '建立與撤銷門禁授權',
   'access.remote': '遠端開門',
   'access.schedule': '建立與管理常開排程',
+  'access.approve': '處理門禁異常事件（Watchdog 檢測與告警）',
   'finance.approve': '退款核准、費用審核、點數調整',
   'settings.approve': '管理員邀請與角色變更',
 }
@@ -80,14 +81,12 @@ export const ROLE_MATRIX: Record<AdminRole, Matrix> = {
   SUPER_ADMIN: ALL,
   MANAGER: {
     booking: ['view', 'create', 'edit', 'delete', 'approve'],
-    finance: ['view', 'export'],
-    reports: ['view', 'export'],
+    access: ['view'],
   },
   ENGINEER: {
-    booking: ['view'],
     monitor: ['view', 'playback', 'edit', 'approve', 'export'],
     device: ['view', 'edit', 'approve', 'remote'],
-    access: ['view', 'door', 'remote', 'schedule'],
+    access: ['view', 'approve'],
   },
 }
 
@@ -111,6 +110,8 @@ export type Permission =
   | 'access.grant' // 建立與撤銷門禁授權
   | 'access.remote' // 遠端開門
   | 'access.schedule' // 建立與管理常開排程
+  | 'access.password' // 密碼控制（預約密碼設定）
+  | 'access.alerts' // 門禁異常事件處理（Watchdog）
   | 'courts' // 預約行事曆、場地與時段（檢視）
   | 'courts.manage' // 封場、清潔維護排程、場地設定
   | 'bookings' // 訂單查詢（非財務）
@@ -155,6 +156,8 @@ const PERMISSION_RULES: Record<Permission, (m: Matrix, role?: AdminRole) => bool
   'access.grant': (m) => has(m, 'access', 'door'),
   'access.remote': (m) => has(m, 'access', 'remote'),
   'access.schedule': (m) => has(m, 'access', 'schedule'),
+  'access.password': (m, role?: AdminRole) => role === 'SUPER_ADMIN',
+  'access.alerts': (m) => has(m, 'access', 'approve'),
   courts: (m) => has(m, 'booking', 'view'),
   'courts.manage': (m) => has(m, 'booking', 'edit'),
   bookings: (m) => has(m, 'booking', 'view'),
@@ -162,9 +165,9 @@ const PERMISSION_RULES: Record<Permission, (m: Matrix, role?: AdminRole) => bool
   activities: (m) => has(m, 'booking', 'edit'),
   'activities.view': (m) => has(m, 'booking', 'view'),
   checkin: (m) => has(m, 'booking', 'edit'),
-  members: (m) => has(m, 'booking', 'view'),
-  'members.note': (m) => has(m, 'booking', 'edit'),
-  'members.restrict': (m) => has(m, 'booking', 'approve'),
+  members: (m, role?: AdminRole) => role === 'SUPER_ADMIN',
+  'members.note': (m, role?: AdminRole) => role === 'SUPER_ADMIN',
+  'members.restrict': (m, role?: AdminRole) => role === 'SUPER_ADMIN',
   marketing: (m) => has(m, 'finance', 'edit'),
   refund: (m) => has(m, 'finance', 'approve'),
   invoice: (m) => has(m, 'finance', 'edit'),
@@ -194,8 +197,8 @@ export const ROLE_LABEL: Record<AdminRole, string> = {
 
 export const ROLE_SUMMARY: Record<AdminRole, string> = {
   SUPER_ADMIN: '完整功能，包含所有後台頁面與敏感操作。',
-  MANAGER: '只能查看場地預約與訂單紀錄；不能訪問無人營運管理、AI 即時監控、會員與教練、財務報表及系統設定。',
-  ENGINEER: '只能查看無人營運管理與 AI 即時監控；不能訪問場地預約、訂單紀錄、財務報表及系統設定。',
+  MANAGER: '可查看與管理場地預約與訂單紀錄；門禁設備與授權僅能查看狀態摘要，無法建立授權、遠端開門或設定密碼；不能訪問會員與教練、財務報表、AI 超級特助及系統設定。',
+  ENGINEER: '可查看與管理無人營運設備及 AI 即時監控，並可處理門禁異常事件；不能建立門禁授權、遠端開門或設定密碼；不能訪問場地預約、訂單紀錄、財務報表及系統設定。',
 }
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
@@ -213,6 +216,8 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   'access.grant': '門禁授權',
   'access.remote': '遠端開門',
   'access.schedule': '常開排程管理',
+  'access.password': '密碼控制（預約密碼設定）',
+  'access.alerts': '門禁異常事件處理（Watchdog）',
   courts: '智慧排程與場地設定',
   'courts.manage': '封場、清潔維護、場地設定',
   bookings: '訂單查詢（不含金額）',

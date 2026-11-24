@@ -1,5 +1,5 @@
 import { pagePermission } from '@/lib/admin-auth'
-import { PageTitle } from '@/components/admin/page-bits'
+import { PageTitle, Forbidden } from '@/components/admin/page-bits'
 import type { Metadata } from 'next'
 import { periodOf } from '@/app/admin/reports/report-data'
 import {
@@ -22,7 +22,8 @@ export default async function FinancePage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await pagePermission('finance')
+  const ctx = await pagePermission('finance')
+  if (ctx === 'forbidden') return <Forbidden />
   const sp = await searchParams
 
   // 解析日期參數

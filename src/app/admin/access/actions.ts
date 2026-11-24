@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { PermissionError, requirePermission, getAdminContext } from '@/lib/admin-auth'
+import type { Permission } from '@/lib/admin-permissions'
 import { prisma } from '@/lib/db'
 import { taipeiToUtc } from '@/lib/time'
 import { DoorGrantError, createManualGrant, reconcileBookingGrants, revokeGrant } from '@/server/door-access-grants'
@@ -19,18 +20,10 @@ type R = { ok: true; message: string } | { ok: false; error: string }
 
 const NO_PERMISSION: R = { ok: false, error: '此功能僅限高級管理者使用。如需建立授權或管理密碼，請聯絡高級管理者。' }
 
-/** 只允許高級管理者執行敏感的門禁操作（建立授權、寄送密碼、撤銷授權等）*/
-async function guardSuperAdmin() {
-  const ctx = await getAdminContext()
-  if (!ctx) return null
-  if (ctx.role !== 'SUPER_ADMIN') return null
-  return ctx
-}
-
-/** 一般的門禁權限檢查（允許查看權限) */
-async function guard() {
+/** 矩陣驅動的權限檢查守衛 */
+async function guardPermission(permission: Permission) {
   try {
-    return await requirePermission('access.grant')
+    return await requirePermission(permission)
   } catch (err) {
     if (err instanceof PermissionError) return null
     throw err
@@ -51,7 +44,7 @@ function parseLocal(v: unknown): Date {
 }
 
 export async function createManualGrantAction(_: any, form: FormData): Promise<any> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.grant')
   if (!ctx) return NO_PERMISSION
   try {
     const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
@@ -104,7 +97,7 @@ export async function createManualGrantAction(_: any, form: FormData): Promise<a
 }
 
 export async function revokeGrantAction(id: string, reason: string): Promise<R> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.grant')
   if (!ctx) return NO_PERMISSION
   try {
     await revokeGrant(id, reason, ctx.username)
@@ -116,7 +109,7 @@ export async function revokeGrantAction(id: string, reason: string): Promise<R> 
 }
 
 export async function reconcileAction(): Promise<R> {
-  if (!(await guard())) return NO_PERMISSION
+  if (!(await guardPermission('access.grant'))) return NO_PERMISSION
   try {
     const s = await reconcileBookingGrants()
     revalidatePath('/admin/access')
@@ -128,9 +121,9 @@ export async function reconcileAction(): Promise<R> {
 
 export type DoorOpenResult = { ok: true; status: string; simulated: boolean; error: string | null } | { ok: false; error: string }
 
-/** 一鍵開啟大門：只允許高級管理者執行 */
+/** 一鍵開啟大門 */
 export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: string): Promise<DoorOpenResult> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.remote')
   if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
   const username = ctx.username
   try {
@@ -162,7 +155,7 @@ export interface PasswordRuleInput {
 }
 
 export async function updatePasswordSettingsAction(data: PasswordRuleInput): Promise<R> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.password')
   if (!ctx) return NO_PERMISSION
 
   // 驗證密碼產生方式
@@ -245,7 +238,7 @@ export async function updatePasswordSettingsAction(data: PasswordRuleInput): Pro
 
 /** 後台重新發送某筆訂單的時段密碼（只經 LINE；會員未綁定 LINE 時回報失敗，不改用其他管道） */
 export async function resendSlotPasswordAction(slotPasswordId: string, bookingId: string): Promise<R> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.password')
   if (!ctx) return NO_PERMISSION
   try {
     const r = await sendSlotPasswordToBooking(slotPasswordId, bookingId, { isRetry: true })
@@ -265,7 +258,7 @@ export async function resendSlotPasswordAction(slotPasswordId: string, bookingId
 type ScheduleResult = { ok: true; message: string } | { ok: false; error: string }
 
 export async function createAccessScheduleAction(_: ScheduleResult | null, form: FormData): Promise<ScheduleResult> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.schedule')
   if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
 
   const scheduleName = String(form.get('scheduleName') ?? '')
@@ -306,7 +299,7 @@ export async function createAccessScheduleAction(_: ScheduleResult | null, form:
 }
 
 export async function cancelAccessScheduleAction(scheduleId: string, reason: string): Promise<ScheduleResult> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.schedule')
   if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
 
   try {
@@ -332,7 +325,7 @@ export async function cancelAccessScheduleAction(scheduleId: string, reason: str
 // ─────── 常開模式 Server Actions ───────
 
 export async function toggleAlwaysOpenAction(mode: 'ON' | 'OFF'): Promise<R> {
-  const ctx = await guardSuperAdmin()
+  const ctx = await guardPermission('access.remote')
   if (!ctx) return NO_PERMISSION
 
   try {

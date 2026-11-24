@@ -51,14 +51,17 @@ const memberOptions = [
   { key: 'vipMemberBookAheadDays', label: 'VIP 會員' },
 ] as const
 
-export function PasswordSettings({ settings, defaultBookAheadDays }: { settings: PasswordSettings; defaultBookAheadDays: number }) {
+export function PasswordSettings({ settings, defaultBookAheadDays, isSuperAdmin }: { settings: PasswordSettings; defaultBookAheadDays: number; isSuperAdmin: boolean }) {
   const router = useRouter()
   const [busy, setBusy] = React.useState(false)
   const [form, setForm] = React.useState<PasswordSettings>(settings)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<string | null>(null)
 
-  const set = <K extends keyof PasswordSettings>(k: K, v: PasswordSettings[K]) => setForm((f) => ({ ...f, [k]: v }))
+  const set = <K extends keyof PasswordSettings>(k: K, v: PasswordSettings[K]) => {
+    if (!isSuperAdmin) return
+    setForm((f) => ({ ...f, [k]: v }))
+  }
   const dirty = JSON.stringify(form) !== JSON.stringify(settings)
   const shared = form.allowSharedPassword && form.generationMode !== 'PER_ORDER'
 
@@ -109,7 +112,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
               id="pwd-mode"
               value={form.generationMode}
               onChange={(e) => set('generationMode', e.target.value)}
-              disabled={busy}
+              disabled={busy || !isSuperAdmin}
               className={selectCls}
             >
               {Object.entries(MODE_LABELS).map(([k, { label }]) => (
@@ -130,7 +133,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
               id="pwd-length"
               value={form.passwordLength}
               onChange={(e) => set('passwordLength', Number(e.target.value))}
-              disabled={busy}
+              disabled={busy || !isSuperAdmin}
               className={selectCls}
             >
               {PASSWORD_LENGTH_OPTIONS.map((len) => (
@@ -161,7 +164,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
               id="pwd-expire-mode"
               value={form.passwordExpireTime}
               onChange={(e) => set('passwordExpireTime', e.target.value)}
-              disabled={busy}
+              disabled={busy || !isSuperAdmin}
               className={selectCls}
             >
               {Object.entries(EXPIRE_LABELS).map(([k, label]) => (
@@ -189,7 +192,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
                   const v = Number(e.target.value)
                   if (!isNaN(v)) set('generateAheadDays', Math.max(0, Math.min(30, v)))
                 }}
-                disabled={busy}
+                disabled={busy || !isSuperAdmin}
                 className="w-24"
                 aria-label="密碼提前產生天數"
               />
@@ -206,7 +209,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
                 className="mt-1"
                 checked={form.lockWhenNoOrders}
                 onChange={(e) => set('lockWhenNoOrders', e.target.checked)}
-                disabled={busy}
+                disabled={busy || !isSuperAdmin}
               />
               <span>
                 無有效訂單時立即鎖定時段
@@ -219,7 +222,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
                 className="mt-1"
                 checked={form.allowSharedPassword}
                 onChange={(e) => set('allowSharedPassword', e.target.checked)}
-                disabled={busy}
+                disabled={busy || !isSuperAdmin}
               />
               <span>
                 允許同一時段多筆訂單共用密碼
@@ -258,7 +261,7 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
                     set(key, v === '' ? null : Math.max(0, Math.min(365, Number(v) || 0)))
                   }}
                   placeholder={`預設：${defaultBookAheadDays}`}
-                  disabled={busy}
+                  disabled={busy || !isSuperAdmin}
                   className="flex-1"
                   aria-label={`${label}可提前預約天數`}
                 />
@@ -270,19 +273,27 @@ export function PasswordSettings({ settings, defaultBookAheadDays }: { settings:
         </div>
       </section>
 
+      {/* 權限提示（非高級管理者） */}
+      {!isSuperAdmin && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">🔒 密碼設定權限限制</p>
+          <p className="mt-1">只有高級管理者可以修改密碼產生方式、有效期限與會員預約天數。您目前可以查看密碼時段記錄，但無法編輯設定。</p>
+        </div>
+      )}
+
       {/* 儲存按鈕與訊息 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button
           size="sm"
           onClick={handleSave}
           loading={busy}
-          disabled={!dirty || busy}
+          disabled={!dirty || busy || !isSuperAdmin}
           className="sm:w-auto"
         >
-          {busy ? '儲存中…' : '儲存設定'}
+          {busy ? '儲存中…' : '儲存密碼設定'}
         </Button>
         {dirty && (
-          <Button size="sm" variant="secondary" onClick={handleCancel} disabled={busy} className="sm:w-auto">
+          <Button size="sm" variant="secondary" onClick={handleCancel} disabled={busy || !isSuperAdmin} className="sm:w-auto">
             還原
           </Button>
         )}

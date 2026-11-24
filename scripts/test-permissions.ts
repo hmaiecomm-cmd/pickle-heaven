@@ -21,17 +21,21 @@ const check = (name: string, ok: boolean, detail = '') => {
 async function main() {
   const all = (r: string, ps: Permission[]) => ps.every((p) => can(r, p))
   const none = (r: string, ps: Permission[]) => ps.every((p) => !can(r, p))
-  const sensitive: Permission[] = ['staff', 'refund', 'settings', 'audit']
+  const sensitive: Permission[] = ['staff', 'refund', 'settings', 'audit', 'members', 'members.note', 'members.restrict', 'access.password']
   const three = ['SUPER_ADMIN', 'MANAGER', 'ENGINEER'] as const
   check('高級管理者擁有全部權限', all('SUPER_ADMIN', ALL_PERMISSIONS))
-  check('一般管理者可查看場地預約、訂單紀錄', all('MANAGER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'checkin', 'members', 'activities.view', 'finance', 'reports']))
-  check('一般管理者不能訪問無人營運管理、AI 即時監控、系統設定', none('MANAGER', ['monitor', 'device', 'access', 'settings', 'staff', 'audit']))
-  check('工程管理者可訪問無人營運管理、AI 即時監控', all('ENGINEER', ['monitor', 'device', 'access', 'camera.playback', 'device.control', 'access.grant']))
-  check('工程管理者不能訪問場地預約、財務報表、系統設定', none('ENGINEER', ['bookings.manage', 'finance', 'settings', 'staff', 'audit']))
+  check('一般管理者可查看場地預約、訂單紀錄', all('MANAGER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'checkin', 'activities.view']))
+  check('一般管理者不再有財務、報表、會員與教練權限', none('MANAGER', ['finance', 'reports', 'members', 'members.note', 'members.restrict']))
+  check('一般管理者的門禁設備與授權僅能查看，不能操作', can('MANAGER', 'access') && none('MANAGER', ['access.grant', 'access.remote', 'access.schedule', 'access.password', 'access.alerts']))
+  check('一般管理者不能訪問無人營運管理、AI 即時監控、系統設定', none('MANAGER', ['monitor', 'device', 'settings', 'staff', 'audit']))
+  check('工程管理者可訪問無人營運管理、AI 即時監控，並可處理門禁異常事件', all('ENGINEER', ['monitor', 'device', 'access', 'camera.playback', 'device.control', 'access.alerts']))
+  check('工程管理者不能建立門禁授權、遠端開門、排程或設定密碼', none('ENGINEER', ['access.grant', 'access.remote', 'access.schedule', 'access.password']))
+  check('工程管理者不能訪問場地預約、訂單紀錄、財務報表、會員與教練、系統設定', none('ENGINEER', ['bookings', 'bookings.manage', 'courts', 'courts.manage', 'activities.view', 'checkin', 'finance', 'reports', 'members', 'settings', 'staff', 'audit']))
   check('系統設定只有高級管理者可訪問', can('SUPER_ADMIN', 'settings') && can('SUPER_ADMIN', 'staff') && can('SUPER_ADMIN', 'audit') && none('MANAGER', ['settings', 'staff', 'audit']) && none('ENGINEER', ['settings', 'staff', 'audit']))
   check('敏感操作：只有高級管理者能執行', three.filter((r) => r !== 'SUPER_ADMIN').every((r) => sensitive.every((p) => !can(r, p))))
   check('可指派角色不含高級管理者', !ASSIGNABLE_ROLES.includes('SUPER_ADMIN'))
   check('門禁授權 = 門禁權限模組的「門禁授權」動作', three.every((r) => can(r, 'access.grant') === canDo(r, 'access', 'door')))
+  check('門禁異常事件處理 = 門禁權限模組的「異常事件」動作', three.every((r) => can(r, 'access.alerts') === canDo(r, 'access', 'approve')))
   check('退款核准 = 訂單財務模組的「審核」動作', three.every((r) => can(r, 'refund') === canDo(r, 'finance', 'approve')))
   check('未知角色字串退回一般管理者權限', permissionsOf('HACKER').join() === ROLE_PERMISSIONS.MANAGER.join())
   // 5. 金額遮罩

@@ -1,5 +1,5 @@
 import { pagePermission } from '@/lib/admin-auth'
-import { PageTitle } from '@/components/admin/page-bits'
+import { PageTitle, Forbidden } from '@/components/admin/page-bits'
 import type { Metadata } from 'next'
 import { FinanceOverviewClient } from './overview-client'
 
@@ -7,7 +7,8 @@ export const metadata: Metadata = { title: '營運報表下載列印' }
 export const dynamic = 'force-dynamic'
 
 export default async function FinanceOverviewPage() {
-  await pagePermission('finance')
+  const ctx = await pagePermission('finance')
+  if (ctx === 'forbidden') return <Forbidden />
 
   return (
     <div className="space-y-6">

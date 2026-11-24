@@ -128,7 +128,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '營收與會員成長洞察', href: '/admin/reports', permission: 'finance', exact: true },
       { label: '會員經營與精準溝通', href: '/admin/reports/members', permission: 'finance' },
-      { label: 'AI 行銷活動策劃', href: '/admin/marketing', permission: 'activities' },
+      { label: 'AI 行銷活動策劃', href: '/admin/marketing', permission: 'finance' },
       { label: '空場率與收益優化', href: '/admin/reports/utilization', permission: 'finance' },
       { label: '動態定價', href: '/admin/pricing', permission: 'settings' },
     ],

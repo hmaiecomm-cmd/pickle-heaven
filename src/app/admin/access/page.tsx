@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic'
 
 const TABS = [
   { key: 'grants', label: '授權管理', icon: KeyRound },
-  { key: 'devices', label: '門禁設備', icon: DoorClosed },
+  { key: 'devices', label: '密碼控制', icon: DoorClosed },
   { key: 'logs', label: '進出紀錄', icon: ListChecks },
   { key: 'alerts', label: '異常事件', icon: ShieldAlert },
   { key: 'audit', label: '開門與授權紀錄', icon: History },
@@ -53,8 +53,18 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
   if (ctx === 'forbidden') return <Forbidden />
   const canGrant = can(ctx.role, 'access.grant')
   const canRemote = can(ctx.role, 'access.remote')
+  const isSuperAdmin = ctx.role === 'SUPER_ADMIN'
   const { tab: rawTab } = await searchParams
   const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : 'grants'
+
+  // 預先加載場館與密碼設定資料
+  const at = now()
+  const [doorState, members, venue] = await Promise.all([
+    getDoorRemoteState(),
+    prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
+    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordBookAheadDaysOverride: true } }),
+  ])
+  const slotData = venue && canGrant ? await loadSlotPasswordData(venue, at) : null
 
   return (
     <div className="space-y-5">
@@ -78,8 +88,8 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
         ))}
       </nav>
 
-      {tab === 'grants' && <GrantsTab canGrant={canGrant} canRemote={canRemote} />}
-      {tab === 'devices' && <DevicesTab />}
+      {tab === 'grants' && <GrantsTab canGrant={canGrant} canRemote={canRemote} doorState={doorState} members={members} />}
+      {tab === 'devices' && <PasswordControlTab venue={venue} slotData={slotData} isSuperAdmin={isSuperAdmin} />}
       {tab === 'logs' && (
         <Empty title="尚無進出紀錄" desc="進出紀錄由門禁控制器回報。目前尚未串接門禁控制器，因此沒有任何紀錄；串接後會在這裡顯示每次刷卡、密碼或開門的時間與結果。" />
       )}
@@ -184,15 +194,7 @@ async function loadSlotPasswordData(venue: { id: string; bookAheadDays: number; 
   }
 }
 
-async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote: boolean }) {
-  const at = now()
-  const [doorState, members, venue] = await Promise.all([
-    getDoorRemoteState(),
-    prisma.user.findMany({ orderBy: { createdAt: 'asc' }, take: 500, select: { id: true, displayName: true, phone: true } }),
-    prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, bookAheadDays: true, passwordBookAheadDaysOverride: true } }),
-  ])
-  const slotData = venue && canGrant ? await loadSlotPasswordData(venue, at) : null
-
+async function GrantsTab({ canGrant, canRemote, doorState, members }: { canGrant: boolean; canRemote: boolean; doorState: Awaited<ReturnType<typeof getDoorRemoteState>>; members: { id: string; displayName: string; phone: string | null }[] }) {
   return (
     <div className="space-y-5">
       {/* 左右兩欄佈局：大門控制 + 即時監控 */}
@@ -278,32 +280,47 @@ async function GrantsTab({ canGrant, canRemote }: { canGrant: boolean; canRemote
         </div>
       </div>
 
+      {/* 手動授權 */}
+      {canGrant && (
+        <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
+      )}
+
+      {/* 設備列表 */}
+      <DevicesList />
+    </div>
+  )
+}
+
+function PasswordControlTab({ venue, slotData, isSuperAdmin }: { venue: { id: string; bookAheadDays: number; passwordBookAheadDaysOverride: number | null } | null; slotData: SlotPageData | null; isSuperAdmin: boolean }) {
+  return (
+    <div className="space-y-5">
       {/* 預約密碼設定 */}
       {slotData && !slotData.ready && (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <h2 className="font-semibold">預約密碼設定</h2>
+          <h2 className="font-semibold">密碼控制</h2>
           <p className="mt-1 text-xs">此資料庫尚未建立時段密碼資料表（prisma/migrations-manual/2026-11-17b_slot_passwords.sql），套用後即可設定與查看密碼時段。</p>
         </section>
       )}
       {venue && slotData?.ready && (
         <>
-          <PasswordSettings settings={slotData.settings} defaultBookAheadDays={venue.bookAheadDays} />
+          <PasswordSettings settings={slotData.settings} defaultBookAheadDays={venue.bookAheadDays} isSuperAdmin={isSuperAdmin} />
           <SlotPasswordRecords stats={slotData.stats} records={slotData.records} />
         </>
       )}
-
-      {/* 手動授權 */}
-      {canGrant && (
-        <ManualGrantForm members={members.map((m) => ({ id: m.id, label: `${m.displayName}${m.phone ? `（${m.phone.slice(0, 4)}***${m.phone.slice(-3)}）` : ''}` }))} />
+      {!venue && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <h2 className="font-semibold">密碼控制</h2>
+          <p className="mt-1 text-xs">尚未建立場館資料，無法設定密碼。</p>
+        </section>
       )}
     </div>
   )
 }
 
-function DevicesTab() {
+function DevicesList() {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white">
-      <h2 className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold">門禁設備列表</h2>
+      <h2 className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold">設備列表</h2>
       <ul className="divide-y divide-zinc-100">
         {DOOR_DEVICES.map((d) => (
           <li key={d.name} className="grid gap-x-6 gap-y-2 px-4 py-4 text-sm sm:grid-cols-2">
@@ -331,7 +348,7 @@ function DevicesTab() {
           </li>
         ))}
       </ul>
-      <p className="border-t border-zinc-100 px-4 py-3 text-xs text-muted">門禁設備只負責「誰可以進入」，與智慧設備管理的電源開關分開；這裡沒有遠端開門功能，串接硬體後才會開放並另外檢查權限。</p>
+      <p className="border-t border-zinc-100 px-4 py-3 text-xs text-muted">設備狀態僅供查看，密碼與授權設定請至「密碼控制」。</p>
     </section>
   )
 }
