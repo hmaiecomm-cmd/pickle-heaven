@@ -100,8 +100,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     section: 'pro',
     items: [
       { label: '門禁設備與授權', href: '/admin/access', permission: 'access' },
-      { label: '電力及環控排程', href: '/admin/devices', permission: 'device' },
-      { label: '球場狀態與遠端控制', href: '/admin/control', permission: 'device' },
+      { label: '設備智慧排程', href: '/admin/devices', permission: 'device' },
+      { label: '設備手動控制', href: '/admin/control', permission: 'device' },
       { label: '設備串接（工程測試）', href: '/admin/settings/devices', permission: 'device' },
       { label: '地端 IoT（工程測試）', href: '/admin/engineer_testmode', permission: 'device' },
     ],
@@ -150,7 +150,7 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/ai-assistant': '/admin',
   '/admin/templates': '/admin/marketing',
   '/admin/incidents': '/admin/monitor?tab=events',
-  '/admin/automation': '/admin/devices', // 無人營運管理／電力及環控排程
+  '/admin/automation': '/admin/devices', // 無人營運管理／設備智慧排程
   // 訂單紀錄相關別名 - 全部歸到 /admin/bookings（場地預約下的訂單紀錄）
   '/admin/bookings/products': '/admin/bookings',
   '/admin/product-orders': '/admin/bookings',

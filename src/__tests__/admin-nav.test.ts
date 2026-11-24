@@ -157,7 +157,7 @@ describe('Admin Navigation - Product Tier Restructuring (V8.2)', () => {
   describe('舊網址相容性', () => {
     test('/admin/automation 應映射到 /admin/devices', () => {
       expect(activeHref('/admin/automation')).toBe('/admin/devices')
-      expect(sectionLabel('/admin/automation')).toContain('電力及環控排程')
+      expect(sectionLabel('/admin/automation')).toContain('設備智慧排程')
     })
 
     test('/admin/incidents 應映射到 /admin/monitor?tab=events', () => {

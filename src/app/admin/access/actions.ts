@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { PermissionError, requirePermission } from '@/lib/admin-auth'
+import { PermissionError, requirePermission, getAdminContext } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
 import { taipeiToUtc } from '@/lib/time'
 import { DoorGrantError, createManualGrant, reconcileBookingGrants, revokeGrant } from '@/server/door-access-grants'
@@ -17,9 +17,17 @@ import { sendSlotPasswordToBooking } from '@/server/slot-password-notification'
 
 type R = { ok: true; message: string } | { ok: false; error: string }
 
-const NO_PERMISSION: R = { ok: false, error: '目前帳號沒有門禁授權的權限' }
+const NO_PERMISSION: R = { ok: false, error: '此功能僅限高級管理者使用。如需建立授權或管理密碼，請聯絡高級管理者。' }
 
-/** 未登入時 requirePermission 會丟出導向登入頁的訊號，必須讓它往外傳，只攔「沒有權限」 */
+/** 只允許高級管理者執行敏感的門禁操作（建立授權、寄送密碼、撤銷授權等）*/
+async function guardSuperAdmin() {
+  const ctx = await getAdminContext()
+  if (!ctx) return null
+  if (ctx.role !== 'SUPER_ADMIN') return null
+  return ctx
+}
+
+/** 一般的門禁權限檢查（允許查看權限) */
 async function guard() {
   try {
     return await requirePermission('access.grant')
@@ -43,8 +51,8 @@ function parseLocal(v: unknown): Date {
 }
 
 export async function createManualGrantAction(_: any, form: FormData): Promise<any> {
-  const ctx = await guard()
-  if (!ctx) return { ok: false, error: '需要登入' }
+  const ctx = await guardSuperAdmin()
+  if (!ctx) return NO_PERMISSION
   try {
     const venue = await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true } })
     if (!venue) return { ok: false, error: '尚未建立場館' }
@@ -96,7 +104,7 @@ export async function createManualGrantAction(_: any, form: FormData): Promise<a
 }
 
 export async function revokeGrantAction(id: string, reason: string): Promise<R> {
-  const ctx = await guard()
+  const ctx = await guardSuperAdmin()
   if (!ctx) return NO_PERMISSION
   try {
     await revokeGrant(id, reason, ctx.username)
@@ -120,15 +128,11 @@ export async function reconcileAction(): Promise<R> {
 
 export type DoorOpenResult = { ok: true; status: string; simulated: boolean; error: string | null } | { ok: false; error: string }
 
-/** 一鍵開啟大門：後端再次檢查遠端開門權限；結果依設備（或 Demo 模擬）回報判斷 */
+/** 一鍵開啟大門：只允許高級管理者執行 */
 export async function remoteOpenDoorAction(idempotencyKey: string, simulate?: string): Promise<DoorOpenResult> {
-  let username: string
-  try {
-    username = (await requirePermission('access.remote')).username
-  } catch (err) {
-    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有遠端開門權限' }
-    throw err
-  }
+  const ctx = await guardSuperAdmin()
+  if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
+  const username = ctx.username
   try {
     const c = await remoteOpenDoor({ idempotencyKey, actor: username, simulate })
     revalidatePath('/admin/access')
@@ -158,7 +162,7 @@ export interface PasswordRuleInput {
 }
 
 export async function updatePasswordSettingsAction(data: PasswordRuleInput): Promise<R> {
-  const ctx = await guard()
+  const ctx = await guardSuperAdmin()
   if (!ctx) return NO_PERMISSION
 
   // 驗證密碼產生方式
@@ -241,7 +245,7 @@ export async function updatePasswordSettingsAction(data: PasswordRuleInput): Pro
 
 /** 後台重新發送某筆訂單的時段密碼（只經 LINE；會員未綁定 LINE 時回報失敗，不改用其他管道） */
 export async function resendSlotPasswordAction(slotPasswordId: string, bookingId: string): Promise<R> {
-  const ctx = await guard()
+  const ctx = await guardSuperAdmin()
   if (!ctx) return NO_PERMISSION
   try {
     const r = await sendSlotPasswordToBooking(slotPasswordId, bookingId, { isRetry: true })
@@ -261,12 +265,8 @@ export async function resendSlotPasswordAction(slotPasswordId: string, bookingId
 type ScheduleResult = { ok: true; message: string } | { ok: false; error: string }
 
 export async function createAccessScheduleAction(_: ScheduleResult | null, form: FormData): Promise<ScheduleResult> {
-  try {
-    await requirePermission('access.schedule')
-  } catch (err) {
-    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有常開排程權限' }
-    throw err
-  }
+  const ctx = await guardSuperAdmin()
+  if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
 
   const scheduleName = String(form.get('scheduleName') ?? '')
   const startAt = String(form.get('startAt') ?? '')
@@ -306,12 +306,8 @@ export async function createAccessScheduleAction(_: ScheduleResult | null, form:
 }
 
 export async function cancelAccessScheduleAction(scheduleId: string, reason: string): Promise<ScheduleResult> {
-  try {
-    await requirePermission('access.schedule')
-  } catch (err) {
-    if (err instanceof PermissionError) return { ok: false, error: '目前帳號沒有常開排程權限' }
-    throw err
-  }
+  const ctx = await guardSuperAdmin()
+  if (!ctx) return { ok: false, error: '此功能僅限高級管理者使用' }
 
   try {
     const response = await fetch(`/api/door/schedule/${scheduleId}`, {
@@ -336,7 +332,7 @@ export async function cancelAccessScheduleAction(scheduleId: string, reason: str
 // ─────── 常開模式 Server Actions ───────
 
 export async function toggleAlwaysOpenAction(mode: 'ON' | 'OFF'): Promise<R> {
-  const ctx = await guard()
+  const ctx = await guardSuperAdmin()
   if (!ctx) return NO_PERMISSION
 
   try {

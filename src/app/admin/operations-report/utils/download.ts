@@ -27,8 +27,9 @@ export interface DownloadData {
  */
 export async function downloadPDF(data: DownloadData) {
   try {
-    const { jsPDF } = await import('jspdf')
-    const html2canvas = (await import('html2canvas')).default
+    const { jsPDF: jsPDFClass } = (await import('jspdf')) as any
+    const html2canvasModule = (await import('html2canvas')) as any
+    const html2canvas = html2canvasModule.default || html2canvasModule
 
     // 獲取報表容器
     const element = document.getElementById('operations-report-content')
@@ -39,10 +40,9 @@ export async function downloadPDF(data: DownloadData) {
 
     // 轉換為圖片
     const canvas = await html2canvas(element, {
-      scale: 2,
       useCORS: true,
       logging: false,
-    })
+    } as any)
 
     // 建立 PDF
     const imgWidth = 210 // A4 寬度（毫米）
@@ -50,7 +50,7 @@ export async function downloadPDF(data: DownloadData) {
     const imgHeight = (canvas.height * imgWidth) / canvas.width
     let heightLeft = imgHeight
 
-    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdf = new jsPDFClass('p', 'mm', 'a4')
     let position = 0
 
     // 添加圖片到 PDF

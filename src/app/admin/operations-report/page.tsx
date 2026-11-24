@@ -31,15 +31,20 @@ export default async function OperationsReportPage({
   const endDate = sp.end || undefined
 
   // 決定日期範圍
-  let period
+  let fromDateStr: string
+  let toDateStr: string
+  let period: { from: Date; to: Date }
+
   if (startDate && endDate) {
+    fromDateStr = startDate
+    toDateStr = endDate
     period = { from: new Date(startDate), to: new Date(endDate) }
   } else {
-    period = periodOf(String(days))
+    const p = periodOf(String(days))
+    fromDateStr = p.from
+    toDateStr = p.to
+    period = { from: new Date(`${p.from}T00:00:00+08:00`), to: new Date(`${p.to}T23:59:59+08:00`) }
   }
-
-  const fromDateStr = period.from.toISOString().split('T')[0]
-  const toDateStr = period.to.toISOString().split('T')[0]
 
   // 並行獲取所有數據
   const [
