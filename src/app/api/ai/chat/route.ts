@@ -27,6 +27,14 @@ export async function POST(req: Request) {
       )
     }
 
+    // 驗證 OpenAI API key
+    if (!openai) {
+      return new Response(
+        JSON.stringify({ error: '❌ OPENAI_API_KEY 未設置。AI 助理目前無法使用。' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     // 解析請求
     const { message, pageName, conversationId: providedConversationId } = await req.json()
 
