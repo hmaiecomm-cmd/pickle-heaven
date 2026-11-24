@@ -1,26 +1,23 @@
-import { pagePermission } from '@/lib/admin-auth'
+import { pagePermission, getAdminContext } from '@/lib/admin-auth'
 import { openai, DEFAULT_MODEL, MAX_TOKENS, INPUT_MAX_LENGTH } from '@/lib/openai'
 import { getSystemPrompt } from '@/lib/ai-system-prompts'
-import { currentUser } from '@/lib/auth'
 import type { UserRole } from '@/lib/ai-system-prompts'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   try {
-    // 驗證登入
-    const user = await currentUser()
-    if (!user) {
+    // 驗證登入和權限
+    const ctx = await getAdminContext()
+    if (!ctx) {
       return new Response(
         JSON.stringify({ error: '請先登入' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    // 驗證權限
-    try {
-      await pagePermission('dashboard')
-    } catch {
+    // 驗證儀表板權限
+    if (!ctx.permissions.includes('dashboard')) {
       return new Response(
         JSON.stringify({ error: '您沒有使用 AI 助理的權限' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -53,8 +50,8 @@ export async function POST(req: Request) {
       )
     }
 
-    // 取得用戶角色 (簡化版，實際應從資料庫查詢)
-    const userRole: UserRole = 'ADMIN'
+    // 取得用戶角色
+    const userRole: UserRole = (ctx.role as UserRole) || 'ADMIN'
 
     // 設置 SSE 頭部
     const encoder = new TextEncoder()

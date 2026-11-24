@@ -39,6 +39,7 @@ const NAV_ICON: Record<AdminNavIcon, LucideIcon> = {
 import { logoutAction } from '@/app/admin/login/actions'
 import { AiProvider, useAi } from './ai-context'
 import { AiChat, Avatar } from './ai-chat'
+import { AIChatWindow } from '@/components/ai/ai-chat-window'
 
 const OPEN_KEY = 'ph-admin-nav-open'
 
@@ -140,6 +141,7 @@ function ShellInner({ user, venue, today, children }: { user: ShellUser; venue: 
           </div>
         </>
       )}
+      <AIChatWindow />
     </div>
   )
 }
