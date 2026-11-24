@@ -266,7 +266,12 @@ function SidebarNav({ user }: { user: ShellUser }) {
                       >
                         <Icon className="h-5 w-5 shrink-0" strokeWidth={1.9} aria-hidden />
                         <div className="flex-1">
-                          <div>{g.label}</div>
+                          <div className="flex items-center gap-2">
+                            <span>{g.label}</span>
+                            {g.comingSoon && (
+                              <span className="inline-flex items-center rounded-full bg-amber-100/40 px-2 py-0.5 text-[11px] font-medium text-amber-700">建立中</span>
+                            )}
+                          </div>
                           {g.subtitle && <div className="text-[11px] font-normal text-white/60">{g.subtitle}</div>}
                         </div>
                         <ChevronDown className={cn('h-4 w-4 text-white/50 transition-transform shrink-0', isOpen(g.key) && 'rotate-180')} aria-hidden />
@@ -291,7 +296,10 @@ function SidebarNav({ user }: { user: ShellUser }) {
                                       )}
                                     >
                                       <span>{i.label}</span>
-                                      {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
+                                      <div className="flex items-center gap-1">
+                                        {i.comingSoon && <span className="rounded-full bg-amber-100/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">建立中</span>}
+                                        {i.notOpen && <span className="rounded bg-white/15 px-1 text-[10px] text-white/70">未開放</span>}
+                                      </div>
                                     </Link>
                                   </li>
                                 )),

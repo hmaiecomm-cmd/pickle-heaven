@@ -13,6 +13,8 @@ export interface AdminNavItem {
   exact?: boolean
   /** 未開放／未串接 */
   notOpen?: boolean
+  /** 建立中（開發進行中） */
+  comingSoon?: boolean
   /** 導航分組（用於視覺分組） */
   group?: string
 }
@@ -34,6 +36,8 @@ export interface AdminNavGroup {
   subtitle?: string
   /** 頂級分組（PLUS｜基礎營運, PRO｜智慧無人營運, 系統設定） */
   section?: AdminNavSection
+  /** 建立中（開發進行中） */
+  comingSoon?: boolean
   items?: AdminNavItem[]
 }
 
@@ -135,10 +139,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: 'AI 情境營造 Pro',
     icon: 'devices',
     section: 'pro',
+    comingSoon: true,
     items: [
-      { label: '語音廣播與音樂暖場', href: '/admin/ambience?tab=voice', permission: 'device' },
-      { label: '場景與燈光模式', href: '/admin/ambience?tab=lighting', permission: 'device' },
-      { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device' },
+      { label: '語音廣播與音樂暖場', href: '/admin/ambience?tab=voice', permission: 'device', comingSoon: true },
+      { label: '場景與燈光模式', href: '/admin/ambience?tab=lighting', permission: 'device', comingSoon: true },
+      { label: 'LED 智慧訊息看板', href: '/admin/ambience?tab=led', permission: 'device', comingSoon: true },
     ],
   },
 ]
