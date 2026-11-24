@@ -84,7 +84,53 @@ export async function getOrCreateHomePageConfig(): Promise<HomePageConfigResult>
       })
     }
 
-    const draftConfig = JSON.parse(config.draftConfig) as HomePageConfigData
+    // 安全解析 draftConfig
+    let draftConfig: HomePageConfigData
+    if (!config.draftConfig || typeof config.draftConfig !== 'string' || config.draftConfig.trim() === '') {
+      console.warn('[home-editor] draftConfig 為空或無效，使用默認值')
+      draftConfig = {
+        theme: 'purple',
+        hero: {
+          title: '歡迎來到我們的球館',
+          subtitle: '享受最佳的羽毛球體驗',
+          description: '我們提供專業的場地和設備，歡迎各級球友來體驗。',
+          buttonText: '立即預約',
+          buttonLink: '/booking',
+        },
+        selectedActivityIds: [],
+        visibility: {
+          plans: true,
+          coaching: true,
+          story: true,
+          visit: true,
+          invite: true,
+        },
+      }
+    } else {
+      try {
+        draftConfig = JSON.parse(config.draftConfig) as HomePageConfigData
+      } catch (err) {
+        console.error('[home-editor] 解析 draftConfig 失敗', { error: err instanceof Error ? err.message : String(err), raw: config.draftConfig.slice(0, 200) })
+        draftConfig = {
+          theme: 'purple',
+          hero: {
+            title: '歡迎來到我們的球館',
+            subtitle: '享受最佳的羽毛球體驗',
+            description: '我們提供專業的場地和設備，歡迎各級球友來體驗。',
+            buttonText: '立即預約',
+            buttonLink: '/booking',
+          },
+          selectedActivityIds: [],
+          visibility: {
+            plans: true,
+            coaching: true,
+            story: true,
+            visit: true,
+            invite: true,
+          },
+        }
+      }
+    }
 
     return {
       success: true,
@@ -159,7 +205,17 @@ export async function publishHomeConfig(publishedBy: string = 'system'): Promise
       }
     }
 
-    const draftConfig = JSON.parse(config.draftConfig) as HomePageConfigData
+    let draftConfig: HomePageConfigData
+    try {
+      if (!config.draftConfig || typeof config.draftConfig !== 'string' || config.draftConfig.trim() === '') {
+        return { success: false, error: 'draftConfig 為空或無效' }
+      }
+      draftConfig = JSON.parse(config.draftConfig) as HomePageConfigData
+    } catch (err) {
+      console.error('[home-editor] 解析 draftConfig 失敗 (發布)', { error: err instanceof Error ? err.message : String(err) })
+      return { success: false, error: '配置格式錯誤，無法發布' }
+    }
+
     const themeMapping: Record<HomePageThemeType, HomePageTheme> = {
       purple: 'PURPLE',
       green: 'GREEN',
@@ -223,7 +279,16 @@ export async function getPublishedConfig(): Promise<HomePageConfigResult> {
       }
     }
 
-    const publishedData = JSON.parse(config.publishedConfig) as HomePageConfigData
+    let publishedData: HomePageConfigData
+    try {
+      if (typeof config.publishedConfig !== 'string' || config.publishedConfig.trim() === '') {
+        return { success: false, error: '發布版本配置為空或無效' }
+      }
+      publishedData = JSON.parse(config.publishedConfig) as HomePageConfigData
+    } catch (err) {
+      console.error('[home-editor] 解析 publishedConfig 失敗', { error: err instanceof Error ? err.message : String(err) })
+      return { success: false, error: '發布版本格式錯誤' }
+    }
 
     return {
       success: true,
@@ -248,7 +313,16 @@ export async function getDraftConfig(): Promise<HomePageConfigResult> {
       }
     }
 
-    const draftData = JSON.parse(config.draftConfig) as HomePageConfigData
+    let draftData: HomePageConfigData
+    try {
+      if (!config.draftConfig || typeof config.draftConfig !== 'string' || config.draftConfig.trim() === '') {
+        return { success: false, error: '草稿版本配置為空或無效' }
+      }
+      draftData = JSON.parse(config.draftConfig) as HomePageConfigData
+    } catch (err) {
+      console.error('[home-editor] 解析 draftConfig 失敗 (getDraft)', { error: err instanceof Error ? err.message : String(err) })
+      return { success: false, error: '草稿版本格式錯誤' }
+    }
 
     return {
       success: true,
@@ -280,15 +354,27 @@ export async function getVersionHistory(): Promise<VersionHistoryResult> {
       take: 10,
     })
 
-    const historyItems: VersionHistoryItem[] = versions.map((v) => ({
-      id: v.id,
-      theme: v.theme,
-      config: JSON.parse(v.config) as HomePageConfigData,
-      versionType: v.versionType as 'DRAFT' | 'PUBLISHED',
-      operatedBy: v.operatedBy,
-      createdAt: v.createdAt,
-      changeNote: v.changeNote || undefined,
-    }))
+    const historyItems: VersionHistoryItem[] = []
+    for (const v of versions) {
+      try {
+        if (!v.config || typeof v.config !== 'string' || v.config.trim() === '') {
+          console.warn('[home-editor] 版本記錄配置為空', { versionId: v.id })
+          continue
+        }
+        historyItems.push({
+          id: v.id,
+          theme: v.theme,
+          config: JSON.parse(v.config) as HomePageConfigData,
+          versionType: v.versionType as 'DRAFT' | 'PUBLISHED',
+          operatedBy: v.operatedBy,
+          createdAt: v.createdAt,
+          changeNote: v.changeNote || undefined,
+        })
+      } catch (err) {
+        console.error('[home-editor] 解析版本配置失敗', { versionId: v.id, error: err instanceof Error ? err.message : String(err) })
+        continue
+      }
+    }
 
     return {
       success: true,

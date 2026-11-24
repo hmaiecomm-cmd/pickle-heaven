@@ -16,42 +16,83 @@ export default async function BookingPage({
 }) {
   const sp = await searchParams
 
-  const venue = sp.venue
-    ? await prisma.venue.findFirst({ where: { slug: sp.venue, active: true } })
-    : await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' } })
+  try {
+    const venue = sp.venue
+      ? await prisma.venue.findFirst({ where: { slug: sp.venue, active: true } })
+      : await prisma.venue.findFirst({ where: { active: true }, orderBy: { name: 'asc' } })
 
-  if (!venue) {
+    if (!venue) {
+      return (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted">
+              尚未設定任何場館。請先執行 <code className="rounded surface-2 px-1.5 py-0.5">npm run db:seed</code> 建立示範資料。
+            </p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    const today = taipeiDateString()
+    const date = sp.date && isValidDateString(sp.date) ? sp.date : today
+    const dates = dateRange(venue.bookAheadDays + 1, today)
+
+    const [cartToken, user] = await Promise.all([getCartToken(), getSessionUser()])
+
+    let data, cart
+    try {
+      [data, cart] = await Promise.all([
+        getAvailability(venue.slug, date, cartToken, user?.id ?? null),
+        getCart(cartToken),
+      ])
+    } catch (err) {
+      const timestamp = Date.now()
+      const errorCode = `BK${Math.floor(timestamp / 1000).toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+      console.error(`[booking] 載入場地可用性或購物車失敗 [${errorCode}]`, {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        venueSlug: venue.slug,
+        date,
+        timestamp,
+      })
+      return (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-base font-medium text-destructive">系統暫時發生問題</p>
+            <p className="text-sm text-muted mt-2">無法載入預約資訊，請稍後再試。</p>
+            <p className="text-xs text-muted mt-4">錯誤代碼：{errorCode}</p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    const qty = Number(sp.qty)
+
+    return (
+      <BookingBoard
+        slug={venue.slug}
+        dates={dates}
+        initialDate={date}
+        initialData={data}
+        initialCart={cart}
+        initialSessionId={sp.session ?? null}
+        initialQuantity={Number.isInteger(qty) && qty > 0 ? qty : undefined}
+      />
+    )
+  } catch (err) {
+    const errorCode = Math.floor(Math.random() * 10000000000)
+    console.error(`[booking] 頁面載入失敗 (${errorCode})`, {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    })
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-sm text-muted">
-            尚未設定任何場館。請先執行 <code className="rounded surface-2 px-1.5 py-0.5">npm run db:seed</code> 建立示範資料。
-          </p>
+          <p className="text-base font-medium text-destructive">系統暫時發生問題</p>
+          <p className="text-sm text-muted mt-2">無法載入預約頁面，請稍後再試。</p>
+          <p className="text-xs text-muted mt-4">錯誤代碼：{errorCode}</p>
         </CardContent>
       </Card>
     )
   }
-
-  const today = taipeiDateString()
-  const date = sp.date && isValidDateString(sp.date) ? sp.date : today
-  const dates = dateRange(venue.bookAheadDays + 1, today)
-
-  const [cartToken, user] = await Promise.all([getCartToken(), getSessionUser()])
-  const [data, cart] = await Promise.all([
-    getAvailability(venue.slug, date, cartToken, user?.id ?? null),
-    getCart(cartToken),
-  ])
-  const qty = Number(sp.qty)
-
-  return (
-    <BookingBoard
-      slug={venue.slug}
-      dates={dates}
-      initialDate={date}
-      initialData={data}
-      initialCart={cart}
-      initialSessionId={sp.session ?? null}
-      initialQuantity={Number.isInteger(qty) && qty > 0 ? qty : undefined}
-    />
-  )
 }

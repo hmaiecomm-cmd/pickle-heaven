@@ -80,16 +80,23 @@ export function tenantFromToken(token: string): Tenant | null {
   const actual = b64urlDecode(parts[2])
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null
   try {
-    const header = JSON.parse(b64urlDecode(parts[0]).toString('utf8'))
+    const headerStr = b64urlDecode(parts[0]).toString('utf8')
+    if (!headerStr || headerStr.trim() === '') return null
+    const header = JSON.parse(headerStr)
     if (header.alg !== 'HS256') return null
-    const payload = JSON.parse(b64urlDecode(parts[1]).toString('utf8'))
+
+    const payloadStr = b64urlDecode(parts[1]).toString('utf8')
+    if (!payloadStr || payloadStr.trim() === '') return null
+    const payload = JSON.parse(payloadStr)
+
     const exp = typeof payload.exp === 'number' ? payload.exp : 0
     if (exp <= nowSec) return null
     const tenant: Tenant = payload.tnt === 'demo' ? 'demo' : 'main'
     if (tenantCache.size > 500) tenantCache.clear()
     tenantCache.set(token, { tenant, exp })
     return tenant
-  } catch {
+  } catch (err) {
+    console.debug('[db] JWT 解析失敗', { error: err instanceof Error ? err.message : String(err) })
     return null
   }
 }

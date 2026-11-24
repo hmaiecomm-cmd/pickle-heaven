@@ -76,6 +76,10 @@ export async function getAvailability(
   })
   if (!venue) throw new Error(`找不到場館：${slug}`)
 
+  // 驗證場館數據完整性
+  if (!Array.isArray(venue.courts)) throw new Error(`場館 ${slug} 的場地列表無效`)
+  if (!Array.isArray(venue.priceRules)) throw new Error(`場館 ${slug} 的價格規則無效`)
+
   const starts = slotStarts(venue.openMinute, venue.closeMinute, venue.slotMinutes)
 
   // 以伺服器時間與場館時區判斷，不依客人的裝置時間；跨午夜時段用完整日期時間比較
@@ -193,44 +197,80 @@ export async function getAvailability(
 export async function getCart(cartToken: string | null): Promise<CartDTO> {
   if (!cartToken) return { items: [], activityItems: [], productItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
 
-  await releaseExpiredHolds()
+  try {
+    await releaseExpiredHolds()
+  } catch (err) {
+    console.error('[cart] 清除逾時暫扣失敗', err)
+    // 繼續執行，不阻斷購物車讀取
+  }
+
   const nowMs = now().getTime()
 
-  const rows = await prisma.reservation.findMany({
-    // bookingId 為 null 才算「還在購物車裡」；
-    // 已建立待付款訂單的暫扣屬於該筆訂單，不應再出現在購物車。
-    where: { cartToken, status: 'HELD', bookingId: null },
-    orderBy: { startsAt: 'asc' },
-    include: { court: { include: { venue: { include: { priceRules: true } } } } },
-  })
+  let rows
+  try {
+    rows = await prisma.reservation.findMany({
+      // bookingId 為 null 才算「還在購物車裡」；
+      // 已建立待付款訂單的暫扣屬於該筆訂單，不應再出現在購物車。
+      where: { cartToken, status: 'HELD', bookingId: null },
+      orderBy: { startsAt: 'asc' },
+      include: { court: { include: { venue: { include: { priceRules: true } } } } },
+    })
+  } catch (err) {
+    console.error('[cart] 查詢場地預約失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    return { items: [], activityItems: [], productItems: [], subtotal: 0, expiresAt: null, invalidCount: 0 }
+  }
 
-  const items: CartItemDTO[] = rows.map((r) => {
-    // 跨日時段（例如 00:00–01:00）在營業邏輯上仍屬前一天的場次
-    let dateStr = taipeiDateString(r.startsAt)
-    let start = minuteOfDayFromUtc(r.startsAt, dateStr)
-    if (start < r.court.venue.openMinute) {
-      dateStr = addDays(dateStr, -1)
-      start += 1440
-    }
-    const end = start + Math.round((r.endsAt.getTime() - r.startsAt.getTime()) / 60000)
-    const rate = resolveRate(dateStr, start, r.court.venue.priceRules)
-    return {
-      reservationId: r.id,
-      courtId: r.courtId,
-      courtName: r.court.name,
-      date: dateStr,
-      start,
-      end,
-      timeLabel: formatRange(start, end),
-      rateName: rate.name,
-      price: rate.price,
-      expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
-      invalid: !r.court.active ? '此場地已不可預約，請重新選擇' : slotInvalidReason(r.startsAt.getTime(), r.court.venue.bookingCutoffMinutes, nowMs),
-    }
-  })
+  let items: CartItemDTO[] = []
+  try {
+    items = rows.map((r) => {
+      try {
+        // 跨日時段（例如 00:00–01:00）在營業邏輯上仍屬前一天的場次
+        let dateStr = taipeiDateString(r.startsAt)
+        let start = minuteOfDayFromUtc(r.startsAt, dateStr)
+        if (start < r.court.venue.openMinute) {
+          dateStr = addDays(dateStr, -1)
+          start += 1440
+        }
+        const end = start + Math.round((r.endsAt.getTime() - r.startsAt.getTime()) / 60000)
+        const rate = resolveRate(dateStr, start, r.court.venue.priceRules)
+        return {
+          reservationId: r.id,
+          courtId: r.courtId,
+          courtName: r.court.name,
+          date: dateStr,
+          start,
+          end,
+          timeLabel: formatRange(start, end),
+          rateName: rate.name,
+          price: rate.price,
+          expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
+          invalid: !r.court.active ? '此場地已不可預約，請重新選擇' : slotInvalidReason(r.startsAt.getTime(), r.court.venue.bookingCutoffMinutes, nowMs),
+        }
+      } catch (err) {
+        console.error('[cart] 處理場地預約項目失敗', { reservationId: r.id, error: err instanceof Error ? err.message : String(err) })
+        throw err
+      }
+    })
+  } catch (err) {
+    console.error('[cart] 轉換場地項目失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    items = []
+  }
 
-  const activityItems = await getCartActivityItems(cartToken, nowMs)
-  const productItems = await getCartProductItems(cartToken)
+  let activityItems: CartActivityItemDTO[] = []
+  try {
+    activityItems = await getCartActivityItems(cartToken, nowMs)
+  } catch (err) {
+    console.error('[cart] 讀取活動項目失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    activityItems = []
+  }
+
+  let productItems: CartProductItemDTO[] = []
+  try {
+    productItems = await getCartProductItems(cartToken)
+  } catch (err) {
+    console.error('[cart] 讀取商品項目失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    productItems = []
+  }
 
   const subtotal = items.reduce((sum, i) => sum + i.price, 0) + activityItems.reduce((sum, i) => sum + i.amount, 0) + productItems.reduce((sum, i) => sum + i.subtotal, 0)
   const all = [...items.map((i) => i.expiresAt), ...activityItems.map((i) => i.expiresAt)]
@@ -250,59 +290,83 @@ export function slotInvalidReason(startsAtMs: number, cutoffMinutes: number, now
 
 /** 購物車中的活動報名；金額依場次目前價格計算，結帳時伺服器再算一次 */
 async function getCartActivityItems(cartToken: string, nowMs: number): Promise<CartActivityItemDTO[]> {
-  const regs = await prisma.sessionRegistration.findMany({
-    where: { cartToken, status: 'PENDING', bookingId: null, holdExpiresAt: { gt: now() } },
-    include: {
-      session: {
-        include: { activity: true, courts: { include: { court: { select: { name: true, sortOrder: true } } } } },
+  try {
+    const regs = await prisma.sessionRegistration.findMany({
+      where: { cartToken, status: 'PENDING', bookingId: null, holdExpiresAt: { gt: now() } },
+      include: {
+        session: {
+          include: { activity: true, courts: { include: { court: { select: { name: true, sortOrder: true } } } } },
+        },
       },
-    },
-    orderBy: { session: { startAt: 'asc' } },
-  })
-  return regs.map((r) => {
-    const s = r.session
-    const date = taipeiDateString(s.startAt)
-    const start = taipeiMinuteOfDay(s.startAt)
-    const end = start + Math.round((s.endAt.getTime() - s.startAt.getTime()) / 60_000)
-    const unit = (s.activity?.priceUnit ?? 'PER_PERSON') as PriceUnitKey
-    return {
-      registrationId: r.id,
-      sessionId: s.id,
-      title: s.title,
-      typeLabel: ACTIVITY_TYPE_LABEL[(s.activity?.type ?? 'OPEN_PLAY') as ActivityTypeKey],
-      date,
-      dateLabel: shortDateLabel(date),
-      timeLabel: activityTimeLabel(start, end),
-      courtNames: [...s.courts].sort((a, b) => a.court.sortOrder - b.court.sortOrder).map((c) => c.court.name),
-      quantity: r.quantity,
-      unitLabel: PRICE_UNIT_LABEL[unit],
-      unitPrice: s.price,
-      amount: s.price * r.quantity,
-      expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
-      // 活動是否仍可報名由各場次自己的截止規則決定（結帳時再驗證）；這裡只擋已開始或已取消的場次
-      invalid: s.status === 'CANCELLED' ? '活動已取消' : s.startAt.getTime() <= nowMs ? '活動已開始' : null,
-    }
-  })
+      orderBy: { session: { startAt: 'asc' } },
+    })
+
+    return regs.map((r) => {
+      try {
+        const s = r.session
+        const date = taipeiDateString(s.startAt)
+        const start = taipeiMinuteOfDay(s.startAt)
+        const end = start + Math.round((s.endAt.getTime() - s.startAt.getTime()) / 60_000)
+        const unit = (s.activity?.priceUnit ?? 'PER_PERSON') as PriceUnitKey
+        const courtNames = Array.isArray(s.courts) ? [...s.courts].sort((a, b) => a.court.sortOrder - b.court.sortOrder).map((c) => c.court.name) : []
+
+        return {
+          registrationId: r.id,
+          sessionId: s.id,
+          title: s.title || '(無標題)',
+          typeLabel: ACTIVITY_TYPE_LABEL[(s.activity?.type ?? 'OPEN_PLAY') as ActivityTypeKey],
+          date,
+          dateLabel: shortDateLabel(date),
+          timeLabel: activityTimeLabel(start, end),
+          courtNames,
+          quantity: r.quantity ?? 1,
+          unitLabel: PRICE_UNIT_LABEL[unit],
+          unitPrice: s.price ?? 0,
+          amount: (s.price ?? 0) * (r.quantity ?? 1),
+          expiresAt: (r.holdExpiresAt ?? new Date()).toISOString(),
+          invalid: s.status === 'CANCELLED' ? '活動已取消' : s.startAt.getTime() <= nowMs ? '活動已開始' : null,
+        }
+      } catch (err) {
+        console.error('[cart] 處理活動報名失敗', { registrationId: r.id, error: err instanceof Error ? err.message : String(err) })
+        throw err
+      }
+    })
+  } catch (err) {
+    console.error('[cart] 查詢活動報名失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    return []
+  }
 }
 
 /** 購物車中的商品項目 */
 async function getCartProductItems(cartToken: string): Promise<CartProductItemDTO[]> {
-  const items = await prisma.cartProduct.findMany({
-    where: { cartToken },
-    include: { product: true },
-    orderBy: { createdAt: 'asc' },
-  })
+  try {
+    const items = await prisma.cartProduct.findMany({
+      where: { cartToken },
+      include: { product: true },
+      orderBy: { createdAt: 'asc' },
+    })
 
-  return items.map((item) => ({
-    id: item.id,
-    productId: item.product.id,
-    productName: item.product.name,
-    productSku: item.product.sku,
-    imageUrl: item.product.imageUrl,
-    quantity: item.quantity,
-    unitPrice: item.product.price,
-    subtotal: item.product.price * item.quantity,
-  }))
+    return items.map((item) => {
+      try {
+        return {
+          id: item.id,
+          productId: item.product.id,
+          productName: item.product.name || '(無名稱)',
+          productSku: item.product.sku || '',
+          imageUrl: item.product.imageUrl || null,
+          quantity: item.quantity ?? 1,
+          unitPrice: item.product.price ?? 0,
+          subtotal: (item.product.price ?? 0) * (item.quantity ?? 1),
+        }
+      } catch (err) {
+        console.error('[cart] 處理商品項目失敗', { itemId: item.id, error: err instanceof Error ? err.message : String(err) })
+        throw err
+      }
+    })
+  } catch (err) {
+    console.error('[cart] 查詢購物車商品失敗', { cartToken, error: err instanceof Error ? err.message : String(err) })
+    return []
+  }
 }
 
 /**

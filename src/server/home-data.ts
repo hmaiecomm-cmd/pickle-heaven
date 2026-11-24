@@ -109,9 +109,15 @@ export async function getHomeData(): Promise<HomeData> {
   let editor: EditorState | undefined
   if (homePageConfig?.publishedConfig) {
     try {
-      editor = JSON.parse(homePageConfig.publishedConfig) as EditorState
+      if (typeof homePageConfig.publishedConfig !== 'string' || homePageConfig.publishedConfig.trim() === '') {
+        console.warn('[home] 發布配置為空或無效')
+        editor = undefined
+      } else {
+        editor = JSON.parse(homePageConfig.publishedConfig) as EditorState
+      }
     } catch (err) {
-      console.error('[home] 解析發布配置失敗', err)
+      console.error('[home] 解析發布配置失敗', { error: err instanceof Error ? err.message : String(err), raw: homePageConfig.publishedConfig?.slice(0, 200) })
+      editor = undefined
     }
   }
 
