@@ -3320,6 +3320,12 @@ model FeatureSubscription {
   notes           String?
   activatedAt     DateTime?
 
+  // Phase 2：自動續約配置
+  gracePeriodDays Int?           @default(7)   // 寬限期天數（付款失敗時延長使用）
+  nextRenewalAt   DateTime?                     // 下次自動續約時間
+  renewalAttempts Int            @default(0)   // 續約嘗試次數
+  renewalFailReason String?                    // 最後一次續約失敗原因
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -3332,6 +3338,7 @@ model FeatureSubscription {
   @@index([featureModuleId])
   @@index([status])
   @@index([expiresAt])
+  @@index([nextRenewalAt])
 }
 
 /// 平台金流（與 Payment 完全分離）
@@ -3352,10 +3359,18 @@ model PlatformPayment {
   rawResponse     Json?
   failReason      String?
 
+  // Phase 2：Webhook 和重試管理
+  webhookSecret   String?                      // 加密的 webhook 簽章祕密
+  retryCount      Int            @default(0)   // 重試次數
+  lastRetryAt     DateTime?                     // 最後重試時間
+  nextRetryAt     DateTime?                     // 下次重試時間
+
   // 時間戳
   createdAt       DateTime  @default(now())
   paidAt          DateTime?
   refundedAt      DateTime?
+
+  webhookLogs     PlatformWebhookLog[]
 
   venue           Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
   subscriptions   FeatureSubscription[]
@@ -3363,5 +3378,37 @@ model PlatformPayment {
   @@index([venueId])
   @@index([status])
   @@index([providerRef])
+  @@index([nextRetryAt])
   @@index([createdAt])
+}
+
+/// 平台支付 Webhook 日誌（審計追蹤）
+model PlatformWebhookLog {
+  id              String    @id @default(cuid())
+  paymentId       String
+  venueId         String
+
+  // 提供商資訊
+  provider        String    // tappay | linepay | newebpay | mock
+
+  // Webhook 簽章驗證
+  signatureValid  Boolean   @default(false)
+  signature       String?   // 雜湊後的簽章（供審計）
+
+  // Webhook 內容（敏感資訊已移除）
+  rawPayload      Json
+
+  // 處理結果
+  processed       Boolean   @default(false)
+  processedAt     DateTime?
+  error           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  payment         PlatformPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([venueId, createdAt])
+  @@index([provider, signatureValid])
 }
