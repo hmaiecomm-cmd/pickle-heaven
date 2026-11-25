@@ -222,6 +222,26 @@ enum ProductOrderStatus {
   REFUNDED // 已退款
 }
 
+enum FeatureTier {
+  PLUS  // 基礎版本
+  PRO   // 進階版本
+}
+
+enum SubscriptionStatus {
+  DRAFT           // 建立中
+  ACTIVE          // 已開通
+  EXPIRED         // 已過期
+  CANCELLED       // 已取消
+  PENDING_PAYMENT // 待付款
+}
+
+enum PlatformPaymentStatus {
+  PENDING   // 待付款
+  COMPLETED // 已完成
+  FAILED    // 失敗
+  REFUNDED  // 已退款
+}
+
 enum InventoryTransactionType {
   INBOUND // 進貨
   OUTBOUND // 出貨
@@ -348,6 +368,8 @@ model Venue {
   marketingCampaigns  MarketingCampaign[]
   products            Product[]
   productOrders       ProductOrder[]
+  featureSubscriptions FeatureSubscription[]
+  platformPayments    PlatformPayment[]
 }
 
 /// 場地（球場）
@@ -3256,4 +3278,90 @@ model AIMessage {
   conversation    AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+}
+
+/// 平台功能模組定義（全球配置，不變異）
+model FeatureModule {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  tier            FeatureTier
+  description     String?
+  monthlyPrice    Int       // 以台幣最小單位（元）
+  yearlyPrice     Int       // 以台幣最小單位（元）
+  features        String?   // JSON array: ["特性1", "特性2"]
+  isAvailable     Boolean   @default(false)  // 是否可販售
+  launchedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  subscriptions   FeatureSubscription[]
+
+  @@index([slug])
+  @@index([tier])
+}
+
+/// 場館的功能訂閱狀態
+model FeatureSubscription {
+  id              String    @id @default(cuid())
+  venueId         String
+  featureModuleId String
+  status          SubscriptionStatus @default(DRAFT)
+
+  // 訂閱期間（本期）
+  startsAt        DateTime
+  expiresAt       DateTime
+
+  // 金流關聯
+  platformPaymentId String?
+
+  // 中繼資料
+  autoRenew       Boolean   @default(false)
+  notes           String?
+  activatedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  venue           Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  featureModule   FeatureModule @relation(fields: [featureModuleId], references: [id])
+  payment         PlatformPayment? @relation(fields: [platformPaymentId], references: [id])
+
+  @@unique([venueId, featureModuleId])
+  @@index([venueId])
+  @@index([featureModuleId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+/// 平台金流（與 Payment 完全分離）
+model PlatformPayment {
+  id              String    @id @default(cuid())
+  venueId         String
+
+  // 金流詳情
+  amount          Int       // 以台幣最小單位（元）
+  status          PlatformPaymentStatus @default(PENDING)
+  provider        String    @default("mock")  // mock | tappay | newebpay | linepay
+  providerRef     String?   // 金流商交易序號
+
+  // 訂閱資訊
+  subscriptionIds String    @default("")  // 逗號分隔的 FeatureSubscription IDs
+
+  // 金流回調（已移除敏感資訊）
+  rawResponse     Json?
+  failReason      String?
+
+  // 時間戳
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+  refundedAt      DateTime?
+
+  venue           Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  subscriptions   FeatureSubscription[]
+
+  @@index([venueId])
+  @@index([status])
+  @@index([providerRef])
+  @@index([createdAt])
 }

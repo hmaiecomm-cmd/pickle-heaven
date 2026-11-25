@@ -54,8 +54,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: '管理者設定', href: '/admin/settings/staff', permission: 'staff', group: '管理' },
       { label: '球館基本資料', href: '/admin/settings', permission: 'settings', exact: true, group: '設定' },
       { label: '官網頁面管理', href: '/admin/home', permission: 'settings', group: '設定' },
-      { label: '後台操作紀錄', href: '/admin/audit', permission: 'audit', group: '紀錄' },
+      { label: '功能開通管理', href: '/admin/settings/features', permission: 'settings', group: '功能' },
+      { label: '金流設定（平台訂閱）', href: '/admin/settings/platform-payment', permission: 'settings', group: '金流' },
       { label: '金流與發票設定', href: '/admin/settings/payments', permission: 'settings', group: '設定' },
+      { label: '後台操作紀錄', href: '/admin/audit', permission: 'audit', group: '紀錄' },
     ],
   },
 

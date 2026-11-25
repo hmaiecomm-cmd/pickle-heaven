@@ -203,11 +203,143 @@ async function main() {
     },
   })
 
+  // Phase 1：功能訂閱系統測試資料
+  console.log('\n▸ 建立平台功能模組…')
+  const startDate = new Date('2026-11-24')
+  const endDate = new Date('2027-11-24')
+
+  const featureModules = await Promise.all([
+    prisma.featureModule.create({
+      data: {
+        slug: 'booking-plus',
+        name: '場地預約 Plus',
+        tier: 'PLUS',
+        description: '完整的場地預約與管理系統',
+        monthlyPrice: 99900,
+        yearlyPrice: 999900,
+        features: JSON.stringify(['場地預約', '預約行事曆', '場地設定', '訂單管理']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'finance-plus',
+        name: '財務報表 Plus',
+        tier: 'PLUS',
+        description: '實時財務報表與營收分析',
+        monthlyPrice: 99900,
+        yearlyPrice: 999900,
+        features: JSON.stringify(['營收報表', '金流明細', '發票管理', '退款核准']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'operation-pro',
+        name: '無人營運管理 Pro',
+        tier: 'PRO',
+        description: '門禁控制、智慧設備與自動化管理',
+        monthlyPrice: 199900,
+        yearlyPrice: 1999900,
+        features: JSON.stringify(['門禁控制', '設備排程', '遠端開關', '自動化規則']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'monitor-pro',
+        name: 'AI 即時監控 Pro',
+        tier: 'PRO',
+        description: '即時影像、監控事件與異常告警',
+        monthlyPrice: 199900,
+        yearlyPrice: 1999900,
+        features: JSON.stringify(['即時影像', '歷史回放', '事件管理', '告警系統']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'assistant-pro',
+        name: 'AI 超級特助 Pro',
+        tier: 'PRO',
+        description: 'AI 驅動的商業洞察與行銷規劃',
+        monthlyPrice: 199900,
+        yearlyPrice: 1999900,
+        features: JSON.stringify(['營收洞察', '會員分析', '行銷規劃', '動態定價']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'members-plus',
+        name: '會員與教練 Plus',
+        tier: 'PLUS',
+        description: '會員管理、教練管理與黑名單',
+        monthlyPrice: 99900,
+        yearlyPrice: 999900,
+        features: JSON.stringify(['會員查詢', '教練管理', '黑名單', '內部備註']),
+        isAvailable: true,
+        launchedAt: new Date('2024-01-01'),
+      },
+    }),
+    prisma.featureModule.create({
+      data: {
+        slug: 'ambience-pro',
+        name: 'AI 情境營造 Pro',
+        tier: 'PRO',
+        description: '語音廣播、燈光控制與環境營造',
+        monthlyPrice: 199900,
+        yearlyPrice: 1999900,
+        features: JSON.stringify(['語音廣播', '燈光模式', 'LED 看板', '場景控制']),
+        isAvailable: false, // 建立中
+        launchedAt: null,
+      },
+    }),
+  ])
+
+  // 為測試場館建立訂閱關係
+  console.log('▸ 建立功能訂閱…')
+  const subscriptions = await Promise.all(
+    featureModules.map((fm: typeof featureModules[0], idx: number) =>
+      prisma.featureSubscription.create({
+        data: {
+          venueId: venue.id,
+          featureModuleId: fm.id,
+          status: idx === featureModules.length - 1 ? 'DRAFT' : 'ACTIVE',
+          startsAt: startDate,
+          expiresAt: endDate,
+          activatedAt: idx === featureModules.length - 1 ? undefined : startDate,
+        },
+      })
+    )
+  )
+
+  // 建立一筆平台付款記錄
+  console.log('▸ 建立平台金流…')
+  const activeSubs = subscriptions.slice(0, 6)
+  await prisma.platformPayment.create({
+    data: {
+      venueId: venue.id,
+      amount: 999900,
+      status: 'COMPLETED',
+      provider: 'mock',
+      paidAt: startDate,
+      subscriptionIds: activeSubs.map((s: typeof subscriptions[0]) => s.id).join(','),
+    },
+  })
+
   console.log('\n✅ 種子資料建立完成')
   console.log(`   場館：${venue.name}（/booking?venue=${venue.slug}）`)
   console.log(`   場地：${courts.length} 面`)
   console.log('   球敘範本：每週二 12:00–14:00（8 人・NT$500）→ /sessions')
   console.log('   折價券：WELCOME100 / PICKLE90 / VIP200')
+  console.log(`   功能模組：${featureModules.length} 個`)
+  console.log(`   功能訂閱：${subscriptions.length} 個（${subscriptions.filter(s => s.status === 'ACTIVE').length} 已開通）`)
 }
 
 main()
