@@ -5,7 +5,8 @@
   "description": "匹克精靈 — Pickleball court booking platform for Taiwan (LINE MINI App / LIFF)",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/generate-prisma.mjs && next build",
+    "build": "node scripts/generate-prisma.mjs && npm run db:turso:init && next build",
+    "postbuild": "npm run db:seed",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
