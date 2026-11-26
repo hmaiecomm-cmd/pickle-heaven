@@ -9,6 +9,7 @@ import { MemberKpiCard } from './member-kpi-card'
 import { MemberConversionFunnel } from './member-conversion-funnel'
 import { MemberChartsPanel } from './member-charts'
 import { MemberDailyActions } from './member-daily-actions'
+import { MemberDemoDataSection } from './member-demo-data'
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342] focus-visible:ring-offset-1'
 
@@ -16,10 +17,12 @@ export function MemberInsightsDashboard({
   data,
   initialChart = 'arpu',
   onRangeChange,
+  isDemo = false,
 }: {
   data: MemberInsightsData
   initialChart?: ChartKeyMember
   onRangeChange?: (range: MemberInsightsRange) => void
+  isDemo?: boolean
 }) {
   const [chart, setChart] = React.useState<ChartKeyMember>(initialChart)
   const [aiOpen, setAiOpen] = React.useState(false)
@@ -36,12 +39,15 @@ export function MemberInsightsDashboard({
 
   return (
     <div className="space-y-5">
+      {/* ── DEMO 區塊 ── */}
+      {isDemo && <MemberDemoDataSection />}
+
       {/* ── 標題與 AI 按鈕 ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1f2a22]">營收與會員成長洞察</h1>
           <p className="mt-1 text-xs sm:text-sm text-muted">
-            {data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天），與前期比較
+            {isDemo ? '📊 DEMO 示範資料｜' : ''}{data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天），與前期比較
           </p>
         </div>
         <button
