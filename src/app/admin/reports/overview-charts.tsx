@@ -562,6 +562,11 @@ export function ChartPanel({
         <span className="font-semibold text-[#1f4d34]">圖表判讀：</span>
         {chartRead(chart, data)}
       </p>
+
+      <div className="mt-3 rounded-xl border border-[#e3e8dc] bg-[#fafbf8] p-3 sm:p-4">
+        <h3 className="text-xs font-bold text-[#1f4d34] sm:text-sm">這張圖表怎麼看？</h3>
+        <p className="mt-2 text-xs leading-relaxed text-[#3d4a40] sm:text-sm">{meta.explanation}</p>
+      </div>
     </section>
   );
 }
