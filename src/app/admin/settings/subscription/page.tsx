@@ -93,52 +93,74 @@ export default async function PlatformSubscriptionPage() {
 function getMockModules(): FeatureModuleDisplay[] {
   return [
     {
-      id: 'plan-basic',
-      slug: 'plan-basic',
-      name: '基礎方案',
+      id: 'plus-booking',
+      slug: 'plus-booking',
+      name: 'Plus 基本會員預約系統',
       tier: 'PLUS' as FeatureTier,
-      description: '適合小型球館的基礎方案',
-      monthlyPrice: 0,
-      yearlyPrice: 0,
-      features: ['場地預約', '訂單管理'],
+      description: '完整的場館預約、會員管理與訂單系統',
+      monthlyPrice: 500000, // 5000/月（單位：美分）
+      yearlyPrice: 5400000, // 54000/年
+      features: ['場地預約', '會員管理', '訂單管理', '財務報表'],
       isAvailable: true,
       launchedAt: new Date('2026-01-01'),
       createdAt: new Date('2026-01-01'),
       updatedAt: new Date('2026-01-01'),
     },
     {
-      id: 'plan-growth',
-      slug: 'plan-growth',
-      name: '成長方案',
-      tier: 'PLUS' as FeatureTier,
-      description: '中型球館專用方案',
-      monthlyPrice: 29900,
-      yearlyPrice: 299900,
-      features: ['場地預約', '財務報表', '會員管理'],
+      id: 'pro-unattended',
+      slug: 'pro-unattended',
+      name: 'Pro 無人營運包',
+      tier: 'PRO' as FeatureTier,
+      description: '自動化場館管理、電力控制與門禁系統',
+      monthlyPrice: 800000, // 8000/月
+      yearlyPrice: 8640000, // 86400/年
+      features: ['無人營運管理', '電力控制系統', '門禁管理', '24/7 監控'],
       isAvailable: true,
       launchedAt: new Date('2026-02-01'),
       createdAt: new Date('2026-02-01'),
       updatedAt: new Date('2026-02-01'),
     },
     {
-      id: 'plan-pro',
-      slug: 'plan-pro',
-      name: '專業方案',
+      id: 'pro-ai-monitoring',
+      slug: 'pro-ai-monitoring',
+      name: 'PRO AI 即時監控',
       tier: 'PRO' as FeatureTier,
-      description: '完整功能的專業方案',
-      monthlyPrice: 99900,
-      yearlyPrice: 999900,
-      features: [
-        '場地預約',
-        '財務報表',
-        '會員管理',
-        '無人營運管理',
-        'AI 即時監控',
-      ],
+      description: '實時 AI 場館監控、異常檢測與自動告警',
+      monthlyPrice: 800000, // 8000/月
+      yearlyPrice: 8640000, // 86400/年
+      features: ['AI 即時監控', '異常檢測', '自動告警', '數據分析'],
+      isAvailable: true,
+      launchedAt: new Date('2026-02-15'),
+      createdAt: new Date('2026-02-15'),
+      updatedAt: new Date('2026-02-15'),
+    },
+    {
+      id: 'pro-ai-growth',
+      slug: 'pro-ai-growth',
+      name: 'PRO AI 營運成長',
+      tier: 'PRO' as FeatureTier,
+      description: 'AI 驅動的營運優化與業務增長建議',
+      monthlyPrice: 800000, // 8000/月
+      yearlyPrice: 8640000, // 86400/年
+      features: ['AI 營運分析', '成長建議', '會員洞察', '定價優化'],
       isAvailable: true,
       launchedAt: new Date('2026-03-01'),
       createdAt: new Date('2026-03-01'),
       updatedAt: new Date('2026-03-01'),
+    },
+    {
+      id: 'pro-ai-ambiance',
+      slug: 'pro-ai-ambiance',
+      name: 'PRO AI 情境營造包',
+      tier: 'PRO' as FeatureTier,
+      description: '智能燈光、音樂與環境控制，營造場館氛圍',
+      monthlyPrice: 300000, // 3000/月
+      yearlyPrice: 3240000, // 32400/年
+      features: ['智能燈光控制', '背景音樂系統', '環境溫度控制', '場景預設'],
+      isAvailable: true,
+      launchedAt: new Date('2026-03-10'),
+      createdAt: new Date('2026-03-10'),
+      updatedAt: new Date('2026-03-10'),
     },
   ]
 }

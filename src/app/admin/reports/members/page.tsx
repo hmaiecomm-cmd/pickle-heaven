@@ -8,5 +8,5 @@ export const dynamic = 'force-dynamic'
 
 export default async function MemberOperationsPage() {
   if ((await pagePermission('finance')) === 'forbidden') return <Forbidden />
-  return <MemberOperationsDashboard />
+  return <MemberOperationsDashboard initialTheme="off-peak-fill" initialRangeDays={30} venueOptions={[]} />
 }
