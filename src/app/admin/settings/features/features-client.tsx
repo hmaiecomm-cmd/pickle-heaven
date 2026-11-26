@@ -1,15 +1,22 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { ChevronRight, AlertCircle, CheckCircle } from 'lucide-react'
 import type { FeatureModuleDisplay, SubscriptionDisplay } from '@/lib/feature-types'
 import { getSubscriptionStatusLabel, calculateDaysRemaining } from '@/lib/feature-service'
+import { createFeatureSubscription, renewSubscription, cancelSubscription } from './actions'
 
 interface FeaturesClientProps {
   initialModules: FeatureModuleDisplay[]
   initialSubscriptions: (SubscriptionDisplay & { featureModule: FeatureModuleDisplay })[]
+  venueId: string
 }
 
-export default function FeaturesClient({ initialModules, initialSubscriptions }: FeaturesClientProps) {
+export default function FeaturesClient({ initialModules, initialSubscriptions, venueId }: FeaturesClientProps) {
+  const [selectedFeature, setSelectedFeature] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [durationMonths, setDurationMonths] = useState<1 | 12>(12)
   const statusSummary = useMemo(() => {
     const active = initialSubscriptions.filter((s) => s.status === 'ACTIVE').length
     const expiringSoon = initialSubscriptions.filter(
@@ -49,6 +56,28 @@ export default function FeaturesClient({ initialModules, initialSubscriptions }:
         </div>
       </div>
 
+      {/* 訊息提示 */}
+      {message && (
+        <div
+          className={`rounded-lg border-l-4 p-4 ${
+            message.type === 'success'
+              ? 'border-green-500 bg-green-50'
+              : 'border-red-500 bg-red-50'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {message.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            )}
+            <div>
+              <p className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>{message.text}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 功能卡片網格 */}
       <div>
         <h2 className="text-lg font-semibold mb-4">所有功能模組</h2>
@@ -57,15 +86,94 @@ export default function FeaturesClient({ initialModules, initialSubscriptions }:
             const sub = subscriptionMap.get(module.id)
             const daysLeft = sub ? sub.daysRemaining : 0
             const isExpiringSoon = !!(sub && sub.status === 'ACTIVE' && daysLeft > 0 && daysLeft <= 30)
+            const isModalOpen = selectedFeature === module.id
 
             return (
-              <FeatureCard
-                key={module.id}
-                module={module}
-                subscription={sub}
-                daysRemaining={daysLeft}
-                isExpiringSoon={isExpiringSoon}
-              />
+              <div key={module.id}>
+                <FeatureCard
+                  module={module}
+                  subscription={sub}
+                  daysRemaining={daysLeft}
+                  isExpiringSoon={isExpiringSoon}
+                  onUpgrade={() => {
+                    setSelectedFeature(module.id)
+                    setMessage(null)
+                  }}
+                  onRenew={() => {
+                    setSelectedFeature(module.id)
+                    setMessage(null)
+                  }}
+                  onCancel={() => {
+                    setSelectedFeature(module.id)
+                    setMessage(null)
+                  }}
+                />
+
+                {/* 購買/續約 Modal */}
+                {isModalOpen && (
+                  <PurchaseModal
+                    module={module}
+                    subscription={sub}
+                    durationMonths={durationMonths}
+                    onDurationChange={setDurationMonths}
+                    onConfirm={async () => {
+                      setLoading(true)
+                      try {
+                        const result = sub
+                          ? await renewSubscription(sub.id, durationMonths)
+                          : await createFeatureSubscription(venueId, module.id, durationMonths, true)
+
+                        if (result.success) {
+                          const subId = 'newSubscriptionId' in (result.data || {})
+                            ? (result.data as any).newSubscriptionId
+                            : (result.data as any)?.subscriptionId
+                          setMessage({
+                            type: 'success',
+                            text: `${sub ? '續約' : '購買'}成功，請完成支付。訂閱 ID: ${subId?.substring(0, 8)}...`,
+                          })
+                          setSelectedFeature(null)
+                        } else {
+                          setMessage({
+                            type: 'error',
+                            text: result.message,
+                          })
+                        }
+                      } catch (err) {
+                        setMessage({
+                          type: 'error',
+                          text: '操作失敗，請稍後重試',
+                        })
+                      } finally {
+                        setLoading(false)
+                      }
+                    }}
+                    onCancel={async () => {
+                      if (sub) {
+                        setLoading(true)
+                        try {
+                          const result = await cancelSubscription(sub.id)
+                          if (result.success) {
+                            setMessage({
+                              type: 'success',
+                              text: '訂閱已取消',
+                            })
+                          } else {
+                            setMessage({
+                              type: 'error',
+                              text: result.message,
+                            })
+                          }
+                        } finally {
+                          setLoading(false)
+                        }
+                      }
+                      setSelectedFeature(null)
+                    }}
+                    onClose={() => setSelectedFeature(null)}
+                    isLoading={loading}
+                  />
+                )}
+              </div>
             )
           })}
         </div>
@@ -79,9 +187,12 @@ interface FeatureCardProps {
   subscription?: SubscriptionDisplay & { featureModule: FeatureModuleDisplay }
   daysRemaining: number
   isExpiringSoon: boolean
+  onUpgrade: () => void
+  onRenew: () => void
+  onCancel: () => void
 }
 
-function FeatureCard({ module, subscription, daysRemaining, isExpiringSoon }: FeatureCardProps) {
+function FeatureCard({ module, subscription, daysRemaining, isExpiringSoon, onUpgrade, onRenew, onCancel }: FeatureCardProps) {
   const tierColors = {
     PLUS: 'bg-blue-50 border-blue-200',
     PRO: 'bg-purple-50 border-purple-200',
@@ -165,9 +276,169 @@ function FeatureCard({ module, subscription, daysRemaining, isExpiringSoon }: Fe
       </div>
 
       {/* 操作按鈕 */}
-      <button className="w-full bg-gray-300 text-gray-600 cursor-not-allowed py-2 rounded text-sm font-medium">
-        查看詳情 (Phase 2)
-      </button>
+      {!subscription || subscription.status === 'EXPIRED' || subscription.status === 'CANCELLED' ? (
+        <button
+          onClick={onUpgrade}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-medium transition-colors"
+        >
+          立即購買
+        </button>
+      ) : subscription.status === 'ACTIVE' ? (
+        <div className="space-y-2">
+          <button
+            onClick={onRenew}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-medium transition-colors"
+          >
+            續約
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full bg-red-100 hover:bg-red-200 text-red-800 py-2 rounded text-sm font-medium transition-colors"
+          >
+            取消訂閱
+          </button>
+        </div>
+      ) : subscription.status === 'PENDING_PAYMENT' ? (
+        <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 text-xs text-amber-800">
+          ⏳ 等待支付確認...
+        </div>
+      ) : subscription.status === 'DRAFT' ? (
+        <button
+          onClick={onUpgrade}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-medium transition-colors"
+        >
+          開始使用
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+interface PurchaseModalProps {
+  module: FeatureModuleDisplay
+  subscription?: SubscriptionDisplay & { featureModule: FeatureModuleDisplay }
+  durationMonths: 1 | 12
+  onDurationChange: (months: 1 | 12) => void
+  onConfirm: () => Promise<void>
+  onCancel: () => Promise<void>
+  onClose: () => void
+  isLoading: boolean
+}
+
+function PurchaseModal({
+  module,
+  subscription,
+  durationMonths,
+  onDurationChange,
+  onConfirm,
+  onCancel,
+  onClose,
+  isLoading,
+}: PurchaseModalProps) {
+  const monthlyPrice = module.monthlyPrice / 100
+  const yearlyPrice = module.yearlyPrice / 100
+  const selectedPrice = durationMonths === 1 ? monthlyPrice : yearlyPrice
+  const savings = durationMonths === 12 ? (monthlyPrice * 12 - yearlyPrice).toFixed(2) : '0'
+
+  const isRenewal = subscription && subscription.status === 'ACTIVE'
+  const isCancel = subscription && (subscription.status === 'ACTIVE' || subscription.status === 'PENDING_PAYMENT')
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full shadow-xl">
+        {/* Header */}
+        <div className="border-b p-6">
+          <h2 className="text-xl font-bold">{module.name}</h2>
+          <p className="text-sm text-gray-500 mt-1">{isRenewal ? '續約' : '購買'} {module.tier === 'PLUS' ? '基礎版' : '進階版'}</p>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* 計費周期選擇 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">計費周期</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onDurationChange(1)}
+                className={`p-3 rounded-lg border-2 transition-all text-center ${
+                  durationMonths === 1
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div className="font-semibold text-gray-900">${monthlyPrice.toFixed(2)}</div>
+                <div className="text-xs text-gray-600">1 個月</div>
+              </button>
+
+              <button
+                onClick={() => onDurationChange(12)}
+                className={`p-3 rounded-lg border-2 transition-all text-center ${
+                  durationMonths === 12
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div className="font-semibold text-gray-900">${yearlyPrice.toFixed(2)}</div>
+                <div className="text-xs text-gray-600">12 個月</div>
+                {durationMonths === 12 && <div className="text-xs text-green-600 mt-1">節省 ${savings}</div>}
+              </button>
+            </div>
+          </div>
+
+          {/* 價格摘要 */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">計費金額</span>
+              <span className="font-bold text-lg">${selectedPrice.toFixed(2)}</span>
+            </div>
+            <div className="text-xs text-gray-500">含稅，自動續約（可取消）</div>
+          </div>
+
+          {/* 功能列表 */}
+          {module.features.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">包含功能</label>
+              <ul className="space-y-2">
+                {module.features.map((f, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-6 bg-gray-50 rounded-b-lg space-y-3">
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded-lg font-medium transition-colors"
+          >
+            {isLoading ? '處理中...' : isRenewal ? '確認續約' : '立即購買'}
+          </button>
+
+          {isCancel && (
+            <button
+              onClick={onCancel}
+              disabled={isLoading}
+              className="w-full bg-red-50 hover:bg-red-100 disabled:bg-gray-200 text-red-800 py-2 rounded-lg font-medium transition-colors"
+            >
+              {isLoading ? '處理中...' : '取消訂閱'}
+            </button>
+          )}
+
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="w-full bg-white border border-gray-300 hover:bg-gray-50 disabled:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+          >
+            關閉
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

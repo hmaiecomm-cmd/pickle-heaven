@@ -29,7 +29,7 @@ export default async function FeaturesPage() {
         <p className="text-gray-500 mt-1">管理場館的功能訂閱和授權狀態</p>
       </div>
 
-      <FeaturesClient initialModules={modules} initialSubscriptions={subscriptions} />
+      <FeaturesClient initialModules={modules} initialSubscriptions={subscriptions} venueId={venue.id} />
     </div>
   )
 }
