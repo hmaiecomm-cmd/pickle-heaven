@@ -43,6 +43,17 @@ import { AIChatWindow } from '@/components/ai/ai-chat-window'
 
 const OPEN_KEY = 'ph-admin-nav-open'
 
+// 分離菜單標籤中的 Plus/Pro，返回 { name: string, plan: 'PLUS' | 'PRO' | null }
+function parseLabelWithPlan(label: string): { name: string; plan: 'PLUS' | 'PRO' | null } {
+  if (label.endsWith(' Plus')) {
+    return { name: label.slice(0, -5), plan: 'PLUS' }
+  }
+  if (label.endsWith(' Pro')) {
+    return { name: label.slice(0, -4), plan: 'PRO' }
+  }
+  return { name: label, plan: null }
+}
+
 export interface ShellUser {
   username: string
   displayName: string
@@ -241,6 +252,7 @@ function SidebarNav({ user }: { user: ShellUser }) {
                 {/* Section 內的分組 */}
                 {sectionGroups.map((g) => {
                   const Icon = NAV_ICON[g.icon]
+                  const { name: mainLabel, plan: planType } = parseLabelWithPlan(g.label)
                   return g.href ? (
                     <li key={g.key}>
                       <Link
@@ -252,7 +264,20 @@ function SidebarNav({ user }: { user: ShellUser }) {
                         )}
                       >
                         <Icon className="h-5 w-5" strokeWidth={1.9} aria-hidden />
-                        {g.label}
+                        <div className="flex items-center gap-1.5">
+                          <span>{mainLabel}</span>
+                          {planType && (
+                            <span
+                              className={cn(
+                                'text-xs font-normal opacity-50 ml-0.5 transition-opacity group-hover:opacity-70',
+                                planType === 'PLUS' ? 'text-green-100' : 'text-purple-100',
+                              )}
+                              title={planType === 'PLUS' ? '基礎版' : '進階版'}
+                            >
+                              {planType}
+                            </span>
+                          )}
+                        </div>
                       </Link>
                     </li>
                   ) : (
@@ -268,8 +293,19 @@ function SidebarNav({ user }: { user: ShellUser }) {
                       >
                         <Icon className="h-5 w-5 shrink-0" strokeWidth={1.9} aria-hidden />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span>{g.label}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>{mainLabel}</span>
+                            {planType && (
+                              <span
+                                className={cn(
+                                  'text-xs font-normal opacity-50 ml-0.5 transition-opacity',
+                                  planType === 'PLUS' ? 'text-green-100' : 'text-purple-100',
+                                )}
+                                title={planType === 'PLUS' ? '基礎版' : '進階版'}
+                              >
+                                {planType}
+                              </span>
+                            )}
                             {g.comingSoon && (
                               <span className="inline-flex items-center rounded-full bg-amber-100/40 px-2 py-0.5 text-[11px] font-medium text-amber-700">建立中</span>
                             )}
@@ -282,11 +318,10 @@ function SidebarNav({ user }: { user: ShellUser }) {
                         <ul className="mb-1 ml-5 mt-1 space-y-0.5 border-l border-white/15 pl-3">
                           {(() => {
                             const items = g.items!
-                            const itemGroups = g.key === 'settings' ? [...new Set(items.map((i) => i.group))] : [undefined]
+                            const itemGroups = [undefined]
                             return itemGroups.flatMap((itemGroup) => {
-                              const groupItems = g.key === 'settings' ? items.filter((i) => i.group === itemGroup) : items
+                              const groupItems = items
                               return [
-                                ...(itemGroup && g.key === 'settings' ? [<div key={`group-${itemGroup}`} className="mb-2 mt-3 pl-2 text-[11px] font-semibold text-white/50 uppercase tracking-wide">{itemGroup}</div>] : []),
                                 ...groupItems.map((i) => (
                                   <li key={i.href}>
                                     <Link
