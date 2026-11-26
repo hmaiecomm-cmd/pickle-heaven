@@ -14,8 +14,8 @@ export function SubscriptionAddonsTab({
   subscriptions,
   venueId,
 }: SubscriptionAddonsTabProps) {
-  // 功能加購模組（排除基礎方案）
-  const addons = modules.filter((m) => !m.slug.startsWith('plan-'))
+  // 顯示所有功能模塊
+  const addons = modules
   const subscriptionMap = new Map(subscriptions.map((s) => [s.featureModuleId, s]))
 
   const getStatusBadge = (status?: string) => {
