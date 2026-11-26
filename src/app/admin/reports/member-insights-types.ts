@@ -63,6 +63,8 @@ export interface MemberInsightsData {
   dailyActions: DailyAction[]
 }
 
+export const FUNNEL_EXPLANATION = '會員轉換漏斗顯示球友從第一次接觸、首次來場，到再次消費、儲值與購買季卡的轉變。每一層人數下降的地方，就是最需要改善的經營環節。'
+
 export const CHART_META_MEMBER: Record<ChartKeyMember, { title: string; desc: string; explanation: string }> = {
   arpu: {
     title: '會員人均收益',

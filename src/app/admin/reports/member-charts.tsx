@@ -13,31 +13,28 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
 
   return (
     <div className="space-y-4">
-      {/* 圖表選擇器 */}
-      <div className="rounded-2xl border border-[#e3e8dc] bg-white p-4">
-        <label className="text-sm font-semibold text-[#3d4a40]">選擇圖表</label>
-        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-          {CHART_KEYS.map((key) => (
-            <button
-              key={key}
-              onClick={() => onChart(key)}
-              className={cn('rounded-lg px-3 py-2 text-xs font-semibold transition-colors', activeChart === key ? 'bg-[#2f7d3b] text-white' : 'border border-[#d7dfcf] bg-white text-[#3d4a40] hover:bg-[#f6f9f2]')}
+      {/* 圖表主體與選擇器 */}
+      <div className="rounded-2xl border border-[#e3e8dc] bg-white p-4 sm:p-5">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="text-lg font-bold text-[#1f2a22]">營收與會員成長分析</h3>
+          <div className="flex flex-col xs:flex-row gap-2">
+            <label className="text-xs sm:text-sm font-semibold text-[#3d4a40] self-start sm:self-center">選擇圖表：</label>
+            <select
+              value={activeChart}
+              onChange={(e) => onChart(e.target.value as ChartKeyMember)}
+              className="rounded-lg border border-[#d7dfcf] bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-[#3d4a40] hover:bg-[#f6f9f2] focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
             >
-              {CHART_META_MEMBER[key].title}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 圖表主體 */}
-      <div className="rounded-2xl border border-[#e3e8dc] bg-white p-5">
-        <div className="mb-4">
-          <h3 className="text-lg font-bold text-[#1f2a22]">{chartMeta.title}</h3>
-          <p className="mt-1 text-sm text-muted">{chartMeta.desc}</p>
+              {CHART_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {CHART_META_MEMBER[key].title}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* 簡單柱狀圖 */}
-        <div className="mt-6 flex h-64 items-end justify-center gap-2 rounded-lg bg-[#f6f9f2] p-4">
+        <div className="mt-4 flex h-56 sm:h-64 items-end justify-center gap-2 rounded-lg bg-[#f6f9f2] p-3 sm:p-4">
           {chartData.values.length > 0 ? (
             <>
               {chartData.values.map((value, idx) => {
@@ -45,7 +42,7 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
                 const heightPercent = maxValue > 0 ? (value / maxValue) * 100 : 0
                 return (
                   <div key={idx} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="relative flex w-full flex-col items-center justify-end" style={{ height: '200px' }}>
+                    <div className="relative flex w-full flex-col items-center justify-end" style={{ height: '180px' }}>
                       <div className="w-full rounded-t-lg bg-gradient-to-t from-[#2f7d3b] to-[#4a9d5e] transition-all" style={{ height: `${heightPercent}%` }} />
                     </div>
                     <div className="text-xs font-semibold text-[#3d4a40]">{chartData.labels[idx] || `項目 ${idx + 1}`}</div>
@@ -60,19 +57,19 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
         </div>
 
         {/* 資料表 */}
-        <div className="mt-6 overflow-x-auto rounded-lg border border-[#e3e8dc]">
-          <table className="w-full text-sm">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-[#e3e8dc]">
+          <table className="w-full text-xs sm:text-sm">
             <thead className="bg-[#f6f9f2]">
               <tr>
-                <th className="px-4 py-2 text-left font-semibold text-[#3d4a40]">標籤</th>
-                <th className="px-4 py-2 text-right font-semibold text-[#3d4a40]">數值</th>
+                <th className="px-3 sm:px-4 py-2 text-left font-semibold text-[#3d4a40]">標籤</th>
+                <th className="px-3 sm:px-4 py-2 text-right font-semibold text-[#3d4a40]">數值</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e3e8dc]">
               {chartData.labels.map((label, idx) => (
                 <tr key={idx} className="hover:bg-[#fafbf8]">
-                  <td className="px-4 py-2 text-[#1f2a22]">{label}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-[#2f7d3b]">{chartData.values[idx]?.toLocaleString()}</td>
+                  <td className="px-3 sm:px-4 py-2 text-[#1f2a22]">{label}</td>
+                  <td className="px-3 sm:px-4 py-2 text-right font-semibold text-[#2f7d3b]">{chartData.values[idx]?.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>

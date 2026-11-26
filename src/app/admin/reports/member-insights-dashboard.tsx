@@ -35,12 +35,12 @@ export function MemberInsightsDashboard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── 標題與 AI 按鈕 ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1f2a22]">營收與會員成長洞察</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-xs sm:text-sm text-muted">
             {data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天），與前期比較
           </p>
         </div>
@@ -48,7 +48,7 @@ export function MemberInsightsDashboard({
           type="button"
           onClick={runAi}
           disabled={ai.busy}
-          className={cn('flex items-center gap-2 rounded-xl bg-[#2f7d3b] px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70', focusRing)}
+          className={cn('flex items-center gap-2 rounded-xl bg-[#2f7d3b] px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 self-start sm:self-auto', focusRing)}
         >
           {ai.busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
           {ai.busy ? 'AI 分析中' : 'AI 分析'}
@@ -56,21 +56,21 @@ export function MemberInsightsDashboard({
       </div>
 
       {/* ── 四大北極星 KPI ── */}
-      <section aria-label="主要指標" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="主要指標" className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
         <MemberKpiCard icon={TrendingUp} label="會員營收" value={`¥${data.kpi.memberRevenue.value.toLocaleString()}`} kpi={data.kpi.memberRevenue} />
         <MemberKpiCard icon={TrendingUp} label="ARPU" value={`¥${data.kpi.arpu.value}`} kpi={data.kpi.arpu} />
         <MemberKpiCard icon={TrendingUp} label="留存率" value={`${data.kpi.retention.value}%`} kpi={data.kpi.retention} />
         <MemberKpiCard icon={TrendingUp} label="轉化率" value={`${data.kpi.conversion.value}%`} kpi={data.kpi.conversion} />
       </section>
 
-      {/* ── 會員轉換漏斗 ── */}
-      <MemberConversionFunnel steps={data.conversionFunnel} />
-
-      {/* ── 每日行動清單 ── */}
-      <MemberDailyActions actions={data.dailyActions} />
-
-      {/* ── 圖表與分析 ── */}
+      {/* ── 圖表與分析（主要優先） ── */}
       <MemberChartsPanel data={data} activeChart={chart} onChart={setChart} />
+
+      {/* ── 會員轉換漏斗與每日行動（兩欄或單欄） ── */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <MemberConversionFunnel steps={data.conversionFunnel} />
+        <MemberDailyActions actions={data.dailyActions} />
+      </div>
 
       {/* ── AI 分析結果 ── */}
       <section className="rounded-2xl border border-[#e3e8dc] bg-white shadow-[0_1px_3px_rgba(16,24,16,0.05)]">
