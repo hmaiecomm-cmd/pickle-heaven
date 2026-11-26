@@ -83,13 +83,15 @@ export function MemberDemoDataSection() {
     <section data-demo="member-insights" aria-label="示範資料" className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/40 p-3 sm:p-4">
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={bodyId} className="flex min-h-11 w-full items-center gap-2 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
         <FlaskConical className="h-5 w-5 shrink-0 text-amber-700" aria-hidden />
-        <span className="flex-1 text-sm font-bold text-amber-900">DEMO｜示範資料，之後可移除</span>
-        <span className="hidden text-xs text-amber-800 sm:inline">以下數字為虛構，僅示範會員分析呈現方式</span>
+        <span className="flex-1 text-sm font-bold text-amber-900">DEMO｜示範資料</span>
+        <span className="hidden text-xs text-amber-800 sm:inline">以下數字為虛構，僅示範會員分析可能的樣貌</span>
         <ChevronDown className={`h-5 w-5 shrink-0 text-amber-700 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       {open && (
-        <div id={bodyId} className="mt-3 rounded-lg bg-amber-100 p-3 text-sm text-amber-900">
-          <p>此處可顯示示範的會員分析數據。在生產環境中，本節將被移除。</p>
+        <div id={bodyId} className="mt-3 space-y-2">
+          <div className="rounded-lg bg-amber-100/50 px-3 py-2 text-xs text-amber-900">
+            ⚠️ <strong>這些數字不是球館的正式營運資料</strong>，僅用於示範會員分析功能。正式營運後會自動更新為真實數據，之後可完全移除此區塊。
+          </div>
         </div>
       )}
     </section>

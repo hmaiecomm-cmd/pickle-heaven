@@ -78,6 +78,12 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
             </tbody>
           </table>
         </div>
+
+        {/* 圖表說明卡片 */}
+        <div className="mt-4 rounded-xl border border-[#e3e8dc] bg-[#fafbf8] p-3 sm:p-4">
+          <h4 className="text-xs font-bold text-[#1f4d34] sm:text-sm">這張圖表怎麼看？</h4>
+          <p className="mt-2 text-xs leading-relaxed text-[#3d4a40] sm:text-sm">{chartMeta.explanation}</p>
+        </div>
       </div>
     </div>
   )
