@@ -7,6 +7,8 @@ import { pagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
 import { Forbidden } from '@/components/admin/page-bits'
 import { getFeatureModules, getVenueSubscriptions } from '@/lib/feature-service'
+import type { FeatureModuleDisplay, SubscriptionDisplay } from '@/lib/feature-types'
+import type { PlatformPayment, FeatureTier } from '@prisma/client'
 import SubscriptionClient from './subscription-client'
 
 export const metadata = { title: '平台訂購' }
@@ -32,9 +34,9 @@ export default async function PlatformSubscriptionPage() {
     )
   }
 
-  let modules = []
-  let subscriptions = []
-  let payments = []
+  let modules: FeatureModuleDisplay[] = []
+  let subscriptions: (SubscriptionDisplay & { featureModule: FeatureModuleDisplay })[] = []
+  let payments: PlatformPayment[] = []
   let loadError: string | null = null
 
   try {
@@ -88,14 +90,13 @@ export default async function PlatformSubscriptionPage() {
   )
 }
 
-// Mock 資料生成函數
-function getMockModules() {
+function getMockModules(): FeatureModuleDisplay[] {
   return [
     {
       id: 'plan-basic',
       slug: 'plan-basic',
       name: '基礎方案',
-      tier: 'PLUS',
+      tier: 'PLUS' as FeatureTier,
       description: '適合小型球館的基礎方案',
       monthlyPrice: 0,
       yearlyPrice: 0,
@@ -109,7 +110,7 @@ function getMockModules() {
       id: 'plan-growth',
       slug: 'plan-growth',
       name: '成長方案',
-      tier: 'PLUS',
+      tier: 'PLUS' as FeatureTier,
       description: '中型球館專用方案',
       monthlyPrice: 29900,
       yearlyPrice: 299900,
@@ -123,7 +124,7 @@ function getMockModules() {
       id: 'plan-pro',
       slug: 'plan-pro',
       name: '專業方案',
-      tier: 'PRO',
+      tier: 'PRO' as FeatureTier,
       description: '完整功能的專業方案',
       monthlyPrice: 99900,
       yearlyPrice: 999900,

@@ -109,3 +109,5 @@ export function labelMember(history: MemberHistory): MemberLabel {
     status: determineMemberStatus(history),
   }
 }
+
+export const assignMemberLabel = labelMember
