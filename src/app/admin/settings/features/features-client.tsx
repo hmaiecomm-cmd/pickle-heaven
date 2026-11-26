@@ -1,10 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronRight, AlertCircle, CheckCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle } from 'lucide-react'
 import type { FeatureModuleDisplay, SubscriptionDisplay } from '@/lib/feature-types'
-import { getSubscriptionStatusLabel, calculateDaysRemaining } from '@/lib/feature-service'
-import { createFeatureSubscription, renewSubscription, cancelSubscription } from './actions'
+import { calculateDaysRemaining } from '@/lib/feature-service'
 
 interface FeaturesClientProps {
   initialModules: FeatureModuleDisplay[]
@@ -17,6 +16,22 @@ export default function FeaturesClient({ initialModules, initialSubscriptions, v
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [durationMonths, setDurationMonths] = useState<1 | 12>(12)
+
+  // 動態導入 Server Actions
+  const handleCreateSubscription = async (featureModuleId: string, months: 1 | 12) => {
+    const { createFeatureSubscription } = await import('./actions')
+    return createFeatureSubscription(venueId, featureModuleId, months, true)
+  }
+
+  const handleRenewSubscription = async (subscriptionId: string, months: 1 | 12) => {
+    const { renewSubscription } = await import('./actions')
+    return renewSubscription(subscriptionId, months)
+  }
+
+  const handleCancelSubscription = async (subscriptionId: string) => {
+    const { cancelSubscription } = await import('./actions')
+    return cancelSubscription(subscriptionId)
+  }
   const statusSummary = useMemo(() => {
     const active = initialSubscriptions.filter((s) => s.status === 'ACTIVE').length
     const expiringSoon = initialSubscriptions.filter(
@@ -120,8 +135,8 @@ export default function FeaturesClient({ initialModules, initialSubscriptions, v
                       setLoading(true)
                       try {
                         const result = sub
-                          ? await renewSubscription(sub.id, durationMonths)
-                          : await createFeatureSubscription(venueId, module.id, durationMonths, true)
+                          ? await handleRenewSubscription(sub.id, durationMonths)
+                          : await handleCreateSubscription(module.id, durationMonths)
 
                         if (result.success) {
                           const subId = 'newSubscriptionId' in (result.data || {})
@@ -151,7 +166,7 @@ export default function FeaturesClient({ initialModules, initialSubscriptions, v
                       if (sub) {
                         setLoading(true)
                         try {
-                          const result = await cancelSubscription(sub.id)
+                          const result = await handleCancelSubscription(sub.id)
                           if (result.success) {
                             setMessage({
                               type: 'success',
