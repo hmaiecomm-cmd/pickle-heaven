@@ -1722,6 +1722,7 @@ CREATE TABLE "FeatureSubscription" (
     "activatedAt" DATETIME,
     "gracePeriodDays" INTEGER DEFAULT 7,
     "nextRenewalAt" DATETIME,
+    "nextRetryAt" DATETIME,
     "renewalAttempts" INTEGER NOT NULL DEFAULT 0,
     "renewalFailReason" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1729,6 +1730,21 @@ CREATE TABLE "FeatureSubscription" (
     CONSTRAINT "FeatureSubscription_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "FeatureSubscription_featureModuleId_fkey" FOREIGN KEY ("featureModuleId") REFERENCES "FeatureModule" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "FeatureSubscription_platformPaymentId_fkey" FOREIGN KEY ("platformPaymentId") REFERENCES "PlatformPayment" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "VenuePaymentMethod" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "venueId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "cardTokenResult" TEXT,
+    "cardLastFour" TEXT,
+    "cardholderName" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "VenuePaymentMethod_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -2491,6 +2507,15 @@ CREATE INDEX "FeatureSubscription_nextRenewalAt_idx" ON "FeatureSubscription"("n
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FeatureSubscription_venueId_featureModuleId_key" ON "FeatureSubscription"("venueId", "featureModuleId");
+
+-- CreateIndex
+CREATE INDEX "VenuePaymentMethod_venueId_idx" ON "VenuePaymentMethod"("venueId");
+
+-- CreateIndex
+CREATE INDEX "VenuePaymentMethod_isDefault_idx" ON "VenuePaymentMethod"("isDefault");
+
+-- CreateIndex
+CREATE INDEX "VenuePaymentMethod_isActive_idx" ON "VenuePaymentMethod"("isActive");
 
 -- CreateIndex
 CREATE INDEX "PlatformPayment_venueId_idx" ON "PlatformPayment"("venueId");

@@ -149,7 +149,7 @@ export async function overviewData(r: OverviewRange, courtId?: string): Promise<
     revenue: {
       series: revenueSeries,
       sources: [
-        { key: 'court', label: '場地預約', amount: courtRev, available: true },
+        { key: 'court', label: '預約', amount: courtRev, available: true },
         { key: 'event', label: '活動收入', amount: eventRev, available: true },
         { key: 'topup', label: '會員方案（儲值）', amount: topupRev, available: true },
         { key: 'product', label: '商品收入', amount: 0, available: false },

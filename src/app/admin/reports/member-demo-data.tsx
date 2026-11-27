@@ -8,6 +8,7 @@
 import * as React from 'react'
 import { ChevronDown, FlaskConical } from 'lucide-react'
 import type { MemberInsightsData } from './member-insights-types'
+import type { MemberAiInsightResult } from './member-insights-ai'
 
 export const MockMemberInsightsData: MemberInsightsData = {
   range: { key: '30', from: '2026-10-27', to: '2026-11-26', days: 31, prevFrom: '2026-09-27', prevTo: '2026-10-26' },
@@ -94,6 +95,26 @@ export const MockMemberInsightsData: MemberInsightsData = {
   ],
 }
 
+export const DemoAiInsightResult: MemberAiInsightResult = {
+  findings: [
+    '會員營收佔總營收 64.2%，代表儲值與卡類會員已形成穩定收入',
+    '平日下午使用率只有 28%，是當前最大的營收提升機會',
+    '高頻臨打客（7 位）本月消費 3 次以上但尚未儲值，轉換潛力大',
+  ],
+  issues: [
+    '平日中午到下午的使用率偏低（28%），場地有閒置風險',
+    '單次體驗客（35 位）中有 65% 未再次消費，新客留存待改善',
+    '沉睡會員（12 位）已超過 30 天未消費，需主動喚回',
+  ],
+  actions: [
+    '針對曾在平日下午消費、但本週尚未預約的會員推出 75 折離峰券',
+    '對 7 位高頻臨打客推送儲值加贈方案，預計月營收增加 10%',
+    '針對沉睡會員發送回訪訊息，搭配優惠課程試上機會',
+    '強化首次消費後的提醒機制，提升單次客轉率（目標 50%）',
+  ],
+  generatedAt: new Date().toISOString(),
+}
+
 export function MemberDemoDataSection() {
   const [open, setOpen] = React.useState(false)
   const bodyId = React.useId()
@@ -101,14 +122,25 @@ export function MemberDemoDataSection() {
     <section data-demo="member-insights" aria-label="示範資料" className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/40 p-3 sm:p-4">
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={bodyId} className="flex min-h-11 w-full items-center gap-2 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
         <FlaskConical className="h-5 w-5 shrink-0 text-amber-700" aria-hidden />
-        <span className="flex-1 text-sm font-bold text-amber-900">DEMO｜示範資料</span>
-        <span className="hidden text-xs text-amber-800 sm:inline">以下數字為虛構，僅示範會員分析可能的樣貌</span>
+        <span className="flex-1 text-sm font-bold text-amber-900">DEMO｜營收與會員成長示範資料</span>
+        <span className="hidden text-xs text-amber-800 sm:inline">以下為虛構資料，僅示範球館正式使用系統後可能看到的報表內容</span>
         <ChevronDown className={`h-5 w-5 shrink-0 text-amber-700 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       {open && (
-        <div id={bodyId} className="mt-3 space-y-2">
+        <div id={bodyId} className="mt-3 space-y-3">
           <div className="rounded-lg bg-amber-100/50 px-3 py-2 text-xs text-amber-900">
-            ⚠️ <strong>這些數字不是球館的正式營運資料</strong>，僅用於示範會員分析功能。正式營運後會自動更新為真實數據，之後可完全移除此區塊。
+            <strong>✨ 目前正在查看 DEMO 示範資料</strong>
+            <p className="mt-1">以下為虛構資料，僅示範球館正式使用系統後可能看到的報表內容，並非目前正式營運資料。正式營運後會自動更新為真實數據，之後可完全移除此區塊。</p>
+          </div>
+          <div className="text-xs text-amber-800 space-y-2 pt-2 border-t border-amber-200">
+            <p><strong>DEMO 資訊：</strong></p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>場館：大新店森林匹克球</li>
+              <li>場地：A 場、B 場（2 面）</li>
+              <li>營業時間：每日 08:00～23:00</li>
+              <li>示範期間：2026 年 11 月 1 日～30 日（近 30 天）</li>
+              <li>示範會員數：120 位</li>
+            </ul>
           </div>
         </div>
       )}

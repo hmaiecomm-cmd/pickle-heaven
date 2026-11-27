@@ -67,7 +67,7 @@ export function PlanCard({ package: pkg, expanded = false, onToggleExpand }: Pla
       {expanded && (
         <div className={styles.detailsContent}>
           <p>
-            此方案提供彈性的場地預約安排，所有優勢均包含在內。
+            此方案提供彈性的預約安排，所有優勢均包含在內。
             如有任何疑問，歡迎透過 LINE 與我們聯絡。
           </p>
         </div>

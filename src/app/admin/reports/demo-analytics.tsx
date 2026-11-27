@@ -56,16 +56,16 @@ export const MockAnalyticsData: OverviewData = {
     { id: 'demo-b', name: 'B 場', status: 'IN_USE', rate: 64 },
   ],
   revenue: {
-    // 7 天營收明細：近 7 天平均日營收 ~26,628，主要由場地預約、會員儲值組成
+    // 7 天營收明細：近 7 天平均日營收 ~26,628，主要由預約、會員儲值組成
     series: [26600, 26500, 26700, 26800, 26400, 26600, 26800].map((total, i) => ({
       label: DAYS[i],
-      court: Math.round(total * 0.44),    // 場地預約 44%
+      court: Math.round(total * 0.44),    // 預約 44%
       event: Math.round(total * 0.00),   // 活動收入 0%
       topup: total - Math.round(total * 0.44),  // 會員儲值 56%
       total
     })),
     sources: [
-      { key: 'court', label: '場地預約', amount: 82000, available: true },
+      { key: 'court', label: '預約', amount: 82000, available: true },
       { key: 'topup', label: '會員儲值', amount: 104400, available: true },
       { key: 'event', label: '活動收入', amount: 0, available: false },
       { key: 'product', label: '商品與租借', amount: 0, available: false },

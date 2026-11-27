@@ -62,7 +62,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
 
   {
     key: 'courts',
-    label: '場地預約 Plus',
+    label: '預約與訂單 Plus',
     icon: 'courts',
     section: 'plus',
     items: [
@@ -154,7 +154,7 @@ export const ALIAS_PATHS: Record<string, string> = {
   '/admin/templates': '/admin/marketing',
   '/admin/incidents': '/admin/monitor?tab=events',
   '/admin/automation': '/admin/devices', // 無人營運管理／設備智慧排程
-  // 訂單紀錄相關別名 - 全部歸到 /admin/bookings（場地預約下的訂單紀錄）
+  // 訂單紀錄相關別名 - 全部歸到 /admin/bookings（預約與訂單下的訂單紀錄）
   '/admin/bookings/products': '/admin/bookings',
   '/admin/product-orders': '/admin/bookings',
   // 財務相關別名 - 全部歸到 /admin/finance

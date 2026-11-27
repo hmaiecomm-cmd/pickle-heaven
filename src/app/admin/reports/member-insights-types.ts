@@ -69,7 +69,7 @@ export const CHART_META_MEMBER: Record<ChartKeyMember, { title: string; desc: st
   arpu: {
     title: '會員人均收益',
     desc: '追蹤人均收益趨勢',
-    explanation: '這張圖表顯示平均每位會員為球館帶來的營收。數值上升代表會員的平均消費金額在增加，可能來自更多的場地預約或更高的儲值金額。'
+    explanation: '這張圖表顯示平均每位會員為球館帶來的營收。數值上升代表會員的平均消費金額在增加，可能來自更多的預約或更高的儲值金額。'
   },
   retention: {
     title: '留存率曲線',

@@ -329,7 +329,7 @@ const REV_COLORS = {
   topup: "#b9dea0",
 } as const;
 const REV_LABEL = {
-  court: "場地預約",
+  court: "預約",
   event: "活動收入",
   topup: "會員方案（儲值）",
 } as const;

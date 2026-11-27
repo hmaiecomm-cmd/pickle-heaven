@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         bookingId: booking.id,
         bookingCode: booking.code,
         amount: booking.total,
-        description: `${booking.venue.name} 場地預約 ${booking.items.length} 個時段`,
+        description: `${booking.venue.name} 預約 ${booking.items.length} 個時段`,
         itemNames: booking.items.map((i) => i.courtName),
         customer: { name: booking.contactName, phone: booking.contactPhone, email: booking.user.email },
         returnUrl: '',

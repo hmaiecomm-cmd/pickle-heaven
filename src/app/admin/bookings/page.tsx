@@ -105,7 +105,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
 
   // 根據 tab 設定標題和描述
   const titleConfig = {
-    venue: { title: '場地訂單', desc: '查看與管理顧客的場地預約訂單。' },
+    venue: { title: '場地訂單', desc: '查看與管理顧客的預約訂單。' },
     activity: { title: '活動訂單', desc: '查看與管理顧客的活動報名訂單。' },
     products: { title: '商品訂單', desc: '查看與管理顧客的商品訂單。' },
     points: { title: '點數與票券', desc: '查看顧客的點數交易與票券記錄。' },

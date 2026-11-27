@@ -14,7 +14,7 @@ import { EngineerToggle } from './engineer-toggle'
 export const dynamic = 'force-dynamic'
 
 const GRID_ITEMS = [
-  { id: 'courts', label: '場地預約', href: '/admin/schedule', permission: 'courts' as const, icon: CalendarDays },
+  { id: 'courts', label: '預約與訂單', href: '/admin/schedule', permission: 'courts' as const, icon: CalendarDays },
   { id: 'orders', label: '訂單紀錄', href: '/admin/bookings', permission: 'bookings' as const, icon: CreditCard },
   { id: 'operations', label: '無人營運管理', href: '/admin/devices', permission: 'device' as const, icon: Layers },
   { id: 'monitoring', label: 'AI 即時監控', href: '/admin/monitor', permission: 'monitor' as const, icon: Cctv },

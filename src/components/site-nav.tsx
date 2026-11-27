@@ -12,9 +12,9 @@ import { currentPath, useAuth } from '@/components/auth-provider'
 import { LoginButtons } from '@/components/login-buttons'
 import type { SessionUser } from '@/lib/types'
 
-/** 右側選單的項目順序固定：場地預約、活動、商城、場地包期、教練課堂、點數與票券、我的帳戶 */
+/** 右側選單的項目順序固定：預約、活動、商城、場地包期、教練課堂、點數與票券、我的帳戶 */
 const MENU = [
-  { href: '/booking', label: '場地預約', icon: CalendarDays },
+  { href: '/booking', label: '預約', icon: CalendarDays },
   { href: '/sessions', label: '活動', icon: Users },
   { href: '/shop', label: '商城', icon: Package },
   { href: '/court-packages', label: '場地包期', icon: Calendar },

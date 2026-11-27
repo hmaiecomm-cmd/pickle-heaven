@@ -109,7 +109,7 @@ export class MockMemberOperationsAIProvider implements MemberOperationsAIProvide
       }
     }
 
-    const response = mockResponses[input.painPoint] || mockResponses['default']
+    const response = mockResponses[input.painPoint as keyof typeof mockResponses] || mockResponses['default']
 
     return {
       ...response,
@@ -124,7 +124,7 @@ export class MockMemberOperationsAIProvider implements MemberOperationsAIProvide
       'card-renewal': `📅 季卡即將到期！續約享 9 折 + 專屬福利，${memberCount} 位會員已續約 👉 立即續約`,
       'default': `💚 專為你設計的優惠方案！立即查看 👉 點擊連結`
     }
-    return templates[painPoint] || templates['default']
+    return templates[painPoint as keyof typeof templates] || templates['default']
   }
 
   async generateCommunicationPlan(painPoint: string, memberData: any): Promise<string> {

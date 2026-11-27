@@ -25,7 +25,7 @@ const fmtMinute = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
 const fmtDateTime = (d: Date) => `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 const API_STATUS: { name: string; mode: 'live' | 'mock' }[] = [
-  { name: '場地預約、訂單、付款（Turso）', mode: 'live' },
+  { name: '預約與訂單、付款（Turso）', mode: 'live' },
   { name: '球敘與範本（Turso）', mode: 'live' },
   { name: '營收與財務（Turso）', mode: 'live' },
   { name: '球場與裝置清單（Turso）', mode: 'live' },

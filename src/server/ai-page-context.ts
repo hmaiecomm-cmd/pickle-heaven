@@ -44,7 +44,7 @@ function getPageInfo(pageUrl: string): PageInfo {
     return {
       name: '智慧排程與場地',
       section: 'booking',
-      description: '管理場地預約、時段設定、場地規則',
+      description: '管理預約、時段設定、場地規則',
     }
   }
   if (pageUrl.includes('/admin/bookings')) {

@@ -9,9 +9,12 @@ import { MemberKpiCard } from './member-kpi-card'
 import { MemberConversionFunnel } from './member-conversion-funnel'
 import { MemberChartsPanel } from './member-charts'
 import { MemberDailyActions } from './member-daily-actions'
-import { MemberDemoDataSection } from './member-demo-data'
+import { MemberDemoDataSection, DemoAiInsightResult } from './member-demo-data'
+import type { MemberAiInsightProvider } from './member-insights-ai'
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7cb342] focus-visible:ring-offset-1'
+
+const demoDemoAiProvider: MemberAiInsightProvider = async () => DemoAiInsightResult
 
 export function MemberInsightsDashboard({
   data,
@@ -26,7 +29,7 @@ export function MemberInsightsDashboard({
 }) {
   const [chart, setChart] = React.useState<ChartKeyMember>(initialChart)
   const [aiOpen, setAiOpen] = React.useState(false)
-  const ai = useMemberAiInsight()
+  const ai = useMemberAiInsight(isDemo ? demoDemoAiProvider : undefined)
 
   if (!data.hasData) {
     return <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center text-sm text-muted">尚無會員資料</div>

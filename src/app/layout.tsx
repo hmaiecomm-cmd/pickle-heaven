@@ -16,14 +16,14 @@ import { ConsentGate } from '@/components/consent-gate'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${brand.name}｜場地預約`,
+    default: `${brand.name}｜預約`,
     template: `%s｜${brand.name}`,
   },
   description: brand.description,
   applicationName: brand.name,
   formatDetection: { telephone: false, address: false, email: false },
   openGraph: {
-    title: `${brand.name}｜場地預約`,
+    title: `${brand.name}｜預約`,
     description: brand.description,
     siteName: brand.name,
     locale: 'zh_TW',

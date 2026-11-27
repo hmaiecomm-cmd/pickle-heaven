@@ -82,7 +82,7 @@ export function previewRescheduleBooking(
 1. 將預約日期從 ${fromDate} 改為 ${toDate}
 2. 釋放原時段，佔用新時段
 3. 發送改期通知給客人
-4. 更新所有相關的場地預約
+4. 更新所有相關的預約
 
 ⚠️ 注意：新時段必須有空位才能改期
     `,

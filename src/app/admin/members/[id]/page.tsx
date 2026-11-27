@@ -107,7 +107,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
       {tab === 'bookings' && (
         <div className="space-y-4">
           <Card title={`即將到來的預約（${upcomingBookings.length}）`}>
-            <BookingList rows={upcomingBookings} showMoney={showMoney} empty="沒有即將到來的場地預約" />
+            <BookingList rows={upcomingBookings} showMoney={showMoney} empty="沒有即將到來的預約" />
           </Card>
           <Card title={`即將到來的活動報名（${upcomingRegs.length}）`}>
             <RegList rows={upcomingRegs} empty="沒有即將到來的活動報名" />
@@ -274,7 +274,7 @@ export default async function MemberDetailPage({ params, searchParams }: { param
                   <span className="font-medium">禁止報名活動</span>：禁止報名新活動、加入候補，但仍可預約場地
                 </li>
                 <li>
-                  <span className="font-medium">禁止預約</span>：禁止新增場地預約，但仍可報名活動
+                  <span className="font-medium">禁止預約</span>：禁止新增預約，但仍可報名活動
                 </li>
                 <li>
                   <span className="font-medium">禁止下單</span>：禁止新增購物訂單

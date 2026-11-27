@@ -130,5 +130,5 @@ function calculateEstimatedRevenue(theme: string): number {
     'member-segmentation': 30000
   }
 
-  return estimates[theme] || 10000
+  return estimates[theme as keyof typeof estimates] || 10000
 }

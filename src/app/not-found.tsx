@@ -8,7 +8,7 @@ export default function NotFound() {
       <h1 className="mt-4 text-lg font-semibold">找不到這個頁面</h1>
       <p className="mt-1.5 text-sm text-muted">頁面可能已被移除，或連結不正確。</p>
       <Button asChild className="mt-6">
-        <Link href="/booking">回到場地預約</Link>
+        <Link href="/booking">回到預約</Link>
       </Button>
     </div>
   )

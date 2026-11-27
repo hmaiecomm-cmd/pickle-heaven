@@ -6,7 +6,7 @@ import { dateRange, isValidDateString, taipeiDateString } from '@/lib/time'
 import { BookingBoard } from '@/components/booking/booking-board'
 import { Card, CardContent } from '@/components/ui/card'
 
-export const metadata: Metadata = { title: '場地預約' }
+export const metadata: Metadata = { title: '預約與訂單' }
 export const dynamic = 'force-dynamic'
 
 export default async function BookingPage({

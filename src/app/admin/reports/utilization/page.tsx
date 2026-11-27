@@ -35,7 +35,7 @@ export default async function UtilizationPage({
           <UtilizationDashboard data={data} initialChart={chart} />
           <SourceNote
             source="預約、營收與會員紀錄"
-            basis="使用率＝場地預約時段 ÷ 營業時段；RevPASH＝場地實收營收 ÷ 實際售出時數；空場損失＝可售時數 × 預估原價 − 實際營收"
+            basis="使用率＝預約時段 ÷ 營業時段；RevPASH＝場地實收營收 ÷ 實際售出時數；空場損失＝可售時數 × 預估原價 − 實際營收"
             updatedAt={new Date()}
           />
         </>

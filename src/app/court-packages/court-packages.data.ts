@@ -29,7 +29,7 @@ export const courtPackages: CourtPackage[] = [
     name: '短期方案',
     description: '彈性試用，快速體驗',
     validity: '30 天內有效',
-    includedUsage: '10 次場地預約',
+    includedUsage: '10 次預約',
     advantages: [
       '無長期綁約，彈性安排',
       '隨時調整預約時間',
@@ -43,7 +43,7 @@ export const courtPackages: CourtPackage[] = [
     name: '半年方案',
     description: '常規選擇，穩定享受',
     validity: '6 個月內有效',
-    includedUsage: '48 次場地預約',
+    includedUsage: '48 次預約',
     advantages: [
       '平均每月 8 次預約機會',
       '享受會員優惠與積分回饋',
@@ -57,7 +57,7 @@ export const courtPackages: CourtPackage[] = [
     name: '年度方案',
     description: '最高優惠，盡情享受',
     validity: '12 個月內有效',
-    includedUsage: '104 次場地預約',
+    includedUsage: '104 次預約',
     advantages: [
       '平均每月超過 8 次預約機會',
       '享受最高會員折扣',
