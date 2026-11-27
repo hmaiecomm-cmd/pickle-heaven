@@ -6,12 +6,24 @@ import { mainPrisma } from '@/lib/db'
 import type { FeatureModuleDisplay, SubscriptionDisplay } from '@/lib/feature-types'
 
 export async function getFeatureModules(available?: boolean): Promise<FeatureModuleDisplay[]> {
-  const modules = await mainPrisma.featureModule.findMany({
-    where: available !== undefined ? { isAvailable: available } : undefined,
-    orderBy: [{ tier: 'asc' }, { createdAt: 'asc' }],
-  })
+  try {
+    const modules = await mainPrisma.featureModule.findMany({
+      where: available !== undefined ? { isAvailable: available } : undefined,
+      orderBy: [{ tier: 'asc' }, { createdAt: 'asc' }],
+    })
 
-  return modules.map(parseFeatureModule)
+    const result = modules.map(parseFeatureModule)
+    if (available !== undefined) {
+      console.info(`[getFeatureModules] available=${available}, 返回 ${result.length} 個模組`)
+    }
+    return result
+  } catch (error) {
+    console.error('[getFeatureModules] 查詢失敗', {
+      available,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
 }
 
 export async function getFeatureModule(id: string): Promise<FeatureModuleDisplay | null> {
