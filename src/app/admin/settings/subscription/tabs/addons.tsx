@@ -26,10 +26,10 @@ export function SubscriptionAddonsTab({
 
   const getStatusBadge = (status?: string) => {
     const statusConfig = {
-      ACTIVE: { badge: 'bg-green-100 text-green-800', text: '已啟用', icon: CheckCircle },
+      ACTIVE: { badge: 'bg-green-100 text-green-800', text: '已架構', icon: CheckCircle },
       PENDING_PAYMENT: { badge: 'bg-blue-100 text-blue-800', text: '待付款', icon: AlertCircle },
       EXPIRED: { badge: 'bg-gray-100 text-gray-800', text: '已過期', icon: AlertCircle },
-      INCLUDED: { badge: 'bg-purple-100 text-purple-800', text: '已包含', icon: CheckCircle },
+      INCLUDED: { badge: 'bg-green-100 text-green-800', text: '已架構', icon: CheckCircle },
       AVAILABLE: { badge: 'bg-amber-100 text-amber-800', text: '可加購', icon: Zap },
       DRAFT: { badge: 'bg-gray-50 text-gray-700', text: '尚未啟用', icon: AlertCircle },
     }
@@ -111,18 +111,18 @@ export function SubscriptionAddonsTab({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {addons.map((addon) => {
               const subscription = subscriptionMap.get(addon.id)
-              const status = subscription?.status || (addon.slug.includes('included') ? 'INCLUDED' : 'AVAILABLE')
+              // 如果訂閱是 ACTIVE，則顯示為「已架構」
+              const isActive = subscription?.status === 'ACTIVE'
+              const status = subscription?.status || 'AVAILABLE'
               const config = getStatusBadge(status)
 
               return (
                 <div
                   key={addon.id}
                   className={`border-2 rounded-lg p-5 transition-all ${
-                    status === 'ACTIVE'
+                    isActive
                       ? 'border-green-300 bg-green-50'
-                      : status === 'INCLUDED'
-                        ? 'border-purple-200 bg-purple-50'
-                        : 'border-gray-200 hover:border-green-300 bg-white'
+                      : 'border-gray-200 hover:border-green-300 bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -171,16 +171,14 @@ export function SubscriptionAddonsTab({
 
                   <button
                     onClick={() => handleAddonsClick(addon.id)}
-                    disabled={status === 'INCLUDED' || status === 'ACTIVE'}
+                    disabled={isActive}
                     className={`w-full py-2 rounded-lg font-medium text-sm transition-colors ${
-                      status === 'INCLUDED'
-                        ? 'bg-purple-100 text-purple-800 cursor-default'
-                        : status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-800 cursor-default'
-                          : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                      isActive
+                        ? 'bg-green-100 text-green-800 cursor-default'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
                     }`}
                   >
-                    {status === 'INCLUDED' ? '已包含' : status === 'ACTIVE' ? '已啟用' : '加購功能'}
+                    {isActive ? '已架構' : '加購功能'}
                   </button>
                 </div>
               )
