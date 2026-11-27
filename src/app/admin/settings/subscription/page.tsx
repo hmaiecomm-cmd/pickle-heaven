@@ -83,9 +83,12 @@ export default async function PlatformSubscriptionPage() {
   } catch (error) {
     // 記錄詳細的伺服器端錯誤供維運排查
     const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorCode = error instanceof Error && 'code' in error ? (error as any).code : 'UNKNOWN'
     console.error('[SubscriptionPage] 資料庫查詢失敗', {
       error: errorMsg,
+      code: errorCode,
       stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
     })
     // 不把 SQLite/Prisma 內部錯誤直接顯示給使用者
     loadError = '訂閱資料庫暫時無法載入，目前先顯示示範資料。請稍後重新整理。'
