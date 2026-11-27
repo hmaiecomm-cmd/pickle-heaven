@@ -36,6 +36,16 @@ export default function SubscriptionClient({
   initialPaymentMethods = [],
   activeSubscriptions = [],
 }: SubscriptionClientProps) {
+  // 診斷日誌
+  if (typeof window !== 'undefined') {
+    console.log('[SubscriptionClient]', {
+      modulesCount: initialModules.length,
+      subscriptionsCount: initialSubscriptions.length,
+      firstModule: initialModules[0]?.id,
+      firstSubscription: initialSubscriptions[0]?.id,
+    })
+  }
+
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   // 保存 tab 狀態到 URL query parameter
