@@ -37,22 +37,35 @@ export default async function PlatformSubscriptionPage() {
   let modules: FeatureModuleDisplay[] = []
   let subscriptions: (SubscriptionDisplay & { featureModule: FeatureModuleDisplay })[] = []
   let payments: PlatformPayment[] = []
+  let paymentMethods: any[] = []
+  let activeSubscriptions: any[] = []
   let loadError: string | null = null
 
   try {
-    const [fetchedModules, fetchedSubscriptions, fetchedPayments] = await Promise.all([
-      getFeatureModules(),
-      getVenueSubscriptions(venue.id),
-      prisma.platformPayment.findMany({
-        where: { venueId: venue.id },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-    ])
+    const [fetchedModules, fetchedSubscriptions, fetchedPayments, fetchedMethods, fetchedActive] =
+      await Promise.all([
+        getFeatureModules(),
+        getVenueSubscriptions(venue.id),
+        prisma.platformPayment.findMany({
+          where: { venueId: venue.id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        prisma.venuePaymentMethod.findMany({
+          where: { venueId: venue.id, isActive: true },
+          orderBy: { isDefault: 'desc' },
+        }),
+        prisma.featureSubscription.findMany({
+          where: { venueId: venue.id, status: 'ACTIVE' },
+          include: { featureModule: true },
+        }),
+      ])
 
     modules = fetchedModules || []
     subscriptions = fetchedSubscriptions || []
     payments = fetchedPayments || []
+    paymentMethods = fetchedMethods || []
+    activeSubscriptions = fetchedActive || []
 
     // 若無功能資料，使用 mock
     if (!modules || modules.length === 0) {
@@ -60,7 +73,8 @@ export default async function PlatformSubscriptionPage() {
     }
   } catch (error) {
     console.error('[SubscriptionPage] 載入資料失敗：', error)
-    loadError = error instanceof Error ? error.message : '未知錯誤'
+    // 不把 SQLite/Prisma 內部錯誤直接顯示給使用者；記錄留在伺服器端供維運排查。
+    loadError = '訂閱資料庫尚未完成同步，目前先顯示方案設定畫面。'
     modules = getMockModules()
   }
 
@@ -85,6 +99,8 @@ export default async function PlatformSubscriptionPage() {
         initialModules={modules}
         initialSubscriptions={subscriptions}
         initialPayments={payments}
+        initialPaymentMethods={paymentMethods}
+        activeSubscriptions={activeSubscriptions}
       />
     </div>
   )
@@ -100,7 +116,7 @@ function getMockModules(): FeatureModuleDisplay[] {
       description: '完整的場館預約、會員管理與訂單系統',
       monthlyPrice: 500000, // 5000/月（單位：美分）
       yearlyPrice: 5400000, // 54000/年
-      features: ['場地預約', '會員管理', '訂單管理', '財務報表'],
+      features: ['預約與訂單', '會員管理', '訂單管理', '財務報表'],
       isAvailable: true,
       launchedAt: new Date('2026-01-01'),
       createdAt: new Date('2026-01-01'),

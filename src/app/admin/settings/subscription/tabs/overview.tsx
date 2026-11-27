@@ -14,11 +14,18 @@ export function SubscriptionOverviewTab({
   subscriptions,
   venueId,
 }: SubscriptionOverviewTabProps) {
-  // 分離基礎方案和成長方案
+  // 舊資料以「功能模組」記錄訂閱，不一定有 plan-* 方案記錄。
+  // 因此只要所有可販售模組都已啟用，就顯示為全功能方案。
+  const availableModules = modules.filter((m) => m.isAvailable)
+  const activeSubscriptions = subscriptions.filter((s) => s.status === 'ACTIVE')
+  const allFeaturesSubscribed = availableModules.length > 0 && availableModules.every((m) =>
+    activeSubscriptions.some((s) => s.featureModuleId === m.id),
+  )
   const planModules = modules.filter((m) => m.tier === 'PLUS' && m.slug.startsWith('plan-'))
   const currentPlan = subscriptions.find((s) => s.featureModule.slug.startsWith('plan-'))
+  const representativeSubscription = currentPlan || activeSubscriptions[0]
 
-  const currentStatus = currentPlan?.status || 'DRAFT'
+  const currentStatus = currentPlan?.status || (allFeaturesSubscribed ? 'ACTIVE' : 'DRAFT')
   const statusConfig = {
     ACTIVE: { badge: 'bg-green-100 text-green-800', text: '使用中', icon: CheckCircle },
     PENDING_PAYMENT: {
@@ -38,12 +45,18 @@ export function SubscriptionOverviewTab({
       {/* 目前方案卡片 */}
       <div>
         <h2 className="text-lg font-semibold mb-4">目前平台方案</h2>
-        {currentPlan ? (
+        {currentPlan || allFeaturesSubscribed ? (
           <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-lg p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">{currentPlan.featureModule.name}</h3>
-                <p className="text-gray-600 text-sm mt-1">{currentPlan.featureModule.description}</p>
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {allFeaturesSubscribed && !currentPlan ? '全功能訂閱方案' : currentPlan?.featureModule.name}
+                </h3>
+                <p className="text-gray-600 text-sm mt-1">
+                  {allFeaturesSubscribed && !currentPlan
+                    ? `已包含 ${activeSubscriptions.length} 項平台功能，全部功能皆可使用`
+                    : currentPlan?.featureModule.description}
+                </p>
               </div>
               <span
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-medium text-sm ${config.badge}`}
@@ -57,25 +70,25 @@ export function SubscriptionOverviewTab({
               <div>
                 <p className="text-xs text-gray-600 font-medium">訂閱開始</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {currentPlan.startsAt.toLocaleDateString('zh-TW')}
+                  {representativeSubscription?.startsAt.toLocaleDateString('zh-TW') || '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">下次扣款</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {currentPlan.expiresAt.toLocaleDateString('zh-TW')}
+                  {representativeSubscription?.expiresAt.toLocaleDateString('zh-TW') || '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">付款週期</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {currentPlan.daysRemaining >= 300 ? '年度' : '月度'}
+                  {representativeSubscription && representativeSubscription.daysRemaining >= 300 ? '年度' : '月度'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">自動續訂</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {currentPlan.autoRenew ? '已啟用' : '已停用'}
+                  {representativeSubscription?.autoRenew ? '已啟用' : '已停用'}
                 </p>
               </div>
             </div>
@@ -85,17 +98,12 @@ export function SubscriptionOverviewTab({
                 <div>
                   <p className="text-xs text-gray-600 font-medium">本期費用</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    ${(currentPlan.featureModule.monthlyPrice / 100).toFixed(2)}
+                    {allFeaturesSubscribed && !currentPlan
+                      ? '已訂購'
+                      : `$${((currentPlan?.featureModule.monthlyPrice || 0) / 100).toFixed(2)}`}
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <button className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium text-sm transition-colors">
-                    管理方案
-                  </button>
-                  <button className="px-4 py-2 rounded-lg border border-green-600 text-green-700 hover:bg-green-50 font-medium text-sm transition-colors">
-                    查看發票
-                  </button>
-                </div>
+                <a href="?tab=billing" className="inline-block px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium text-sm transition-colors">管理方案</a>
               </div>
             </div>
           </div>
@@ -108,9 +116,9 @@ export function SubscriptionOverviewTab({
                 <p className="text-sm text-amber-800 mt-1">
                   選擇適合的方案開始使用完整功能
                 </p>
-                <button className="mt-4 px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 font-medium text-sm transition-colors">
+                <a href="?tab=addons" className="inline-block mt-4 px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 font-medium text-sm transition-colors">
                   立即升級
-                </button>
+                </a>
               </div>
             </div>
           </div>

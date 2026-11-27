@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { FeatureModuleDisplay, SubscriptionDisplay } from '@/lib/feature-types'
-import type { PlatformPayment } from '@prisma/client'
+import type { PlatformPayment, VenuePaymentMethod, FeatureSubscription, FeatureModule } from '@prisma/client'
 import { SubscriptionOverviewTab } from './tabs/overview'
 import { SubscriptionAddonsTab } from './tabs/addons'
 import { SubscriptionBillingTab } from './tabs/billing'
@@ -16,6 +16,8 @@ interface SubscriptionClientProps {
   initialModules: FeatureModuleDisplay[]
   initialSubscriptions: (SubscriptionDisplay & { featureModule: FeatureModuleDisplay })[]
   initialPayments: PlatformPayment[]
+  initialPaymentMethods?: VenuePaymentMethod[]
+  activeSubscriptions?: (FeatureSubscription & { featureModule: FeatureModule })[]
 }
 
 const TABS: { id: TabType; label: string; aria?: string }[] = [
@@ -31,6 +33,8 @@ export default function SubscriptionClient({
   initialModules,
   initialSubscriptions,
   initialPayments,
+  initialPaymentMethods = [],
+  activeSubscriptions = [],
 }: SubscriptionClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
@@ -97,6 +101,8 @@ export default function SubscriptionClient({
           <SubscriptionBillingTab
             payments={initialPayments}
             venueId={venueId}
+            paymentMethods={initialPaymentMethods}
+            subscriptions={activeSubscriptions}
           />
         )}
 

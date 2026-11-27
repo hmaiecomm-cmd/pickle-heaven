@@ -233,6 +233,8 @@ enum SubscriptionStatus {
   EXPIRED         // 已過期
   CANCELLED       // 已取消
   PENDING_PAYMENT // 待付款
+  GRACE_PERIOD    // 寬限期（付款失敗進入）
+  RENEWAL_FAILED  // 續約失敗
 }
 
 enum PlatformPaymentStatus {
@@ -370,6 +372,7 @@ model Venue {
   productOrders       ProductOrder[]
   featureSubscriptions FeatureSubscription[]
   platformPayments    PlatformPayment[]
+  paymentMethods      VenuePaymentMethod[]
 }
 
 /// 場地（球場）
@@ -3323,6 +3326,7 @@ model FeatureSubscription {
   // Phase 2：自動續約配置
   gracePeriodDays Int?           @default(7)   // 寬限期天數（付款失敗時延長使用）
   nextRenewalAt   DateTime?                     // 下次自動續約時間
+  nextRetryAt     DateTime?                     // 下次重試時間（寬限期內）
   renewalAttempts Int            @default(0)   // 續約嘗試次數
   renewalFailReason String?                    // 最後一次續約失敗原因
 
@@ -3339,6 +3343,34 @@ model FeatureSubscription {
   @@index([status])
   @@index([expiresAt])
   @@index([nextRenewalAt])
+}
+
+/// 場館綁定的支付方式（用於自動續約）
+model VenuePaymentMethod {
+  id              String    @id @default(cuid())
+  venueId         String
+
+  // 金流方式
+  provider        String    // "tappay" | "newebpay" | "linepay"
+
+  // TapPay 專用
+  cardTokenResult String?   // TapPay cardToken JSON
+  cardLastFour    String?   // 卡號末四碼（XXXX1234）
+  cardholderName  String?   // 持卡人名稱
+
+  // 狀態
+  isDefault       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  // 時間
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  venue           Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([isDefault])
+  @@index([isActive])
 }
 
 /// 平台金流（與 Payment 完全分離）
