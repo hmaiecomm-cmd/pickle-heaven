@@ -67,6 +67,14 @@ export default async function PlatformSubscriptionPage() {
     paymentMethods = fetchedMethods || []
     activeSubscriptions = fetchedActive || []
 
+    // 診斷日誌
+    console.info('[SubscriptionPage] 資料載入完成', {
+      modulesCount: modules.length,
+      subscriptionsCount: subscriptions.length,
+      activeSubscriptionsCount: activeSubscriptions.length,
+      firstModule: modules[0] ? { id: modules[0].id, name: modules[0].name, isAvailable: modules[0].isAvailable } : null,
+    })
+
     // 若無功能資料，才使用 mock（通常不會發生）
     if (!modules || modules.length === 0) {
       console.warn('[SubscriptionPage] 無可用功能模組，使用 mock 資料')
