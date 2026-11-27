@@ -56,6 +56,8 @@ export interface MemberInsightsData {
     arpu: MemberKpi
     retention: MemberKpi
     conversion: MemberKpi
+    activeMembers: MemberKpi
+    retention30d: MemberKpi
   }
   conversionFunnel: ConversionFunnelStep[]
   segments: MemberSegment[]

@@ -103,7 +103,10 @@ export function SubscriptionOverviewTab({
                       : `$${((currentPlan?.featureModule.monthlyPrice || 0) / 100).toFixed(2)}`}
                   </p>
                 </div>
-                <a href="?tab=billing" className="inline-block px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium text-sm transition-colors">管理方案</a>
+                <div className="flex gap-2">
+                  <a href="?tab=billing#payment-methods" className="inline-block px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 font-medium text-sm transition-colors">設定付款</a>
+                  <a href="?tab=billing" className="inline-block px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-medium text-sm transition-colors">管理方案</a>
+                </div>
               </div>
             </div>
           </div>

@@ -38,6 +38,18 @@ export function SubscriptionBillingTab({
           <div className="mb-4">
             <h2 className="text-lg font-semibold">訂閱續約管理</h2>
             <p className="text-sm text-gray-600 mt-1">管理所有方案的自動續約設定</p>
+            <details className="mt-3 text-xs">
+              <summary className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium">
+                📋 自動續約設定說明
+              </summary>
+              <div className="mt-2 p-3 rounded bg-blue-50 border border-blue-200 whitespace-pre-wrap text-gray-700">
+{`✓ 步驟一：先在下方「支付方式管理」綁定有效的信用卡
+✓ 步驟二：在各訂閱方案卡片上啟用「自動續約」開關
+✓ 步驟三：系統將於訂閱到期前 7 天自動扣款
+✓ 若扣款失敗，進入 7 天寬限期，每日自動重試
+✓ 寬限期內若仍未支付，訂閱將停用`}
+              </div>
+            </details>
           </div>
 
           <div className="space-y-4">

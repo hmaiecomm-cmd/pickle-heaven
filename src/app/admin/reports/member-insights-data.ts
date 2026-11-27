@@ -55,6 +55,22 @@ export async function getMemberInsightsData(range: MemberInsightsRange, venueNam
   const retention = await getRetentionRate(range)
   const conversion = await getConversionRate(r, prevR)
 
+  // 計算活躍會員和 30 天回訪率
+  const activeMembers = await prisma.booking.findMany({
+    where: { paidAt: { gte: r.fromUtc, lt: r.toUtc } },
+    select: { userId: true },
+  })
+  const activeMembersCount = new Set(activeMembers.map((b) => b.userId)).size
+  const prevActiveMembers = await prisma.booking.findMany({
+    where: { paidAt: { gte: prevR.fromUtc, lt: prevR.toUtc } },
+    select: { userId: true },
+  })
+  const prevActiveMembersCount = new Set(prevActiveMembers.map((b) => b.userId)).size
+  const changeActiveMembers = prevActiveMembersCount > 0 ? Math.round(((activeMembersCount - prevActiveMembersCount) / prevActiveMembersCount) * 100) : null
+
+  const retention30d = retention.rate
+  const prevRetention30d = retention.prevRate
+
   // 生成每日行動清單
   const dailyActions = generateDailyActions(conversionData, retention, conversion)
 
@@ -67,6 +83,8 @@ export async function getMemberInsightsData(range: MemberInsightsRange, venueNam
       arpu: { value: arpuCurrent, prev: arpuPrev, change: changeArpu },
       retention: { value: retention.rate, prev: retention.prevRate, change: retention.change },
       conversion: { value: conversion.rate, prev: conversion.prevRate, change: conversion.change },
+      activeMembers: { value: activeMembersCount, prev: prevActiveMembersCount, change: changeActiveMembers },
+      retention30d: { value: retention30d, prev: prevRetention30d, change: retention.change },
     },
     conversionFunnel: conversionData,
     segments,

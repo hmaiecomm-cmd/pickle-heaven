@@ -64,12 +64,14 @@ export function MemberInsightsDashboard({
         </button>
       </div>
 
-      {/* ── 四大北極星 KPI ── */}
-      <section aria-label="主要指標" className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
-        <MemberKpiCard icon={TrendingUp} label="會員營收" value={`¥${data.kpi.memberRevenue.value.toLocaleString()}`} kpi={data.kpi.memberRevenue} />
-        <MemberKpiCard icon={TrendingUp} label="ARPU" value={`¥${data.kpi.arpu.value}`} kpi={data.kpi.arpu} />
+      {/* ── 六大 KPI 指標 ── */}
+      <section aria-label="主要指標" className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-6">
+        <MemberKpiCard icon={TrendingUp} label="會員營收" value={`NT$${data.kpi.memberRevenue.value.toLocaleString()}`} kpi={data.kpi.memberRevenue} />
+        <MemberKpiCard icon={TrendingUp} label="ARPU" value={`NT$${data.kpi.arpu.value}`} kpi={data.kpi.arpu} />
         <MemberKpiCard icon={TrendingUp} label="留存率" value={`${data.kpi.retention.value}%`} kpi={data.kpi.retention} />
         <MemberKpiCard icon={TrendingUp} label="轉化率" value={`${data.kpi.conversion.value}%`} kpi={data.kpi.conversion} />
+        <MemberKpiCard icon={TrendingUp} label="活躍會員" value={`${data.kpi.activeMembers.value}`} kpi={data.kpi.activeMembers} />
+        <MemberKpiCard icon={TrendingUp} label="回訪率" value={`${data.kpi.retention30d.value}%`} kpi={data.kpi.retention30d} />
       </section>
 
       {/* ── 圖表與分析（主要優先） ── */}

@@ -89,7 +89,7 @@ export function PaymentMethodManager({ paymentMethods, onUpdate }: PaymentMethod
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-4">
+    <div id="payment-methods" className="rounded-lg border p-4 space-y-4">
       <div>
         <h3 className="font-semibold text-sm">支付方式管理</h3>
         <p className="text-xs text-gray-600 mt-1">新增、管理與變更自動續約的付款方式</p>

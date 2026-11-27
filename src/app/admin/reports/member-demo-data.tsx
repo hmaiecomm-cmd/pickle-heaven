@@ -19,6 +19,8 @@ export const MockMemberInsightsData: MemberInsightsData = {
     arpu: { value: 2390, prev: 2110, change: 13.2 },
     retention: { value: 68, prev: 62, change: 9.7 },
     conversion: { value: 48, prev: 42, change: 14.3 },
+    activeMembers: { value: 68, prev: 62, change: 9.7 },
+    retention30d: { value: 42, prev: 38, change: 10.5 },
   },
   conversionFunnel: [
     { step: 'visitors', label: '首次接觸', count: 120, percentage: 100 },

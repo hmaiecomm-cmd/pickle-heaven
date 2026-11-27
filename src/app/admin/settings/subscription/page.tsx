@@ -72,10 +72,20 @@ export default async function PlatformSubscriptionPage() {
       modules = getMockModules()
     }
   } catch (error) {
-    console.error('[SubscriptionPage] 載入資料失敗：', error)
-    // 不把 SQLite/Prisma 內部錯誤直接顯示給使用者；記錄留在伺服器端供維運排查。
-    loadError = '訂閱資料庫尚未完成同步，目前先顯示方案設定畫面。'
+    // 記錄詳細的伺服器端錯誤供維運排查
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error('[SubscriptionPage] 資料庫查詢失敗', {
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    // 不把 SQLite/Prisma 內部錯誤直接顯示給使用者
+    loadError = '訂閱資料庫暫時無法載入，目前先顯示示範資料。請稍後重新整理。'
+    // 使用 mock 數據確保頁面可用
     modules = getMockModules()
+    subscriptions = []
+    payments = []
+    paymentMethods = []
+    activeSubscriptions = []
   }
 
   return (
