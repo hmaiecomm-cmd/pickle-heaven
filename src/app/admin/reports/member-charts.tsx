@@ -15,10 +15,13 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
     <div className="space-y-4">
       {/* 圖表主體與選擇器 */}
       <div className="rounded-2xl border border-[#e3e8dc] bg-white p-4 sm:p-5">
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h3 className="text-lg font-bold text-[#1f2a22]">營收與會員成長分析</h3>
-          <div className="flex flex-col xs:flex-row gap-2">
-            <label className="text-xs sm:text-sm font-semibold text-[#3d4a40] self-start sm:self-center">選擇圖表：</label>
+        <div className="mb-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-[#1f2a22]">{chartMeta.title}</h3>
+            <p className="mt-1 text-xs sm:text-sm text-muted">{chartMeta.desc}</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 self-start lg:self-auto">
+            <label className="text-xs sm:text-sm font-semibold text-[#3d4a40] self-start sm:self-center">切換圖表：</label>
             <select
               value={activeChart}
               onChange={(e) => onChart(e.target.value as ChartKeyMember)}
@@ -31,6 +34,24 @@ export function MemberChartsPanel({ data, activeChart, onChart }: { data: Member
               ))}
             </select>
           </div>
+        </div>
+
+        {/* 快速切換按鈕 */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(['arpu', 'retention', 'conversion'] as const).map((key) => (
+            <button
+              key={key}
+              onClick={() => onChart(key)}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                activeChart === key
+                  ? 'bg-[#2f7d3b] text-white shadow-sm'
+                  : 'border border-[#d7dfcf] bg-white text-[#3d4a40] hover:bg-[#f6f9f2]'
+              )}
+            >
+              {CHART_META_MEMBER[key].title}
+            </button>
+          ))}
         </div>
 
         {/* 簡單柱狀圖 */}

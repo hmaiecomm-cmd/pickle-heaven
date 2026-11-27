@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import * as React from 'react'
-import { ChevronDown, Loader2, Sparkles, Menu } from 'lucide-react'
+import { ChevronDown, Loader2, Sparkles, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChartType, UtilizationData, AIInsight } from './types'
 import { generateAIInsight } from './ai-service'
@@ -38,18 +38,32 @@ export function UtilizationDashboard({
   const [aiOpen, setAiOpen] = React.useState(false)
   const [aiLoading, setAiLoading] = React.useState(false)
   const [aiInsight, setAiInsight] = React.useState<AIInsight | null>(null)
-  const [selectedDays, setSelectedDays] = React.useState<number>(defaultDays)
+  const [periodMode, setPeriodMode] = React.useState<'7' | '30' | '90' | '180' | 'custom'>('30')
+  const [customStartDate, setCustomStartDate] = React.useState('')
+  const [customEndDate, setCustomEndDate] = React.useState('')
   const [selectedCourtId, setSelectedCourtId] = React.useState<string>(defaultCourtId)
   const [showDemo, setShowDemo] = React.useState(data.demoMode)
 
-  const handleDaysChange = (days: number) => {
-    setSelectedDays(days)
-    onDaysChange?.(days)
+  const handlePeriodChange = (mode: '7' | '30' | '90' | '180' | 'custom') => {
+    setPeriodMode(mode)
   }
 
   const handleCourtChange = (courtId: string) => {
     setSelectedCourtId(courtId)
     onCourtChange?.(courtId)
+  }
+
+  const handleApplyCustomDate = () => {
+    if (customStartDate && customEndDate) {
+      // Custom date logic - in real implementation would fetch data for this range
+      console.log(`Apply custom date: ${customStartDate} to ${customEndDate}`)
+    }
+  }
+
+  const handleClearCustomDate = () => {
+    setCustomStartDate('')
+    setCustomEndDate('')
+    setPeriodMode('30')
   }
 
   const runAi = async () => {
@@ -77,55 +91,111 @@ export function UtilizationDashboard({
       <div>
         <h1 className="text-xl font-bold text-[#1f2a22]">空場率與收益優化</h1>
         <p className="mt-0.5 text-xs text-muted">
-          {data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天）
+          {periodMode === 'custom'
+            ? `${customStartDate}～${customEndDate}（自訂期間）`
+            : `${data.range.from.replaceAll('-', '/')}～${data.range.to.replaceAll('-', '/')}（${data.range.days} 天）`}
         </p>
       </div>
 
-      {/* 控制列 - 簡潔設計 */}
-      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-end sm:flex-wrap">
-        <div className="flex flex-col gap-1 flex-1 sm:flex-initial">
-          <label className="text-xs font-semibold text-[#1f2a22]">分析期間</label>
-          <select
-            value={selectedDays}
-            onChange={(e) => handleDaysChange(Number(e.target.value))}
-            className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+      {/* 控制列 */}
+      <div className="space-y-3">
+        {/* 主控制列 */}
+        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-end sm:flex-wrap">
+          <div className="flex flex-col gap-1 flex-1 sm:flex-initial min-w-[160px]">
+            <label className="text-xs font-semibold text-[#1f2a22]">分析期間</label>
+            <select
+              value={periodMode}
+              onChange={(e) => handlePeriodChange(e.target.value as any)}
+              className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+            >
+              <option value="7">近 7 天</option>
+              <option value="30">近 30 天</option>
+              <option value="90">近 90 天</option>
+              <option value="180">近 180 天</option>
+              <option value="custom">自訂日期</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 flex-1 sm:flex-initial min-w-[160px]">
+            <label className="text-xs font-semibold text-[#1f2a22]">場地</label>
+            <select
+              value={selectedCourtId}
+              onChange={(e) => handleCourtChange(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+            >
+              <option value="">全部場地</option>
+              {data.courts.map(court => (
+                <option key={court.id} value={court.id}>{court.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={runAi}
+            disabled={aiLoading}
+            className={cn(
+              'flex shrink-0 items-center gap-2 rounded-lg bg-[#2f7d3b] px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 h-10',
+              focusRing,
+            )}
           >
-            <option value={7}>近 7 天</option>
-            <option value={30}>近 30 天</option>
-            <option value={90}>近 90 天</option>
-          </select>
+            {aiLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="h-4 w-4" aria-hidden />
+            )}
+            {aiLoading ? '分析中' : 'AI 幫我優化'}
+          </button>
         </div>
 
-        <div className="flex flex-col gap-1 flex-1 sm:flex-initial">
-          <label className="text-xs font-semibold text-[#1f2a22]">場地</label>
-          <select
-            value={selectedCourtId}
-            onChange={(e) => handleCourtChange(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
-          >
-            <option value="">全部場地</option>
-            {data.courts.map(court => (
-              <option key={court.id} value={court.id}>{court.name}</option>
-            ))}
-          </select>
-        </div>
+        {/* 自訂日期欄位 - 只在選擇自訂日期時顯示 */}
+        {periodMode === 'custom' && (
+          <div className="flex flex-col sm:flex-row gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-xs font-semibold text-[#1f2a22]">開始日期</label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+              />
+            </div>
 
-        <button
-          type="button"
-          onClick={runAi}
-          disabled={aiLoading}
-          className={cn(
-            'flex shrink-0 items-center gap-2 rounded-lg bg-[#2f7d3b] px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 h-10',
-            focusRing,
-          )}
-        >
-          {aiLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <Sparkles className="h-4 w-4" aria-hidden />
-          )}
-          {aiLoading ? '分析中' : 'AI 幫我優化'}
-        </button>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-xs font-semibold text-[#1f2a22]">結束日期</label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+              />
+            </div>
+
+            <div className="flex gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={handleApplyCustomDate}
+                disabled={!customStartDate || !customEndDate}
+                className={cn(
+                  'flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed',
+                  focusRing,
+                )}
+              >
+                套用
+              </button>
+              <button
+                type="button"
+                onClick={handleClearCustomDate}
+                className={cn(
+                  'flex shrink-0 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-[#1f2a22] hover:bg-zinc-50',
+                  focusRing,
+                )}
+              >
+                清除
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* KPI 卡片 - 響應式布局 */}

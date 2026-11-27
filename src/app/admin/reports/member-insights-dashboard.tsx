@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronDown, Loader2, Sparkles, TrendingUp } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Loader2, Sparkles, TrendingUp, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChartKeyMember, MemberInsightsData, MemberInsightsRange } from './member-insights-types'
 import { useMemberAiInsight } from './member-insights-ai'
@@ -16,6 +17,14 @@ const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#
 
 const demoDemoAiProvider: MemberAiInsightProvider = async () => DemoAiInsightResult
 
+const RANGE_OPTIONS = [
+  { key: '7', label: '近 7 天' },
+  { key: '30', label: '近 30 天' },
+  { key: '90', label: '近 90 天' },
+  { key: '180', label: '近 180 天' },
+  { key: 'custom', label: '自訂日期' },
+]
+
 export function MemberInsightsDashboard({
   data,
   initialChart = 'arpu',
@@ -27,9 +36,37 @@ export function MemberInsightsDashboard({
   onRangeChange?: (range: MemberInsightsRange) => void
   isDemo?: boolean
 }) {
+  const router = useRouter()
   const [chart, setChart] = React.useState<ChartKeyMember>(initialChart)
   const [aiOpen, setAiOpen] = React.useState(false)
+  const [customOpen, setCustomOpen] = React.useState(false)
+  const [customFrom, setCustomFrom] = React.useState(data.range.from)
+  const [customTo, setCustomTo] = React.useState(data.range.to)
   const ai = useMemberAiInsight(isDemo ? demoDemoAiProvider : undefined)
+
+  const handleRemoveDemo = () => {
+    const params = new URLSearchParams()
+    params.delete('demo')
+    router.push(`/admin/reports?${params.toString()}`)
+  }
+
+  const handleRangeChange = (key: string) => {
+    if (key === 'custom') {
+      setCustomOpen(true)
+    } else {
+      const params = new URLSearchParams()
+      params.set('range', key)
+      router.push(`/admin/reports?${params.toString()}`)
+    }
+  }
+
+  const handleCustomDateApply = () => {
+    const params = new URLSearchParams()
+    params.set('from', customFrom)
+    params.set('to', customTo)
+    router.push(`/admin/reports?${params.toString()}`)
+    setCustomOpen(false)
+  }
 
   if (!data.hasData) {
     return <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center text-sm text-muted">尚無會員資料</div>
@@ -45,23 +82,93 @@ export function MemberInsightsDashboard({
       {/* ── DEMO 區塊 ── */}
       {isDemo && <MemberDemoDataSection />}
 
-      {/* ── 標題與 AI 按鈕 ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1f2a22]">營收與會員成長洞察</h1>
-          <p className="mt-1 text-xs sm:text-sm text-muted">
-            {isDemo ? '📊 DEMO 示範資料｜' : ''}{data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天），與前期比較
-          </p>
+      {/* ── 標題、日期選擇與控制按鈕 ── */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-[#1f2a22]">營收與會員成長洞察</h1>
+            <p className="mt-1 text-xs sm:text-sm text-muted">
+              {isDemo ? '📊 DEMO 示範資料｜' : ''}{data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天），與前期比較
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* 日期選擇下拉式選單 */}
+            <select
+              value={data.range.key}
+              onChange={(e) => handleRangeChange(e.target.value)}
+              className="rounded-lg border border-[#d7dfcf] bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-[#3d4a40] hover:bg-[#f6f9f2] focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+            >
+              {RANGE_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={runAi}
+              disabled={ai.busy}
+              className={cn('flex items-center gap-2 rounded-xl bg-[#2f7d3b] px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70', focusRing)}
+            >
+              {ai.busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+              {ai.busy ? 'AI 分析中' : 'AI 分析'}
+            </button>
+            {/* 移除 Demo 按鈕 */}
+            {isDemo && (
+              <button
+                type="button"
+                onClick={handleRemoveDemo}
+                className={cn('flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs sm:text-sm font-bold text-red-700 hover:bg-red-100', focusRing)}
+                title="移除 Demo 示範資料"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">移除 Demo</span>
+              </button>
+            )}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={runAi}
-          disabled={ai.busy}
-          className={cn('flex items-center gap-2 rounded-xl bg-[#2f7d3b] px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 self-start sm:self-auto', focusRing)}
-        >
-          {ai.busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
-          {ai.busy ? 'AI 分析中' : 'AI 分析'}
-        </button>
+
+        {/* 自訂日期選擇器 */}
+        {customOpen && (
+          <div className="mt-3 rounded-lg border border-[#d7dfcf] bg-[#f6f9f2] p-3 sm:p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a40] mb-1">開始日期</label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="w-full rounded-lg border border-[#d7dfcf] bg-white px-3 py-2 text-xs sm:text-sm text-[#3d4a40] focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#3d4a40] mb-1">結束日期</label>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="w-full rounded-lg border border-[#d7dfcf] bg-white px-3 py-2 text-xs sm:text-sm text-[#3d4a40] focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setCustomOpen(false)}
+                className="rounded-lg border border-[#d7dfcf] bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#3d4a40] hover:bg-[#f6f9f2]"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleCustomDateApply}
+                className="rounded-lg bg-[#2f7d3b] px-3 py-1.5 text-xs sm:text-sm font-semibold text-white hover:bg-[#276a32]"
+              >
+                套用
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 六大 KPI 指標 ── */}

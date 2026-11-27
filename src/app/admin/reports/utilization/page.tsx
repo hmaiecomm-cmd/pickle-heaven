@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { pagePermission } from '@/lib/admin-auth'
 import { Forbidden, PageTitle, SourceNote } from '@/components/admin/page-bits'
 import { periodOf } from '../report-data'
-import { PeriodTabs } from '../period-tabs'
 import { getUtilizationData } from './data'
 import { UtilizationDashboard } from './utilization-dashboard'
 
@@ -28,7 +27,6 @@ export default async function UtilizationPage({
         title="空場率與收益優化"
         desc="找出空場機會，設計適合的價格與產品，讓每個時段都創造合理收益。"
       />
-      <PeriodTabs base="/admin/reports/utilization" days={period.days} from={period.from} to={period.to} />
 
       {data.hasData ? (
         <>
