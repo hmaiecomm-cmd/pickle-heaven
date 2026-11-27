@@ -42,62 +42,82 @@ export default async function PlatformSubscriptionPage() {
   let loadError: string | null = null
 
   try {
-    const [fetchedModules, fetchedSubscriptions, fetchedPayments, fetchedMethods, fetchedActive] =
-      await Promise.all([
-        getFeatureModules(true), // 只取可用功能
-        getVenueSubscriptions(venue.id),
-        prisma.platformPayment.findMany({
-          where: { venueId: venue.id },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        prisma.venuePaymentMethod.findMany({
-          where: { venueId: venue.id, isActive: true },
-          orderBy: { isDefault: 'desc' },
-        }),
-        prisma.featureSubscription.findMany({
-          where: { venueId: venue.id, status: 'ACTIVE' },
-          include: { featureModule: true },
-        }),
-      ])
+    // 分別載入各項數據，單個失敗不影響整體
+    console.info('[SubscriptionPage] 開始載入訂閱資料...')
 
-    modules = fetchedModules && fetchedModules.length > 0 ? fetchedModules : []
-    subscriptions = fetchedSubscriptions && fetchedSubscriptions.length > 0 ? fetchedSubscriptions : []
-    payments = fetchedPayments || []
-    paymentMethods = fetchedMethods || []
-    activeSubscriptions = fetchedActive || []
+    // 1. 功能模組 - 關鍵資料
+    try {
+      const fetchedModules = await getFeatureModules(true)
+      modules = fetchedModules && fetchedModules.length > 0 ? fetchedModules : []
+      console.info('[SubscriptionPage] 功能模組載入成功', { count: modules.length })
+    } catch (err) {
+      console.error('[SubscriptionPage] 功能模組載入失敗', err)
+      modules = getMockModules()
+      loadError = '部分資料無法載入'
+    }
+
+    // 2. 訂閱資料 - 關鍵資料
+    try {
+      const fetchedSubscriptions = await getVenueSubscriptions(venue.id)
+      subscriptions = fetchedSubscriptions && fetchedSubscriptions.length > 0 ? fetchedSubscriptions : []
+      console.info('[SubscriptionPage] 訂閱資料載入成功', { count: subscriptions.length })
+    } catch (err) {
+      console.error('[SubscriptionPage] 訂閱資料載入失敗', err)
+      subscriptions = []
+    }
+
+    // 3. 支付記錄 - 非關鍵
+    try {
+      const fetchedPayments = await prisma.platformPayment.findMany({
+        where: { venueId: venue.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      })
+      payments = fetchedPayments || []
+      console.info('[SubscriptionPage] 支付記錄載入成功', { count: payments.length })
+    } catch (err) {
+      console.error('[SubscriptionPage] 支付記錄載入失敗', err)
+      payments = []
+    }
+
+    // 4. 支付方式 - 非關鍵
+    try {
+      const fetchedMethods = await prisma.venuePaymentMethod.findMany({
+        where: { venueId: venue.id, isActive: true },
+        orderBy: { isDefault: 'desc' },
+      })
+      paymentMethods = fetchedMethods || []
+      console.info('[SubscriptionPage] 支付方式載入成功', { count: paymentMethods.length })
+    } catch (err) {
+      console.error('[SubscriptionPage] 支付方式載入失敗', err)
+      paymentMethods = []
+    }
+
+    // 5. 活躍訂閱 - 非關鍵
+    try {
+      const fetchedActive = await prisma.featureSubscription.findMany({
+        where: { venueId: venue.id, status: 'ACTIVE' },
+        include: { featureModule: true },
+      })
+      activeSubscriptions = fetchedActive || []
+      console.info('[SubscriptionPage] 活躍訂閱載入成功', { count: activeSubscriptions.length })
+    } catch (err) {
+      console.error('[SubscriptionPage] 活躍訂閱載入失敗', err)
+      activeSubscriptions = []
+    }
 
     // 診斷日誌
     console.info('[SubscriptionPage] 資料載入完成', {
       modulesCount: modules.length,
       subscriptionsCount: subscriptions.length,
+      paymentsCount: payments.length,
       activeSubscriptionsCount: activeSubscriptions.length,
-      firstModule: modules[0] ? { id: modules[0].id, name: modules[0].name, isAvailable: modules[0].isAvailable } : null,
     })
-
-    // 若無功能資料，才使用 mock（通常不會發生）
-    if (!modules || modules.length === 0) {
-      console.warn('[SubscriptionPage] 無可用功能模組，使用 mock 資料')
-      modules = getMockModules()
-    }
   } catch (error) {
-    // 記錄詳細的伺服器端錯誤供維運排查
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    const errorCode = error instanceof Error && 'code' in error ? (error as any).code : 'UNKNOWN'
-    console.error('[SubscriptionPage] 資料庫查詢失敗', {
-      error: errorMsg,
-      code: errorCode,
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-    })
-    // 不把 SQLite/Prisma 內部錯誤直接顯示給使用者
-    loadError = '訂閱資料庫暫時無法載入，目前先顯示示範資料。請稍後重新整理。'
-    // 使用 mock 數據確保頁面可用
+    // 外層捕捉未預期的異常
+    console.error('[SubscriptionPage] 未預期的錯誤', error)
+    loadError = '訂閱系統遇到未預期的錯誤，請稍後重新整理。'
     modules = getMockModules()
-    subscriptions = []
-    payments = []
-    paymentMethods = []
-    activeSubscriptions = []
   }
 
   return (
