@@ -16,7 +16,7 @@ export function SubscriptionOverviewTab({
 }: SubscriptionOverviewTabProps) {
   // 所有功能都已架構完成 - 檢查是否所有功能模組都是 ACTIVE
   const activeSubscriptions = subscriptions.filter((s) => s.status === 'ACTIVE')
-  const featureModules = modules.filter((m) => m.isAvailable && m.tier !== 'PLAN')
+  const featureModules = modules.filter((m) => m.isAvailable)
   const allFeaturesSubscribed = featureModules.length > 0 && featureModules.every((m) =>
     activeSubscriptions.some((s) => s.featureModuleId === m.id),
   )
