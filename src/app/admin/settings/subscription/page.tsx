@@ -44,7 +44,7 @@ export default async function PlatformSubscriptionPage() {
   try {
     const [fetchedModules, fetchedSubscriptions, fetchedPayments, fetchedMethods, fetchedActive] =
       await Promise.all([
-        getFeatureModules(),
+        getFeatureModules(true), // 只取可用功能
         getVenueSubscriptions(venue.id),
         prisma.platformPayment.findMany({
           where: { venueId: venue.id },
@@ -61,14 +61,15 @@ export default async function PlatformSubscriptionPage() {
         }),
       ])
 
-    modules = fetchedModules || []
-    subscriptions = fetchedSubscriptions || []
+    modules = fetchedModules && fetchedModules.length > 0 ? fetchedModules : []
+    subscriptions = fetchedSubscriptions && fetchedSubscriptions.length > 0 ? fetchedSubscriptions : []
     payments = fetchedPayments || []
     paymentMethods = fetchedMethods || []
     activeSubscriptions = fetchedActive || []
 
-    // 若無功能資料，使用 mock
+    // 若無功能資料，才使用 mock（通常不會發生）
     if (!modules || modules.length === 0) {
+      console.warn('[SubscriptionPage] 無可用功能模組，使用 mock 資料')
       modules = getMockModules()
     }
   } catch (error) {
