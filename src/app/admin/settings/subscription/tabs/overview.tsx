@@ -16,8 +16,10 @@ export function SubscriptionOverviewTab({
 }: SubscriptionOverviewTabProps) {
   // 所有功能都已架構完成 - 檢查是否所有功能模組都是 ACTIVE
   const activeSubscriptions = subscriptions.filter((s) => s.status === 'ACTIVE')
-  const featureModules = modules.filter((m) => m.isAvailable)
-  const allFeaturesSubscribed = featureModules.length > 0 && featureModules.every((m) =>
+
+  // modules 已經由 getFeatureModules(true) 過濾，全部都是可用的
+  // 只需檢查所有 modules 是否都有對應的 ACTIVE 訂閱
+  const allFeaturesSubscribed = modules.length > 0 && modules.every((m) =>
     activeSubscriptions.some((s) => s.featureModuleId === m.id),
   )
 
