@@ -19,14 +19,38 @@ interface UtilizationDashboardProps {
   initialChart?: ChartType
 }
 
-export function UtilizationDashboard({ data, initialChart = 'heatmap' }: UtilizationDashboardProps) {
+interface UtilizationDashboardInterfaceProps extends UtilizationDashboardProps {
+  defaultDays?: number
+  defaultCourtId?: string
+  onDaysChange?: (days: number) => void
+  onCourtChange?: (courtId: string) => void
+}
+
+export function UtilizationDashboard({
+  data,
+  initialChart = 'heatmap',
+  defaultDays = 30,
+  defaultCourtId = '',
+  onDaysChange,
+  onCourtChange
+}: UtilizationDashboardInterfaceProps) {
   const [chart, setChart] = React.useState<ChartType>(initialChart)
   const [aiOpen, setAiOpen] = React.useState(false)
   const [aiLoading, setAiLoading] = React.useState(false)
   const [aiInsight, setAiInsight] = React.useState<AIInsight | null>(null)
-  const [dateMode, setDateMode] = React.useState<'preset' | 'custom'>('preset')
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+  const [selectedDays, setSelectedDays] = React.useState<number>(defaultDays)
+  const [selectedCourtId, setSelectedCourtId] = React.useState<string>(defaultCourtId)
   const [showDemo, setShowDemo] = React.useState(data.demoMode)
+
+  const handleDaysChange = (days: number) => {
+    setSelectedDays(days)
+    onDaysChange?.(days)
+  }
+
+  const handleCourtChange = (courtId: string) => {
+    setSelectedCourtId(courtId)
+    onCourtChange?.(courtId)
+  }
 
   const runAi = async () => {
     setAiOpen(true)
@@ -49,111 +73,59 @@ export function UtilizationDashboard({ data, initialChart = 'heatmap' }: Utiliza
 
   return (
     <div className="space-y-6">
-      {/* 頂部控制區域 */}
-      <div className="space-y-4">
-        {/* 標題行 + AI 按鈕 */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-[#1f2a22]">空場率與收益優化</h1>
-            <p className="mt-0.5 text-xs text-muted">
-              {data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天）
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={runAi}
-            disabled={aiLoading}
-            className={cn(
-              'flex shrink-0 items-center gap-2 rounded-lg bg-[#2f7d3b] px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 h-10',
-              focusRing,
-            )}
+      {/* 頁面標題 */}
+      <div>
+        <h1 className="text-xl font-bold text-[#1f2a22]">空場率與收益優化</h1>
+        <p className="mt-0.5 text-xs text-muted">
+          {data.range.from.replaceAll('-', '/')}～{data.range.to.replaceAll('-', '/')}（{data.range.days} 天）
+        </p>
+      </div>
+
+      {/* 控制列 - 簡潔設計 */}
+      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-end sm:flex-wrap">
+        <div className="flex flex-col gap-1 flex-1 sm:flex-initial">
+          <label className="text-xs font-semibold text-[#1f2a22]">分析期間</label>
+          <select
+            value={selectedDays}
+            onChange={(e) => handleDaysChange(Number(e.target.value))}
+            className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
           >
-            {aiLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Sparkles className="h-4 w-4" aria-hidden />
-            )}
-            {aiLoading ? '分析中' : 'AI 幫我優化'}
-          </button>
+            <option value={7}>近 7 天</option>
+            <option value={30}>近 30 天</option>
+            <option value={90}>近 90 天</option>
+          </select>
         </div>
 
-        {/* 控制列 - 響應式布局 */}
-        <div className="hidden md:flex gap-3 items-end flex-wrap">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-[#1f2a22]">分析期間</label>
-            <select
-              value={dateMode}
-              onChange={(e) => setDateMode(e.target.value as 'preset' | 'custom')}
-              className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
-            >
-              <option value="preset">近 30 天</option>
-              <option value="custom">自訂日期</option>
-            </select>
-          </div>
+        <div className="flex flex-col gap-1 flex-1 sm:flex-initial">
+          <label className="text-xs font-semibold text-[#1f2a22]">場地</label>
+          <select
+            value={selectedCourtId}
+            onChange={(e) => handleCourtChange(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
+          >
+            <option value="">全部場地</option>
+            {data.courts.map(court => (
+              <option key={court.id} value={court.id}>{court.name}</option>
+            ))}
+          </select>
+        </div>
 
-          {dateMode === 'custom' && (
-            <>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#1f2a22]">開始日期</label>
-                <input type="date" className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]" defaultValue={data.range.from} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#1f2a22]">結束日期</label>
-                <input type="date" className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]" defaultValue={data.range.to} />
-              </div>
-            </>
+        <button
+          type="button"
+          onClick={runAi}
+          disabled={aiLoading}
+          className={cn(
+            'flex shrink-0 items-center gap-2 rounded-lg bg-[#2f7d3b] px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#276a32] disabled:opacity-70 h-10',
+            focusRing,
           )}
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-[#1f2a22]">場地</label>
-            <select className="px-3 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7cb342]">
-              <option value="">全部場地</option>
-              {data.courts.map(court => (
-                <option key={court.id} value={court.id}>{court.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* 平板版控制列 */}
-        <div className="hidden sm:flex md:hidden gap-2 items-end flex-wrap">
-          <div className="flex-1 min-w-[150px]">
-            <label className="text-xs font-semibold text-[#1f2a22]">分析期間</label>
-            <select
-              value={dateMode}
-              onChange={(e) => setDateMode(e.target.value as 'preset' | 'custom')}
-              className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#7cb342]"
-            >
-              <option value="preset">近 30 天</option>
-              <option value="custom">自訂日期</option>
-            </select>
-          </div>
-          <button className="flex-1 min-w-[120px] h-9 px-2 py-1.5 rounded-lg bg-[#2f7d3b] text-white text-xs font-bold hover:bg-[#276a32]">
-            AI 幫我優化
-          </button>
-        </div>
-
-        {dateMode === 'custom' && (
-          <div className="hidden sm:flex md:hidden gap-2 items-end flex-wrap">
-            <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-semibold text-[#1f2a22]">開始日期</label>
-              <input type="date" className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#7cb342]" defaultValue={data.range.from} />
-            </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-semibold text-[#1f2a22]">結束日期</label>
-              <input type="date" className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#7cb342]" defaultValue={data.range.to} />
-            </div>
-            <div className="flex-1 min-w-[100px]">
-              <label className="text-xs font-semibold text-[#1f2a22]">場地</label>
-              <select className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#7cb342]">
-                <option value="">全部場地</option>
-                {data.courts.map(court => (
-                  <option key={court.id} value={court.id}>{court.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
+        >
+          {aiLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Sparkles className="h-4 w-4" aria-hidden />
+          )}
+          {aiLoading ? '分析中' : 'AI 幫我優化'}
+        </button>
       </div>
 
       {/* KPI 卡片 - 響應式布局 */}
@@ -168,7 +140,7 @@ export function UtilizationDashboard({ data, initialChart = 'heatmap' }: Utiliza
         <UtilizationKpiCard label="場地附加收入" value={data.kpi.additionalIncome.value} metric={data.kpi.additionalIncome} />
       </section>
 
-      <UtilizationChartsPanel data={data} activeChart={chart} onChartChange={setChart} />
+      <UtilizationChartsPanel data={data} activeChart={chart} onChartChange={setChart} selectedCourtId={selectedCourtId} />
 
       {/* 場地營運狀態 - 響應式 3 欄或 2 欄 */}
       <section aria-label="場地營運狀態" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
